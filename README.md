@@ -15,10 +15,13 @@ Juegas contra Stockfish por niveles o contra un maestro que se adapta a ti, resu
 ## Cómo abrirla
 
 - **En línea (recomendado):** entra a https://ferhuca.github.io/Casilla/ y espera a que el indicador de arriba a la derecha diga **Stockfish 10 listo**. Tarda unos segundos la primera vez.
-- **En el celular:** abre el enlace en Safari (iPhone) o Chrome (Android) y usa **Añadir a pantalla de inicio** para tenerla como un ícono de app.
+- **En el celular:** abre el enlace en Safari (iPhone) o Chrome (Android) y usa **Añadir a pantalla de inicio** para tenerla como un ícono de app. La interfaz está adaptada a pantallas desde 360 px:
+  - El tablero ocupa todo el ancho y los relojes quedan arriba y abajo de él.
+  - Debajo del tablero aparecen el estado de la partida, el último comentario del maestro y sus avisos con los botones **Pensar otra vez** y **Jugarla igual**. Al terminar aparece **Ver evaluación**.
+  - El resto del panel (lista de jugadas, explicaciones, opciones) queda más abajo; desliza para verlo. Los botones que muestran una línea en el tablero te regresan a él.
 - **Sin publicar, en tu computadora:** descarga `index.html` de este repositorio, guárdalo en una carpeta fija y ábrelo con doble clic. En el celular este método no es confiable; usa el enlace.
 
-Para mover una pieza, arrástrala, o toca la pieza y luego la casilla de destino.
+Para mover una pieza, arrástrala, o toca la pieza y luego la casilla de destino. Al coronar, elige la pieza en el selector que aparece sobre el tablero.
 
 ## Qué puedes hacer
 
@@ -128,7 +131,8 @@ Tampoco se guarda una partida que dejes a medias: solo se registran las terminad
 - **Los puzzles no cargan:** Lichess o Chess.com pueden estar temporalmente sin respuesta. Prueba otra fuente o pulsa Reintentar.
 - **Claude no responde:** en la pestaña Maestro pulsa **Probar conexión**; el mensaje dice el motivo. Lo más común es una clave mal copiada o una cuenta de Anthropic sin saldo. Mientras tanto, el maestro sigue comentando con sus frases integradas.
 - **La evaluación tarda:** es normal en partidas largas o en equipos lentos. Puedes salir y volver; si empiezas otra partida, la evaluación anterior se cancela.
-- **Ves una versión vieja de la app:** recarga forzando con Ctrl+Shift+R, o Cmd+Shift+R en Mac.
+- **Ves una versión vieja de la app:** recarga forzando con Ctrl+Shift+R, o Cmd+Shift+R en Mac. En el celular, cierra la pestaña o el ícono de la pantalla de inicio y vuelve a abrirlo.
+- **En el celular no ves el resultado o la explicación:** están en el panel debajo del tablero; desliza hacia abajo.
 
 ## Créditos
 
