@@ -32,6 +32,8 @@ Puedes jugar sin reloj o con ritmo 3+2, 5+0, 10+5 o 15+10. Si se te acaba el tie
 
 Si activas **El maestro comenta la partida**, sin ayudas solo señala tus buenas jugadas y deja los errores para el resumen final; con ayudas, además te avisa antes de un error grave.
 
+**Barra de evaluación:** puedes mostrarla a un costado del tablero desde la pantalla de inicio o con el botón **Mostrar barra** durante la partida. Se actualiza después de cada jugada con Stockfish a máxima fuerza y se gira junto con el tablero. En la escalera sin ayudas cuenta como ayuda: esa victoria no desbloquea niveles.
+
 ### Maestro
 Un rival que aprende de ti:
 - **Estima tu nivel** con tus partidas de Chess.com, la escalera, tus puzzles y tus partidas serias contra él, y juega unos 100 puntos por encima.

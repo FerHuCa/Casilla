@@ -78,9 +78,13 @@ a:hover{text-decoration-color:var(--text)}
 /* estructura */
 main{display:grid;grid-template-columns:auto minmax(320px,400px);gap:48px;padding:28px 32px 40px;justify-content:center;align-items:start}
 .board-row{display:flex;gap:10px;align-items:stretch}
-.evalbar{width:12px;height:var(--bw);border-radius:2px;overflow:hidden;position:relative;background:var(--evalbg);flex:none}
+.evalbar{width:18px;height:var(--bw);border-radius:2px;overflow:hidden;position:relative;background:var(--evalbg);flex:none}
 .evalbar .fill{position:absolute;left:0;right:0;bottom:0;height:50%;background:var(--evalfill);transition:height .35s ease}
-.evalbar .evtxt{position:absolute;left:18px;bottom:0;font-size:12px;color:var(--muted);white-space:nowrap;display:none}
+.evalbar.flip .fill{bottom:auto;top:0}
+.evalbar .evtxt{position:absolute;left:0;right:0;bottom:5px;font-size:10px;font-weight:600;line-height:1;text-align:center;white-space:nowrap;writing-mode:vertical-rl;transform:rotate(180deg);color:#1F1E1D}
+.evalbar.neg .evtxt{bottom:auto;top:5px;color:#E9E6E0}
+.evalbar.flip .evtxt{bottom:auto;top:5px}
+.evalbar.flip.neg .evtxt{top:auto;bottom:5px}
 .evalbar.off{visibility:hidden}
 .board-box{position:relative;width:var(--bw);height:var(--bw);flex:none}
 .board{width:100%;height:100%;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:0 0 0 1px var(--frame),0 10px 30px rgba(0,0,0,.35)}
@@ -107,7 +111,7 @@ main{display:grid;grid-template-columns:auto minmax(320px,400px);gap:48px;paddin
 .promo[hidden]{display:none}
 .promo button{width:calc(var(--bw)*.14);height:calc(var(--bw)*.14);border:0;border-radius:4px;background:var(--sqL);cursor:pointer;position:relative}
 .promo button:hover{filter:brightness(1.06)}
-.under{margin-top:18px;display:flex;flex-direction:column;gap:12px;max-width:calc(var(--bw) + 22px)}
+.under{margin-top:18px;display:flex;flex-direction:column;gap:12px;max-width:calc(var(--bw) + 28px)}
 .status{min-height:24px;color:var(--text)}
 .status.good{color:var(--good)} .status.bad{color:var(--bad)} .status.warn{color:var(--warn)}
 .controls{display:flex;gap:6px;flex-wrap:wrap}
@@ -187,7 +191,7 @@ textarea{min-height:64px;font-size:13px;resize:vertical;font-family:ui-monospace
 .explain p{margin:0 0 6px;color:var(--text)}
 .explain b{font-weight:600}
 .explain .line{font-size:13px;color:var(--muted);padding:6px 0 6px 10px;border-left:2px solid var(--line2)}
-.clock{display:flex;justify-content:space-between;align-items:center;width:var(--bw);margin-left:22px;font-size:14px;color:var(--muted)}
+.clock{display:flex;justify-content:space-between;align-items:center;width:var(--bw);margin-left:28px;font-size:14px;color:var(--muted)}
 #clockTop{margin-bottom:8px}
 .clock[hidden]{display:none}
 .clock .tm{font-variant-numeric:tabular-nums;font-size:20px;font-weight:600;padding:1px 10px;border-radius:4px;background:var(--raise);color:var(--muted);min-width:86px;text-align:right}
@@ -660,7 +664,7 @@ const Board = {
       c.dataset.sq = 'abcdefgh'[file] + (rank+1);
     });
   },
-  flip(){ this.orient = other(this.orient); this.layout(); this.render(); },
+  flip(){ this.orient = other(this.orient); this.layout(); this.render(); EvalBar.refresh(); },
   canMove(color){
     const g = App.game; if(App.busy || g.game_over()) return false;
     if(color !== g.turn()) return false;
@@ -754,8 +758,17 @@ const Board = {
   }
 };
 const EvalBar = {
-  set(vWhite){ const el=$('#evalbar'); el.classList.remove('off'); const pct = Math.abs(vWhite)>=1450 ? (vWhite>0?100:0) : winPct(vWhite); el.querySelector('.fill').style.height = pct + '%'; el.classList.toggle('neg', vWhite < 0); el.querySelector('.evtxt').textContent = fmtEval(vWhite); },
-  hide(){ $('#evalbar').classList.add('off'); }
+  v:null,
+  set(vWhite){
+    this.v = vWhite; const el = $('#evalbar'); el.classList.remove('off');
+    const pct = Math.abs(vWhite) >= 1450 ? (vWhite > 0 ? 100 : 0) : winPct(vWhite);
+    el.querySelector('.fill').style.height = pct + '%';
+    el.classList.toggle('neg', vWhite < 0); el.classList.toggle('flip', Board.orient === 'b');
+    el.querySelector('.evtxt').textContent = fmtEval(vWhite);
+    el.setAttribute('aria-label', 'Evaluación ' + fmtEval(vWhite) + ' desde el lado de las blancas');
+  },
+  refresh(){ const el = $('#evalbar'); if(this.v !== null && !el.classList.contains('off')) this.set(this.v); },
+  hide(){ this.v = null; $('#evalbar').classList.add('off'); }
 };
 function setStatus(text, kind=''){ const s=$('#status'); s.className='status ' + kind; s.textContent=text; }
 function setControls(list){
@@ -788,7 +801,7 @@ const App = {
   ladderSel:null, ladderColor:'w', puzzleSource:'mix', puzzleTheme:'auto', posTab:'finales', mineFocus:null, playTier:null,
   setSession(s){
     if(this.session && this.session.exit) this.session.exit();
-    this.token++; Engine.cancel('ui'); Engine.cancel('coach'); this.busy = false; Clocks.hide();
+    this.token++; Engine.cancel('ui'); Engine.cancel('coach'); Engine.cancel('bar'); this.busy = false; Clocks.hide();
     this.session = s;
     Board.onMove = mv => s.onUserMove && s.onUserMove(mv);
     Board.sel = null; Board.arrows = []; Board.marks = {}; Board._endDrag();
@@ -874,14 +887,38 @@ class PlaySession{
     this.over = false; this.userMoves = 0; this.promoted = false; this.userEval = null; this.hintsUsed = false; this.result = null; this.thinking = false; this.checking = false;
     Engine.needNew = true; Evaluator.cancel(); this.evalJob = null;
     this.gid = (o.vsCoach || o.coach ? 'coach:' : 'play:') + Date.now();
-    if(o.helps || o.goal) EvalBar.set(0); else EvalBar.hide();
+    this.barShown = !!(o.helps || o.goal || S.settings.showBar);
+    this.barUsed = this.barShown && !o.helps && !o.goal;
+    if(this.barShown) EvalBar.set(0); else EvalBar.hide();
     this.coach = o.coach ? new Coach(this, o.coach) : null;
     const tc = parseTC(o.clock);
     this.clk = tc ? new GameClock(tc, c => this.flag(c), () => Clocks.render(this.clk, this.user, this.oppName)) : null;
     this.renderSide(); this.update();
     if(this.clk) this.clk.start(App.game.turn()); else Clocks.hide();
     if(this.coach) this.coach.start();
+    this.refreshBar();
     if(App.game.turn() !== this.user) this.engineTurn(); else if(this.coach) this.coach.userTurn();
+  }
+  refreshBar(){
+    if(!this.barShown) return;
+    Engine.cancel('bar');
+    const g = App.game, fen = g.fen(), tok = App.token, stm = g.turn();
+    if(g.game_over()){ EvalBar.set(g.in_checkmate() ? (stm === 'w' ? -1500 : 1500) : 0); return; }
+    Engine.run(fen, {movetime:350, tag:'bar', priority:1}).then(r => {
+      if(!r || !r.score || tok !== App.token || App.game.fen() !== fen || !this.barShown) return;
+      EvalBar.set((stm === 'w' ? 1 : -1) * cpEq(r.score));
+    });
+  }
+  toggleBar(){
+    const o = this.o;
+    this.barShown = !this.barShown; S.settings.showBar = this.barShown; save();
+    if(this.barShown){
+      if(!o.helps && !o.goal && !this.over && !this.barUsed && (o.ladder || o.vsCoach))
+        toast(o.ladder ? 'Con la barra visible, esta partida cuenta como partida con ayudas: no desbloquea niveles.' : 'Con la barra visible, esta partida no cuenta para tu rating con el maestro.', 4500);
+      if(!this.over) this.barUsed = this.barUsed || (!o.helps && !o.goal);
+      EvalBar.set(EvalBar.v ?? 0); this.refreshBar();
+    } else { Engine.cancel('bar'); EvalBar.hide(); }
+    this.update();
   }
   exit(){ if(this.clk) this.clk.stop(); Clocks.hide(); }
   get oppName(){ return this.o.oppName || (this.o.tier === STRONG ? 'Stockfish' : TIERS[this.o.tierIdx].n); }
@@ -907,7 +944,7 @@ class PlaySession{
     const m = App.game.move(mv); if(!m) return;
     if(this.clk) this.clk.moved(this.user);
     this.userMoves++; if(m.promotion) this.promoted = true;
-    Board.arrows = []; Board.marks = {}; Board.last = m; this.update();
+    Board.arrows = []; Board.marks = {}; Board.last = m; this.update(); this.refreshBar();
     if(this.coach) this.coach.afterUser(m, fenBefore, verdict);
     if(this.checkEnd()) return;
     this.engineTurn();
@@ -924,10 +961,10 @@ class PlaySession{
     if(tok !== App.token || this.over) return;
     App.busy = false; this.thinking = false;
     if(!r){ this.update(); return; }
-    if(r.score){ this.userEval = -cpEq(r.score); if(this.o.helps || this.o.goal) EvalBar.set(this.user==='w' ? this.userEval : -this.userEval); }
+    if(r.score) this.userEval = -cpEq(r.score);
     const m = App.game.move(uciObj(r.uci)); Board.last = m;
     if(this.clk) this.clk.moved(other(this.user));
-    this.update();
+    this.update(); this.refreshBar();
     if(this.coach) this.coach.afterEngine(m, r);
     if(this.checkEnd()) return;
     this.checkGoal();
@@ -978,13 +1015,13 @@ class PlaySession{
       if(o.tierIdx !== null && o.ladder){
         const rec = S.ladder.rec[o.tierIdx] || (S.ladder.rec[o.tierIdx] = {w:0,d:0,l:0});
         rec[res]++;
-        if(res === 'w' && !o.helps && !this.hintsUsed && o.tierIdx + 1 === S.ladder.unlocked && S.ladder.unlocked < TIERS.length){
+        if(res === 'w' && !o.helps && !this.hintsUsed && !this.barUsed && o.tierIdx + 1 === S.ladder.unlocked && S.ladder.unlocked < TIERS.length){
           S.ladder.unlocked++; this.result.unlocked = TIERS[o.tierIdx + 1].n;
         }
         save();
       }
       if(o.vsCoach){
-        const C = coachState(); const serious = !o.helps;
+        const C = coachState(); const serious = !o.helps && !this.barUsed;
         C.rec[res]++;
         if(serious){
           if(C.rating === null) C.rating = o.playerElo;
@@ -996,6 +1033,7 @@ class PlaySession{
       }
     }
     if(this.coach) this.coach.finish(this.result);
+    this.refreshBar();
     if(!o.goal && App.game.history().length >= 4){
       this.evalJob = Evaluator.start({gid:this.gid, startFen:this.startFen, sans:App.game.history(), user:this.user, opp:this.oppName, title:o.title, result:this.result, kind:o.vsCoach ? 'maestro' : o.ladder ? 'escalera' : 'partida'});
       this.evalJob.listeners.push(() => { if(App.session === this) this.renderEvalBox(); });
@@ -1025,7 +1063,7 @@ class PlaySession{
     const r = await Engine.run(App.game.fen(), {movetime:900, tag:'ui', priority:3});
     if(tok !== App.token || !r || !r.best) return;
     Board.arrows = [{from:r.best.slice(0,2), to:r.best.slice(2,4), c:'h'}];
-    EvalBar.set((App.game.turn()==='w'?1:-1) * cpEq(r.score));
+    if(this.barShown) EvalBar.set((App.game.turn()==='w'?1:-1) * cpEq(r.score));
     this.update();
   }
   undo(){
@@ -1035,7 +1073,7 @@ class PlaySession{
     const h = g.history({verbose:true}); Board.last = h[h.length-1] || null; Board.arrows = [];
     if(this.coach) this.coach.onUndo();
     if(g.turn() !== this.user){ this.engineTurn(); } else if(this.coach) this.coach.userTurn();
-    this.update();
+    this.update(); this.refreshBar();
   }
   update(){
     Board.render();
@@ -1050,6 +1088,7 @@ class PlaySession{
     setControls([
       helps && {label:'Pista', on:()=>this.hint(), disabled:busy},
       helps && {label:'Deshacer', on:()=>this.undo(), disabled:busy},
+      {label:this.barShown ? 'Ocultar barra' : 'Mostrar barra', on:()=>this.toggleBar()},
       {label:'Girar tablero', on:()=>Board.flip()},
       !this.over && {label: this.o.goal ? 'Rendirse' : 'Abandonar', on:()=> this.o.goal ? this.finish(false,'Te rendiste') : this.finish('l','Abandono')},
       this.over && {label:'Analizar posición', on:()=>App.setSession(new AnalysisSession({fen:g.fen(), title:'Análisis libre', back:()=>App.setSession(new PlaySession(this.o))}))},
@@ -1066,7 +1105,8 @@ class PlaySession{
       res = '<div class="result ' + kind + '"><strong>' + (r.res==='w'?'Victoria':r.res==='l'?'Derrota':'Tablas') + '</strong>' + esc(r.why) + '.' +
         (r.unlocked ? '<br>Desbloqueaste el nivel ' + esc(r.unlocked) + '.' : '') +
         (r.delta !== undefined ? '<br>Tu rating con el maestro: ' + coachState().rating + ' (' + (r.delta >= 0 ? '+' : '') + r.delta + ').' : '') +
-        (r.res==='w' && o.ladder && (o.helps || this.hintsUsed) ? '<br>Usaste ayudas, así que esta victoria no desbloquea niveles.' : '') + '</div>';
+        (r.res==='w' && o.ladder && (o.helps || this.hintsUsed || this.barUsed) ? '<br>Usaste ayudas' + (this.barUsed && !o.helps && !this.hintsUsed ? ' (la barra de evaluación)' : '') + ', así que esta victoria no desbloquea niveles.' : '') +
+        (o.vsCoach && !o.helps && this.barUsed ? '<br>Tuviste la barra de evaluación visible, así que no cuenta para tu rating con el maestro.' : '') + '</div>';
     }
     const desc = o.desc || ('Contra ' + this.tierName + (o.tier!==STRONG && o.tierIdx !== null ? ' (' + TIERS[o.tierIdx].elo + ')' : '') + '.' + (o.helps ? ' Con ayudas.' : '') + (o.clock && o.clock !== 'none' ? ' Ritmo ' + tcLabel(o.clock) + '.' : ''));
     side().innerHTML =
@@ -1104,6 +1144,7 @@ function renderLadderHome(){
     '<div class="field"><span class="lbl">Juegas con</span>' + segHTML('color', [['w','Blancas'],['b','Negras'],['r','Al azar']], App.ladderColor) + '</div>' +
     '<div class="field"><span class="lbl">Ritmo</span>' + segHTML('clock', TIME_CONTROLS, st.clock || 'none') + '</div>' +
     '<label class="check"><input type="checkbox" id="helps"' + (st.ladderHelps ? ' checked' : '') + '> <span>Con ayudas: pistas, deshacer y barra de evaluación. No cuenta para desbloquear.</span></label>' +
+    '<label class="check"><input type="checkbox" id="lbar"' + (st.showBar ? ' checked' : '') + '> <span>Mostrar barra de evaluación a un costado del tablero. Sin ayudas, cuenta como ayuda: la victoria no desbloquea niveles.</span></label>' +
     '<label class="check"><input type="checkbox" id="lcoach"' + (st.ladderCoach ? ' checked' : '') + '> <span>El maestro comenta la partida. Sin ayudas, señala tus buenas jugadas y deja los errores para el resumen final; con ayudas, también te avisa antes de un error grave.</span></label>' +
     '<button class="btn primary wide" id="go">Jugar contra ' + TIERS[sel].n + '</button>';
   const root = side();
@@ -1115,6 +1156,7 @@ function renderLadderHome(){
   bindSeg(root, 'clock', v => { S.settings.clock = v; save(); });
   $('#helps').onchange = e => { S.settings.ladderHelps = e.target.checked; save(); };
   $('#lcoach').onchange = e => { S.settings.ladderCoach = e.target.checked; save(); };
+  $('#lbar').onchange = e => { S.settings.showBar = e.target.checked; save(); };
   $('#go').onclick = () => startLadder(App.ladderSel, App.ladderColor, $('#helps').checked);
 }
 async function startLadder(i, colorPref, helps){
@@ -1982,6 +2024,7 @@ function renderCoachHome(){
     '<div class="field"><span class="lbl">Tipo de partida</span>' + segHTML('cmode', [['guiada','Guiada'],['seria','Seria']], st.mode) + '<p class="note" style="margin-top:6px">' + (st.mode === 'guiada' ? 'Te aviso antes de errores graves, señalo amenazas y puedes pedir pistas o deshacer.' : 'Sin ayudas. Durante el juego solo comento lo bueno; los errores los vemos al final. Cuenta para tu rating con el maestro.') + '</p></div>' +
     '<div class="field"><span class="lbl">Juegas con</span>' + segHTML('ccolor', [['w','Blancas'],['b','Negras'],['r','Al azar']], st.color) + '</div>' +
     '<div class="field"><span class="lbl">Ritmo</span>' + segHTML('cclock', TIME_CONTROLS, st.clock || 'none') + '</div>' +
+    '<label class="check"><input type="checkbox" id="cbar"' + (S.settings.showBar ? ' checked' : '') + '> <span>Mostrar barra de evaluación a un costado del tablero. En una partida seria, deja de contar para tu rating.</span></label>' +
     '<button class="btn primary wide" id="cgo">Jugar contra el maestro</button>' +
     '<h3>Comentarios con Claude (opcional)</h3>' +
     '<p class="note">Sin esto, el maestro comenta con frases armadas a partir de Stockfish. Con tu clave de la API de Anthropic, Claude reescribe cada comentario en lenguaje natural. La clave se guarda solo en este navegador, se envía directo a Anthropic y no se incluye en los respaldos. Con Haiku cuesta menos de un centavo de dólar por partida.</p>' +
@@ -1995,6 +2038,7 @@ function renderCoachHome(){
   bindSeg(root, 'ccolor', v => { prefs().color = v; save(); });
   bindSeg(root, 'cclock', v => { prefs().clock = v; save(); });
   $('#cgo').onclick = () => startCoachGame();
+  $('#cbar').onchange = e => { S.settings.showBar = e.target.checked; save(); };
   const saveAI = () => { S.settings.claude = {on:$('#aion').checked, key:$('#aikey').value.trim(), model:$('#aimodel').value}; save(); };
   $('#aion').onchange = saveAI; $('#aikey').onchange = saveAI; $('#aimodel').onchange = saveAI;
   $('#aitest').onclick = async () => {
