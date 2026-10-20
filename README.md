@@ -99,7 +99,33 @@ El botón **Apariencia** abre un panel para personalizar la app. Los cambios se 
 - **Piezas:** Clásicas, Merida, Celtic, Minimal o Chessnut.
 
 ### Progreso
-Tus niveles superados, la evolución de tu rating de puzzles, tus errores más comunes con una recomendación de qué entrenar, tus finales y aperturas repasados, y la opción de exportar o importar un respaldo.
+Tus niveles superados, la evolución de tu rating de puzzles, tus errores más comunes con una recomendación de qué entrenar, tus finales y aperturas repasados, la sincronización entre dispositivos y la opción de exportar o importar un respaldo.
+
+## Sincronizar entre computadora y celular
+
+Casilla puede guardar tu progreso en un **gist secreto de tu cuenta de GitHub** para usar el mismo progreso en todos tus dispositivos. No hay servidor de por medio: la app habla directo con GitHub.
+
+**Configurarlo (una vez por dispositivo):**
+1. Abre [este enlace para crear un token](https://github.com/settings/tokens/new?scopes=gist&description=Casilla). Ya viene con el permiso **gist** marcado, que es el único que necesita. Elige una fecha de vencimiento y pulsa **Generate token**.
+2. En Casilla, ve a **Progreso → Sincronizar entre dispositivos**, pega el token y pulsa **Conectar y sincronizar**.
+3. En tu otro dispositivo haz lo mismo, con el mismo token o con uno nuevo. La app encuentra el gist sola y combina los dos progresos.
+
+**Cómo funciona:**
+- **Cuándo sincroniza:** al abrir la app y al volver a ella; unos segundos después de cada cambio sube lo nuevo. También puedes pulsar **Sincronizar ahora**. El indicador del encabezado muestra el estado.
+- **Combina, no sobrescribe:**
+  - Escalera: se queda el nivel más alto.
+  - Partidas y análisis: se suman.
+  - Puzzles: el historial se une y el rating toma el más reciente.
+  - Maestro, finales y aperturas: se unen.
+- **Ajustes:** en un dispositivo nuevo se copian tu apariencia y preferencias. Después, cada dispositivo conserva las suyas.
+- **Tamaño:** el progreso se comprime antes de subirse, así que ocupa poco aunque tengas cientos de partidas.
+
+**Lo que conviene saber:**
+- **El token y tu clave de Claude nunca se suben.** Se quedan en el navegador de cada dispositivo y tampoco van en los respaldos.
+- **Un gist secreto no es privado:** no aparece en búsquedas ni en tu perfil, pero quien tenga su enlace exacto puede verlo. Contiene tu progreso y tus partidas de Chess.com, que ya son públicas.
+- **Cuando el token caduque,** la app te avisa y te deja pegar uno nuevo sin perder nada.
+- **Desconectar un dispositivo** solo borra el token de ese navegador. El gist y tu progreso se quedan.
+- **Si juegas en dos dispositivos a la vez sin conexión,** algunos contadores, como las victorias por nivel, pueden quedar con el número mayor de los dos en lugar de la suma.
 
 ## Dónde se guarda tu progreso
 
@@ -113,12 +139,15 @@ Lo pierdes si:
 
 Tampoco se guarda una partida que dejes a medias: solo se registran las terminadas.
 
+Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computadora-y-celular).
+
 **Consejo:** en Progreso usa **Exportar respaldo** de vez en cuando, sobre todo después de analizar muchas partidas. Con **Importar respaldo** recuperas todo en otro navegador o equipo, por ejemplo para pasar tu análisis de la computadora al celular. Por seguridad, el respaldo no incluye tu clave de Claude; vuelve a pegarla en cada navegador.
 
 ## Privacidad
 
 - **Chess.com:** la app solo lee la API pública con tu nombre de usuario. No pide contraseña ni puede modificar nada en tu cuenta.
 - **Lichess:** se piden puzzles de forma anónima.
+- **GitHub:** solo si activas la sincronización. Tu progreso se guarda en un gist secreto de tu cuenta.
 - **Anthropic:** solo si activas Claude. Se envían las posiciones y los datos de Stockfish de cada comentario, junto con tu nivel estimado y tus errores más comunes. La clave va directo de tu navegador a Anthropic.
 - Nada más sale de tu navegador. Cada persona que abre la app empieza de cero y nadie ve el progreso de otros.
 
@@ -129,6 +158,7 @@ Tampoco se guarda una partida que dejes a medias: solo se registran las terminad
 - **No aparecen tus partidas de hoy:** Chess.com actualiza sus datos públicos cada 12 a 24 horas.
 - **Faltan algunas partidas:** la app solo carga ajedrez estándar; omite Chess960, bughouse y otras variantes.
 - **Los puzzles no cargan:** Lichess o Chess.com pueden estar temporalmente sin respuesta. Prueba otra fuente o pulsa Reintentar.
+- **La sincronización falla:** en Progreso aparece el motivo. Lo más común es un token vencido o sin permiso **gist**; crea uno nuevo con el enlace de arriba y pégalo en **Nuevo token de GitHub**.
 - **Claude no responde:** en la pestaña Maestro pulsa **Probar conexión**; el mensaje dice el motivo. Lo más común es una clave mal copiada o una cuenta de Anthropic sin saldo. Mientras tanto, el maestro sigue comentando con sus frases integradas.
 - **La evaluación tarda:** es normal en partidas largas o en equipos lentos. Puedes salir y volver; si empiezas otra partida, la evaluación anterior se cancela.
 - **Ves una versión vieja de la app:** recarga forzando con Ctrl+Shift+R, o Cmd+Shift+R en Mac. En el celular, cierra la pestaña o el ícono de la pantalla de inicio y vuelve a abrirlo.
@@ -147,8 +177,9 @@ Tampoco se guarda una partida que dejes a medias: solo se registran las terminad
 - Puzzles: API pública de [Lichess](https://lichess.org) y de [Chess.com](https://www.chess.com/news/view/published-data-api).
 - Partidas: API pública de Chess.com.
 - Comentarios opcionales: [API de Claude](https://platform.claude.com/docs/en/api/overview), de Anthropic.
+- Sincronización opcional: [API de Gists de GitHub](https://docs.github.com/en/rest/gists).
 
-Casilla no está afiliada a Chess.com, Lichess ni Anthropic.
+Casilla no está afiliada a Chess.com, Lichess, Anthropic ni GitHub.
 
 ## Licencia
 

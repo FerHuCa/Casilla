@@ -225,6 +225,13 @@ html.clocked{--bw:min(calc(100vh - 280px), calc(100vw - 540px), 680px)}
 .aline{margin:2px 0 4px;padding:0;list-style:none;font-size:13px;color:var(--muted)}
 .aline li{padding:2px 0}
 .aline b{color:var(--text);font-weight:600}
+.sync{background:none;border:0;cursor:pointer;color:var(--faint);font-size:13px;padding:0;margin-left:14px;display:inline-flex;align-items:center;gap:6px}
+.sync[hidden]{display:none}
+.sync::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--good)}
+.sync.working::before,.sync.pending::before{background:var(--warn)}
+.sync.err{color:var(--bad)} .sync.err::before{background:var(--bad)}
+.steps{padding-left:20px;margin:6px 0 4px;font-size:14px}
+.steps li{margin-bottom:6px}
 .catrow{display:grid;grid-template-columns:1fr auto;font-size:14px}
 
 /* jugadas */
@@ -314,6 +321,7 @@ footer{color:var(--faint);font-size:12px;text-align:center;padding:0 20px 26px}
   main{padding:10px 12px 28px}
   :root, html.clocked{--bw:min(calc(100vw - 24px), 560px)}
   html.barOn{--bw:min(calc(100vw - 52px), 532px)}
+  .sync{font-size:0;gap:0;margin-left:10px}
   .pill #pillText{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block}
   h2{font-size:22px}
 }
@@ -393,6 +401,7 @@ html[data-pieces=chessnut] .pbp,.pz-chessnut-bp{background-image:url('data:image
     <button class="tab" role="tab" data-tab="progress">Progreso</button>
   </nav>
   <div class="pill" id="pill"><span class="led"></span><span id="pillText">Cargando Stockfish</span></div>
+  <button class="sync" id="syncInd" hidden title=""></button>
   <button class="lookbtn" id="lookBtn" aria-expanded="false" aria-controls="look">Apariencia</button>
 </header>
 <main>
@@ -575,7 +584,9 @@ function defaults(){ return {
   games:[], analyses:{}, endgames:{}, openings:{}, settings:{movetime:400}
 }; }
 let S = (() => { try{ const raw = localStorage.getItem(KEY); if(raw){ return Object.assign(defaults(), JSON.parse(raw)); } }catch(e){} return defaults(); })();
-function save(){ /* guarda todo el estado */
+function save(){ saveLocal(); if(typeof Sync !== 'undefined') Sync.dirty(); }
+function saveLocal(){
+  S.meta = Object.assign({}, S.meta, {updatedAt:Date.now()});
   try{ localStorage.setItem(KEY, JSON.stringify(S)); }
   catch(e){
     // Cuota llena: recorta PGN de partidas antiguas
@@ -2895,15 +2906,17 @@ function renderProgressHome(){
       '<div class="row"><button class="btn primary" id="trMine">Entrenar mis errores</button><button class="btn" id="trTheme">Puzzles: ' + esc((THEMES.find(t => t[0] === CAT_THEME[top[0]]) || [0,'Mezcla'])[1]) + '</button></div>'
       : '<p class="note">Aún no hay partidas analizadas.</p>') +
     '<h3>Finales y aperturas</h3><p class="note">' + Object.keys(S.endgames).length + ' de ' + ENDGAMES.length + ' finales completados. ' + Object.keys(S.openings).length + ' líneas de apertura repasadas.</p>' +
-    '<h3>Tus datos</h3><p class="note">Todo se guarda en este navegador. Exporta un respaldo si cambias de equipo o de navegador.</p>' +
+    '<h3>Sincronizar entre dispositivos</h3><div id="syncBox"></div>' +
+    '<h3>Tus datos</h3><p class="note">Todo se guarda en este navegador' + (Sync.on() ? ' y se sincroniza con tu gist' : '') + '. También puedes exportar un respaldo en archivo.</p>' +
     '<div class="row"><button class="btn" id="exp">Exportar respaldo</button><button class="btn" id="imp">Importar respaldo</button><button class="btn" id="rst">Borrar todo</button><input type="file" id="impf" accept="application/json" hidden></div>';
   const tm = $('#trMine'); if(tm) tm.onclick = () => { App.mineFocus = [top[0]]; App.puzzleSource = 'mine'; switchTab('puzzles'); };
   const tt = $('#trTheme'); if(tt) tt.onclick = () => { App.puzzleTheme = CAT_THEME[top[0]] || 'mix'; App.puzzleSource = 'lichess'; switchTab('puzzles'); };
-  $('#exp').onclick = () => { const a = document.createElement('a'); const copy = JSON.parse(JSON.stringify(S)); if(copy.settings && copy.settings.claude) copy.settings.claude.key = '';
+  $('#exp').onclick = () => { const a = document.createElement('a'); const copy = JSON.parse(JSON.stringify(S)); if(copy.settings && copy.settings.claude) copy.settings.claude.key = ''; if(copy.settings) delete copy.settings.sync;
     a.href = URL.createObjectURL(new Blob([JSON.stringify(copy)], {type:'application/json'})); a.download = 'casilla-respaldo-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); };
   $('#imp').onclick = () => $('#impf').click();
-  $('#impf').onchange = async e => { const f = e.target.files[0]; if(!f) return; try{ const keep = S.settings.claude; S = Object.assign(defaults(), JSON.parse(await f.text())); if(keep && !(S.settings.claude && S.settings.claude.key)) S.settings.claude = keep; save(); toast('Respaldo importado.'); renderProgressHome(); }catch(err){ toast('Ese archivo no es un respaldo válido.'); } };
-  $('#rst').onclick = () => { if(confirm('¿Borrar todo tu progreso, partidas y análisis guardados?')){ S = defaults(); save(); renderProgressHome(); } };
+  $('#impf').onchange = async e => { const f = e.target.files[0]; if(!f) return; try{ const keep = S.settings.claude, keepSync = S.settings.sync; S = Object.assign(defaults(), JSON.parse(await f.text())); if(keep && !(S.settings.claude && S.settings.claude.key)) S.settings.claude = keep; if(keepSync) S.settings.sync = keepSync; else delete S.settings.sync; save(); toast('Respaldo importado.'); renderProgressHome(); }catch(err){ toast('Ese archivo no es un respaldo válido.'); } };
+  $('#rst').onclick = () => { if(confirm(Sync.on() ? '¿Borrar todo tu progreso en este navegador? La sincronización se desconectará y el gist no se borra.' : '¿Borrar todo tu progreso, partidas y análisis guardados?')){ S = defaults(); saveLocal(); Sync.setState('off'); renderProgressHome(); } };
+  renderSyncBox();
 }
 /* ---------- Apariencia ---------- */
 const LOOK = {
@@ -2937,6 +2950,249 @@ function toggleLook(open){
   if(open){ renderLook(); const f = $('.opt[aria-checked=true]', box); if(f) f.focus(); } else btn.focus();
 }
 
+/* =========================================================
+   Sincronización entre dispositivos con un Gist de GitHub
+   ========================================================= */
+const SYNC_FILE = 'casilla-progreso.json';
+const SYNC_DESC = 'Casilla: progreso sincronizado';
+function canon(x){
+  if(Array.isArray(x)) return '[' + x.map(canon).join(',') + ']';
+  if(x && typeof x === 'object') return '{' + Object.keys(x).sort().filter(k => x[k] !== undefined).map(k => JSON.stringify(k) + ':' + canon(x[k])).join(',') + '}';
+  return JSON.stringify(x);
+}
+function stripForSync(st){
+  const c = JSON.parse(JSON.stringify(st));
+  if(c.settings){ delete c.settings.sync; delete c.settings.claude; }
+  return c;
+}
+function syncKey(st){ const c = stripForSync(st); delete c.meta; return canon(c); }
+function isFresh(st){
+  return !st.username && !(st.games || []).length && (st.ladder && st.ladder.unlocked || 1) <= 1 &&
+    !((st.puzzles && st.puzzles.hist) || []).length && !Object.keys(st.analyses || {}).length &&
+    !((st.coach && st.coach.games) || []).length && !Object.keys(st.endgames || {}).length;
+}
+function mergeState(L, Rin){
+  const R = Object.assign(defaults(), JSON.parse(JSON.stringify(Rin || {})));
+  const out = JSON.parse(JSON.stringify(L)), fresh = isFresh(L);
+  if(!out.username && R.username) out.username = R.username;
+  // Escalera: el nivel más alto y los conteos mayores
+  out.ladder = {unlocked:Math.max(L.ladder.unlocked || 1, R.ladder.unlocked || 1), rec:{}};
+  for(const k of new Set([...Object.keys(L.ladder.rec || {}), ...Object.keys(R.ladder.rec || {})])){
+    const a = L.ladder.rec[k] || {w:0,d:0,l:0}, b = R.ladder.rec[k] || {w:0,d:0,l:0};
+    out.ladder.rec[k] = {w:Math.max(a.w, b.w), d:Math.max(a.d, b.d), l:Math.max(a.l, b.l)};
+  }
+  // Puzzles: historial unido; rating y racha del lado con la actividad más reciente
+  const pl = L.puzzles, pr = R.puzzles;
+  const tl = ((pl.hist || []).slice(-1)[0] || {}).t || 0, tr = ((pr.hist || []).slice(-1)[0] || {}).t || 0;
+  const nw = tr > tl ? pr : pl;
+  const seenH = {}, hist = [];
+  for(const h of [...(pl.hist || []), ...(pr.hist || [])]){ const k = h.t + ':' + h.r; if(!seenH[k]){ seenH[k] = 1; hist.push(h); } }
+  hist.sort((a,b) => a.t - b.t);
+  const seen = Object.assign({}, pr.seen || {}); for(const k in (pl.seen || {})) seen[k] = Math.max(seen[k] || 0, pl.seen[k]);
+  out.puzzles = {rating:nw.rating, streak:nw.streak || 0, best:Math.max(pl.best || 0, pr.best || 0), solved:Math.max(pl.solved || 0, pr.solved || 0), failed:Math.max(pl.failed || 0, pr.failed || 0), hist:hist.slice(-300), seen};
+  // Partidas: unión por id
+  const gm = {}; for(const g of [...(R.games || []), ...(L.games || [])]){ const e = gm[g.id]; if(!e || (!e.pgn && g.pgn)) gm[g.id] = g; }
+  out.games = Object.values(gm).sort((a,b) => b.end - a.end).slice(0, 400);
+  // Análisis: unión; si ambos existen, gana el más profundo; se conservan las explicaciones de los dos
+  out.analyses = {};
+  for(const k of new Set([...Object.keys(L.analyses || {}), ...Object.keys(R.analyses || {})])){
+    const a = L.analyses[k], b = R.analyses[k];
+    let pick = a && b ? (b.deep && !a.deep ? b : a) : (a || b);
+    pick = JSON.parse(JSON.stringify(pick));
+    const exps = {}; [a, b].forEach(x => ((x && x.mistakes) || []).forEach(m => { if(m.exp) exps[m.id] = m.exp; }));
+    (pick.mistakes || []).forEach(m => { if(!m.exp && exps[m.id]) m.exp = exps[m.id]; });
+    out.analyses[k] = pick;
+  }
+  out.endgames = Object.assign({}, R.endgames || {}, L.endgames || {});
+  out.openings = {};
+  for(const k of new Set([...Object.keys(L.openings || {}), ...Object.keys(R.openings || {})])){
+    const a = L.openings[k] || {reps:0, clean:0}, b = R.openings[k] || {reps:0, clean:0};
+    out.openings[k] = {reps:Math.max(a.reps, b.reps), clean:Math.max(a.clean, b.clean)};
+  }
+  // Maestro
+  if(L.coach || R.coach){
+    const cl = L.coach || {rating:null, rec:{w:0,d:0,l:0}, serious:0, games:[]}, cr = R.coach || {rating:null, rec:{w:0,d:0,l:0}, serious:0, games:[]};
+    const tg = {}; [...(cl.games || []), ...(cr.games || [])].forEach(g => tg[g.t] = g);
+    const games = Object.values(tg).sort((a,b) => b.t - a.t).slice(0, 200);
+    const lt = ((cl.games || [])[0] || {}).t || 0, rt = ((cr.games || [])[0] || {}).t || 0;
+    out.coach = {rating:(rt > lt ? cr.rating : cl.rating) ?? cl.rating ?? cr.rating ?? null,
+      rec:{w:Math.max(cl.rec.w, cr.rec.w), d:Math.max(cl.rec.d, cr.rec.d), l:Math.max(cl.rec.l, cr.rec.l)},
+      serious:Math.max(cl.serious || 0, cr.serious || 0), games};
+  }
+  // Ajustes: en un dispositivo nuevo se copian los del otro; si no, mandan los locales
+  const keepSync = L.settings.sync, keepClaude = L.settings.claude;
+  out.settings = fresh ? Object.assign({}, L.settings, R.settings) : Object.assign({}, R.settings, L.settings);
+  delete out.settings.sync; delete out.settings.claude;
+  if(keepSync) out.settings.sync = keepSync;
+  if(keepClaude) out.settings.claude = keepClaude;
+  out.meta = {updatedAt:Math.max((L.meta || {}).updatedAt || 0, (R.meta || {}).updatedAt || 0)};
+  return out;
+}
+function b64FromBuf(buf){ const bytes = new Uint8Array(buf); let s = ''; for(let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
+async function encodePayload(data){
+  const json = JSON.stringify(data);
+  if(typeof CompressionStream !== 'undefined'){
+    try{
+      const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
+      const buf = await new Response(stream).arrayBuffer();
+      return JSON.stringify({app:'casilla', v:1, enc:'gzip-base64', updatedAt:Date.now(), data:b64FromBuf(buf)});
+    }catch(e){ console.warn('compresión', e); }
+  }
+  return JSON.stringify({app:'casilla', v:1, enc:'json', updatedAt:Date.now(), data});
+}
+async function decodePayload(text){
+  const p = JSON.parse(text);
+  if(!p || p.app !== 'casilla') throw new Error('El gist no contiene un progreso de Casilla.');
+  if(p.enc === 'json') return p.data;
+  if(p.enc === 'gzip-base64'){
+    if(typeof DecompressionStream === 'undefined') throw new Error('Este navegador no puede leer el progreso comprimido; actualízalo.');
+    const bytes = Uint8Array.from(atob(p.data), c => c.charCodeAt(0));
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return JSON.parse(await new Response(stream).text());
+  }
+  throw new Error('Formato de sincronización desconocido.');
+}
+const Sync = {
+  q:Promise.resolve(), timer:null, applying:false, state:'off', error:null,
+  cfg(){ return S.settings.sync || null; },
+  on(){ const c = this.cfg(); return !!(c && c.token); },
+  setState(st, err){
+    this.state = st; this.error = err || null;
+    const el = $('#syncInd');
+    if(el){
+      el.hidden = !this.on();
+      el.className = 'sync ' + st;
+      el.textContent = {ok:'Sincronizado', working:'Sincronizando…', pending:'Cambios sin subir', err:'Sin sincronizar', off:''}[st] || '';
+      el.title = st === 'err' && err ? err : (this.cfg() && this.cfg().lastSync ? 'Última sincronización: ' + new Date(this.cfg().lastSync).toLocaleString('es-MX') : '');
+    }
+    const box = $('#syncBox'); if(box && App.tab === 'progress' && App.session instanceof HomeSession) renderSyncBox();
+  },
+  async api(path, opt){
+    opt = opt || {};
+    const headers = {Authorization:'Bearer ' + this.cfg().token, Accept:'application/vnd.github+json'};
+    if(opt.body) headers['Content-Type'] = 'application/json';
+    let r;
+    try{ r = await fetch('https://api.github.com' + path, Object.assign({}, opt, {headers})); }
+    catch(e){ const er = new Error('Sin conexión con GitHub. Lo intento de nuevo después.'); er.code = 'net'; throw er; }
+    if(r.status === 401){ const e = new Error('El token no es válido o ya caducó. Crea uno nuevo y vuelve a conectar.'); e.code = 401; throw e; }
+    if(r.status === 403){ const e = new Error('GitHub rechazó el acceso. Revisa que el token tenga permiso para gists.'); e.code = 403; throw e; }
+    if(r.status === 404){ const e = new Error('No se encontró el gist.'); e.code = 404; throw e; }
+    if(!r.ok){ const e = new Error('GitHub respondió ' + r.status + '.'); e.code = r.status; throw e; }
+    return r.json();
+  },
+  async findGist(){
+    for(let page = 1; page <= 5; page++){
+      const list = await this.api('/gists?per_page=100&page=' + page);
+      const g = list.find(x => x.files && x.files[SYNC_FILE]);
+      if(g) return g;
+      if(list.length < 100) break;
+    }
+    return null;
+  },
+  async readRemote(id){
+    const g = await this.api('/gists/' + id);
+    const f = g.files && g.files[SYNC_FILE];
+    if(!f) return {gist:g, data:null};
+    let content = f.content;
+    if(f.truncated || content == null){ const r = await fetch(f.raw_url); content = await r.text(); }
+    return {gist:g, data:await decodePayload(content)};
+  },
+  async writeRemote(id, data){
+    const content = await encodePayload(data);
+    if(id) return this.api('/gists/' + id, {method:'PATCH', body:JSON.stringify({files:{[SYNC_FILE]:{content}}})});
+    return this.api('/gists', {method:'POST', body:JSON.stringify({description:SYNC_DESC, public:false, files:{[SYNC_FILE]:{content}}})});
+  },
+  run(fn){ this.q = this.q.then(fn).catch(e => this.fail(e)); return this.q; },
+  fail(e){
+    console.warn('sync', e);
+    if(e && e.code === 401){ const c = this.cfg(); if(c) c.bad = true; }
+    this.setState('err', e && e.message);
+    if(e && e.code !== 'net') toast('Sincronización: ' + (e.message || 'error'), 5000);
+  },
+  connect(token){
+    S.settings.sync = {token:token.trim(), gistId:null, lastSync:0};
+    saveLocal();
+    return this.run(async () => {
+      this.setState('working');
+      const g = await this.findGist();
+      S.settings.sync.gistId = g ? g.id : null; S.settings.sync.url = g ? g.html_url : null;
+      await this._sync(true);
+    });
+  },
+  disconnect(){ delete S.settings.sync; saveLocal(); clearTimeout(this.timer); this.setState('off'); },
+  now(){ if(!this.on()) return Promise.resolve(); clearTimeout(this.timer); return this.run(() => this._sync(false)); },
+  dirty(){
+    if(!this.on() || this.applying) return;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.now(), 8000);
+    if(this.state !== 'working') this.setState('pending');
+  },
+  async _sync(first){
+    const c = this.cfg(); if(!c || !c.token) return;
+    this.setState('working');
+    let remote = null, gist = null;
+    if(c.gistId){
+      try{ const r = await this.readRemote(c.gistId); remote = r.data; gist = r.gist; }
+      catch(e){ if(e.code === 404){ c.gistId = null; } else throw e; }
+    }
+    if(!c.gistId){ const g = await this.findGist(); if(g){ c.gistId = g.id; const r = await this.readRemote(g.id); remote = r.data; gist = r.gist; } }
+    if(remote){
+      const merged = mergeState(S, remote);
+      if(syncKey(merged) !== syncKey(S)){
+        this.applying = true; S = merged; saveLocal(); this.applying = false;
+        onRemoteApplied(first);
+      }
+    }
+    const up = stripForSync(S);
+    if(!remote || syncKey(up) !== syncKey(Object.assign(defaults(), remote))){
+      const res = await this.writeRemote(c.gistId, up);
+      if(!c.gistId) c.gistId = res.id;
+      c.url = res.html_url || c.url;
+    } else if(gist) c.url = gist.html_url;
+    c.lastSync = Date.now(); c.bad = false;
+    saveLocal();
+    this.setState('ok');
+  },
+  start(){
+    if(!this.on()) return this.setState('off');
+    this.now();
+    document.addEventListener('visibilitychange', () => {
+      if(!this.on()) return;
+      if(document.visibilityState === 'hidden' && this.state === 'pending') this.now();
+      if(document.visibilityState === 'visible' && Date.now() - (this.cfg().lastSync || 0) > 60000) this.now();
+    });
+  }
+};
+function onRemoteApplied(first){
+  applyLook();
+  if(App.session instanceof HomeSession && HOMES[App.tab]) HOMES[App.tab]();
+  toast(first ? 'Se combinó tu progreso con el de tus otros dispositivos.' : 'Progreso actualizado desde otro dispositivo.');
+}
+function renderSyncBox(){
+  const box = $('#syncBox'); if(!box) return;
+  const c = Sync.cfg();
+  if(!Sync.on()){
+    box.innerHTML = '<p class="note">Guarda tu progreso en un gist secreto de tu cuenta de GitHub para usarlo en la computadora y en el celular. Se sube solo después de cada cambio y se combina al abrir la app, sin perder datos.</p>' +
+      '<ol class="steps"><li>Crea un token con permiso solo para gists: <a href="https://github.com/settings/tokens/new?scopes=gist&description=Casilla" target="_blank" rel="noopener">crear token en GitHub</a>. Elige una fecha de vencimiento y pulsa Generate token.</li>' +
+      '<li>Copia el token y pégalo aquí. Repite este paso en cada dispositivo con el mismo token o con uno nuevo.</li></ol>' +
+      '<div class="field"><span class="lbl">Token de GitHub</span><input type="password" id="syncTok" placeholder="ghp_… o github_pat_…" autocomplete="off" spellcheck="false"></div>' +
+      '<button class="btn primary" id="syncGo">Conectar y sincronizar</button>' +
+      '<p class="note" style="margin-top:8px">El token se guarda solo en este navegador y no se incluye en los respaldos. Un gist secreto no aparece en búsquedas, pero quien tenga su enlace exacto puede verlo; contiene tu progreso y tus partidas públicas, nunca tu clave de Claude.</p>';
+    $('#syncGo').onclick = () => { const t = $('#syncTok').value.trim(); if(!t){ toast('Pega primero tu token.'); return; } Sync.connect(t).then(() => renderSyncBox()); renderSyncBox(); };
+    return;
+  }
+  const when = c.lastSync ? new Date(c.lastSync).toLocaleString('es-MX', {dateStyle:'medium', timeStyle:'short'}) : 'todavía no';
+  const st = {ok:'Sincronizado', working:'Sincronizando…', pending:'Hay cambios por subir', err:'Error de sincronización', off:''}[Sync.state] || '';
+  box.innerHTML = '<div class="stats"><div class="stat"><span class="big">' + esc(st) + '</span><span>Estado</span></div><div class="stat"><span class="big">' + esc(when) + '</span><span>Última sincronización</span></div></div>' +
+    (Sync.state === 'err' && Sync.error ? '<p class="note" style="color:var(--bad)">' + esc(Sync.error) + '</p>' : '') +
+    '<div class="row" style="margin-top:10px"><button class="btn small primary" id="syncNow">Sincronizar ahora</button>' + (c.url ? '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">Ver el gist</a>' : '') + '<button class="btn small" id="syncOff">Desconectar este dispositivo</button></div>' +
+    (c.bad ? '<div class="field"><span class="lbl">Nuevo token de GitHub</span><input type="password" id="syncTok" placeholder="ghp_… o github_pat_…" autocomplete="off" spellcheck="false"></div><button class="btn small" id="syncGo">Usar este token</button>' : '') +
+    '<p class="note" style="margin-top:8px">Desconectar solo borra el token de este navegador; tu progreso y el gist se quedan.</p>';
+  $('#syncNow').onclick = () => Sync.now();
+  $('#syncOff').onclick = () => { if(confirm('¿Desconectar este dispositivo de la sincronización?')){ Sync.disconnect(); renderSyncBox(); } };
+  const sg = $('#syncGo'); if(sg) sg.onclick = () => { const t = $('#syncTok').value.trim(); if(t) Sync.connect(t).then(() => renderSyncBox()); };
+}
+
 const HOMES = {ladder:renderLadderHome, coach:renderCoachHome, positions:renderPositionsHome, games:renderGamesHome, progress:renderProgressHome};
 
 /* =========================================================
@@ -2951,9 +3207,11 @@ function boot(){
   Board.init();
   $$('.tab').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
   $('#lookBtn').onclick = () => toggleLook();
+  $('#syncInd').onclick = () => switchTab('progress');
   window.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('#look').hidden) toggleLook(false); });
   switchTab('ladder');
   Engine.init();
+  Sync.start();
 }
 boot();
 </script>
