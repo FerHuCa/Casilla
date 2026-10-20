@@ -92,3 +92,7 @@ También se pierde una partida que dejes a medias: solo se registran las termina
 - Partidas: API pública de Chess.com.
 
 Casilla no está afiliada a Chess.com ni a Lichess.
+
+## Licencia
+
+Casilla se distribuye bajo la licencia [GPL-3.0](LICENSE). Puedes usarla, estudiarla, modificarla y compartirla, siempre que tus versiones también se publiquen bajo GPL-3.0 y conserven los créditos. Los sets de piezas y el motor Stockfish mantienen sus propias licencias, indicadas en la sección de créditos.
