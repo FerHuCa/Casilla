@@ -43,6 +43,20 @@ Un rival que aprende de ti:
 
 **Comentarios con Claude (opcional):** sin configurar nada, el maestro comenta con frases armadas a partir de Stockfish. Si pegas tu propia clave de la API de Anthropic, Claude reescribe cada comentario en lenguaje natural. La clave se guarda solo en tu navegador, se envía directo a Anthropic y no se incluye en los respaldos. Cada persona que use la app necesita su propia clave.
 
+### Evaluación al final de cada partida
+Al terminar una partida de la escalera, contra el maestro o desde una posición, Stockfish revisa todas las jugadas de ambos lados. Mientras tanto puedes seguir en la pantalla de resultado. Luego **Ver evaluación completa** muestra:
+- Tu precisión y la de tu rival, tus errores graves, errores e imprecisiones, y una gráfica de la evaluación con tus errores marcados.
+- **Comentario del maestro:** cómo saliste de la apertura, el momento decisivo, oportunidades que no aprovechaste, precisión por fase y si apareció tu patrón de error más frecuente.
+- **Momentos clave**, explicados a fondo:
+  - Qué pasó.
+  - De dónde viene el error: una amenaza que ya existía, la pieza que defendía y moviste, una casilla atacada, el escudo de tu rey o una pieza que quedó pasiva.
+  - La línea que sigue, con cada jugada comentada.
+  - La mejor jugada y de dónde viene su idea: ataque doble, clavada, ataque descubierto, la casilla que había que defender o la pieza que tu rival dejó sin defensa con su jugada anterior.
+  - Una lección para la próxima.
+- **Qué entrenar:** puzzles con estos errores, el tema de Lichess relacionado o finales.
+
+En **Mis partidas**, el botón **Evaluación a fondo** hace lo mismo con cualquier partida de Chess.com.
+
 ### Puzzles
 - **Lichess:** puzzles por tema (mate en 2, ataque doble, clavada, finales y más) ajustados a tu nivel.
 - **Chess.com:** puzzles diarios de su archivo.
