@@ -259,8 +259,8 @@ footer{color:var(--faint);font-size:12px;text-align:center;padding:0 20px 26px}
 .sw-font{font-size:21px;line-height:1.15}
 .sw-font small{display:block;font-size:12px;opacity:.75}
 .sw-board{display:grid;grid-template-columns:repeat(6,1fr);height:30px;border-radius:2px;overflow:hidden}
-.sw-pieces{display:flex;height:40px}
-.sw-pieces span{width:40px;height:40px;background-size:100% 100%}
+.sw-pieces{display:flex;width:100%;max-width:160px}
+.sw-pieces span{flex:1 1 0;aspect-ratio:1;min-width:0;background-size:100% 100%}
 .sw-pieces span:nth-child(odd){background-color:var(--sqL)} .sw-pieces span:nth-child(even){background-color:var(--sqD)}
 @media (max-width:1000px){
   .drawer{top:auto;height:64vh;width:100%;border-left:0;border-top:1px solid var(--line);box-shadow:0 -20px 40px rgba(0,0,0,.28)}
@@ -278,6 +278,45 @@ footer{color:var(--faint);font-size:12px;text-align:center;padding:0 20px 26px}
   .side{max-height:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---- Móvil ---- */
+.tip{display:none}
+@media (max-width:1000px){
+  :root, html.clocked{--bw:min(calc(100vw - 32px), 560px)}
+  html.barOn{--bw:min(calc(100vw - 60px), 532px)}
+  main{padding:12px 16px 32px;gap:22px}
+  .stage{width:100%;display:flex;flex-direction:column;align-items:center}
+  .board-row{justify-content:center}
+  .evalbar.off{display:none}
+  .clock{width:100%;margin-left:0}
+  html.barOn .clock{width:calc(var(--bw) + 28px)}
+  #clockTop{margin-bottom:6px}
+  .under{width:100%;max-width:none;margin-top:12px}
+  .controls{gap:6px}
+  .controls .btn{flex:1 1 auto;min-height:42px}
+  .btn{min-height:40px}
+  .btn.small{min-height:36px;padding:7px 12px}
+  .seg{gap:16px}
+  .seg button{padding:9px 0}
+  .stair{padding:9px 8px}
+  .game{padding:11px 6px}
+  input[type=text],input[type=password],select,textarea{font-size:16px}
+  .tip{display:block;font-size:14px;padding:8px 10px;border-left:2px solid var(--warn);background:var(--raise);border-radius:0 4px 4px 0}
+  .tip[hidden]{display:none}
+  .drawer{height:min(60dvh,60vh);padding-bottom:calc(32px + env(safe-area-inset-bottom))}
+  .moves .m{padding:9px 8px}
+  .moves{max-height:260px}
+  .moment summary{padding:6px 0}
+  footer{padding-bottom:calc(26px + env(safe-area-inset-bottom))}
+}
+@media (max-width:380px){
+  .top{padding:0 12px}
+  main{padding:10px 12px 28px}
+  :root, html.clocked{--bw:min(calc(100vw - 24px), 560px)}
+  html.barOn{--bw:min(calc(100vw - 52px), 532px)}
+  .pill #pillText{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block}
+  h2{font-size:22px}
+}
 
 /* Piezas: cburnett (Colin M.L. Burnett, GPLv2+), Merida (Armando Hernández Marroquín, GPLv2+), Celtic (Maurizio Monge, MIT), MPChess (Maxime Chupin, GPLv3+), Chessnut (Alexis Luengas, Apache 2.0) */
 .pwp,.pz-cburnett-wp{background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PHBhdGggZD0iTTIyLjUgOWMtMi4yMSAwLTQgMS43OS00IDQgMCAuODkuMjkgMS43MS43OCAyLjM4QzE3LjMzIDE2LjUgMTYgMTguNTkgMTYgMjFjMCAyLjAzLjk0IDMuODQgMi40MSA1LjAzLTMgMS4wNi03LjQxIDUuNTUtNy40MSAxMy40N2gyM2MwLTcuOTItNC40MS0xMi40MS03LjQxLTEzLjQ3IDEuNDctMS4xOSAyLjQxLTMgMi40MS01LjAzIDAtMi40MS0xLjMzLTQuNS0zLjI4LTUuNjIuNDktLjY3Ljc4LTEuNDkuNzgtMi4zOCAwLTIuMjEtMS43OS00LTQtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==')}
@@ -377,6 +416,7 @@ html[data-pieces=chessnut] .pbp,.pz-chessnut-bp{background-image:url('data:image
     <div class="under">
       <div class="clock" id="clockBot" hidden><span class="who"></span><span class="tm"></span></div>
       <div id="status" class="status" aria-live="polite"></div>
+      <div id="tip" class="tip" hidden></div>
       <div id="controls" class="controls"></div>
     </div>
   </section>
@@ -459,6 +499,8 @@ const THEMES = [
   ['attraction','Atracción'],['defensiveMove','Defensa'],['quietMove','Jugada tranquila'],['endgame','Final'],
   ['middlegame','Medio juego'],['opening','Apertura'],['promotion','Coronación'],['trappedPiece','Pieza atrapada'],['zugzwang','Zugzwang']
 ];
+const THEME_EXTRA = {mateIn4:'Mate en 4', mateIn5:'Mate en 5 o más', short:'Corto', long:'Largo', veryLong:'Muy largo', oneMove:'Una jugada', crushing:'Ventaja aplastante', advantage:'Ventaja', equality:'Igualdad', master:'Partida de maestro', masterVsMaster:'Entre maestros', superGM:'Súper GM', rookEndgame:'Final de torres', pawnEndgame:'Final de peones', queenEndgame:'Final de damas', bishopEndgame:'Final de alfiles', knightEndgame:'Final de caballos', queenRookEndgame:'Final de dama y torre', kingsideAttack:'Ataque al enroque corto', queensideAttack:'Ataque al enroque largo', capturingDefender:'Eliminar al defensor', interference:'Interferencia', intermezzo:'Jugada intermedia', xRayAttack:'Ataque en rayos X', advancedPawn:'Peón avanzado', exposedKing:'Rey expuesto', smotheredMate:'Mate ahogado', anastasiaMate:'Mate de Anastasia', arabianMate:'Mate árabe', bodenMate:'Mate de Boden', doubleCheck:'Jaque doble', castling:'Enroque', enPassant:'Captura al paso', underPromotion:'Subpromoción'};
+const themeName = t => (THEMES.find(x => x[0] === t) || [0, THEME_EXTRA[t] || t])[1];
 const CAT_THEME = {'Pieza colgada':'hangingPiece','Táctica no vista':'fork','Mate no visto':'mateIn2','Permitió mate':'defensiveMove','Error posicional':'quietMove'};
 const CATS = ['Pieza colgada','Táctica no vista','Mate no visto','Permitió mate','Error posicional'];
 
@@ -484,6 +526,7 @@ function cpEq(score){
   return Math.max(-1400, Math.min(1400, score.cp));
 }
 function fmtEval(v){
+  if(Math.abs(v) >= 1500) return v > 0 ? '1-0' : '0-1';
   if(Math.abs(v) >= 1450){ const n = 1500 - Math.abs(v); return (v < 0 ? '-' : '') + 'M' + n; }
   const x = v / 100; return (x > 0 ? '+' : '') + x.toFixed(1);
 }
@@ -752,15 +795,17 @@ const Board = {
     return new Promise(res => {
       const box = $('#promo'); box.hidden = false;
       box.innerHTML = ['q','r','b','n'].map(t => '<button data-p="'+t+'" aria-label="Coronar"><span class="pc p'+color+t+'"></span></button>').join('');
+      const t0 = performance.now();
       const done = v => { box.hidden = true; box.onclick = null; res(v); };
-      box.onclick = ev => { const b = ev.target.closest('button'); done(b ? b.dataset.p : null); };
+      // El mismo toque que abre el selector genera un clic: se ignora durante un instante
+      box.onclick = ev => { const b = ev.target.closest('button'); if(b) return done(b.dataset.p); if(performance.now() - t0 > 450) done(null); };
     });
   }
 };
 const EvalBar = {
   v:null,
   set(vWhite){
-    this.v = vWhite; const el = $('#evalbar'); el.classList.remove('off');
+    this.v = vWhite; const el = $('#evalbar'); el.classList.remove('off'); document.documentElement.classList.add('barOn');
     const pct = Math.abs(vWhite) >= 1450 ? (vWhite > 0 ? 100 : 0) : winPct(vWhite);
     el.querySelector('.fill').style.height = pct + '%';
     el.classList.toggle('neg', vWhite < 0); el.classList.toggle('flip', Board.orient === 'b');
@@ -768,7 +813,7 @@ const EvalBar = {
     el.setAttribute('aria-label', 'Evaluación ' + fmtEval(vWhite) + ' desde el lado de las blancas');
   },
   refresh(){ const el = $('#evalbar'); if(this.v !== null && !el.classList.contains('off')) this.set(this.v); },
-  hide(){ this.v = null; $('#evalbar').classList.add('off'); }
+  hide(){ this.v = null; $('#evalbar').classList.add('off'); document.documentElement.classList.remove('barOn'); }
 };
 function setStatus(text, kind=''){ const s=$('#status'); s.className='status ' + kind; s.textContent=text; }
 function setControls(list){
@@ -796,12 +841,16 @@ function scrollMoves(root){
    App y sesiones
    ========================================================= */
 const side = () => $('#side');
+const isMobile = () => window.matchMedia('(max-width:1000px)').matches;
+function revealBoard(){ if(!isMobile()) return; const r = $('.board-box').getBoundingClientRect(); if(r.top < 0 || r.bottom > window.innerHeight) $('.stage').scrollIntoView({behavior:'smooth', block:'start'}); }
 const App = {
   game: new Chess(), session:null, token:0, busy:false, tab:'ladder',
   ladderSel:null, ladderColor:'w', puzzleSource:'mix', puzzleTheme:'auto', posTab:'finales', mineFocus:null, playTier:null,
   setSession(s){
     if(this.session && this.session.exit) this.session.exit();
     this.token++; Engine.cancel('ui'); Engine.cancel('coach'); Engine.cancel('bar'); this.busy = false; Clocks.hide();
+    const tip = $('#tip'); if(tip){ tip.hidden = true; tip.textContent = ''; }
+    if(isMobile() && window.scrollY > 0) window.scrollTo({top:0});
     this.session = s;
     Board.onMove = mv => s.onUserMove && s.onUserMove(mv);
     Board.sel = null; Board.arrows = []; Board.marks = {}; Board._endDrag();
@@ -925,6 +974,7 @@ class PlaySession{
   get tierName(){ return this.o.oppName ? 'El ' + this.o.oppName.toLowerCase() : (this.o.tier === STRONG ? 'Stockfish al máximo' : TIERS[this.o.tierIdx].n); }
   async onUserMove(mv){
     if(this.over || this.thinking || this.checking) return;
+    if(this.pendingWarn){ this.pendingWarn = null; if(this.coach){ this.coach.msgs.forEach(x => { if(x.actions) x.done = true; }); this.coach.renderFeed(); } }
     const fenBefore = App.game.fen();
     const m0 = new Chess(fenBefore).move(mv); if(!m0) return;
     if(this.coach && this.coach.guide){
@@ -934,7 +984,7 @@ class PlaySession{
       const v = await this.coach.preCheck(fenBefore, m0);
       if(tok !== App.token || this.over) return;
       this.checking = false; App.busy = false;
-      if(v && v.warn){ if(this.clk) this.clk.resume(); this.coach.warn(v, () => this.commitUserMove(mv, fenBefore, v)); this.update(); setStatus('El maestro te advierte antes de jugar.', 'warn'); return; }
+      if(v && v.warn){ if(this.clk) this.clk.resume(); this.coach.warn(v, () => this.commitUserMove(mv, fenBefore, v)); this.update(); revealBoard(); return; }
       return this.commitUserMove(mv, fenBefore, v);
     }
     this.commitUserMove(mv, fenBefore, null);
@@ -1083,9 +1133,17 @@ class PlaySession{
       if(this.o.goal) setStatus(r.ok ? 'Objetivo cumplido' : 'Objetivo no cumplido', r.ok ? 'good' : 'bad');
       else setStatus(r.res === 'w' ? 'Ganaste' : r.res === 'l' ? 'Perdiste' : 'Tablas', r.res === 'w' ? 'good' : r.res === 'l' ? 'bad' : '');
     } else if(this.thinking) setStatus(this.tierName + ' está pensando…');
+    else if(this.pendingWarn) setStatus(this.pendingWarn.text, 'warn');
     else if(!this.checking) setStatus('Tu turno, juegas con ' + colorName(this.user) + (g.in_check() ? '. Estás en jaque.' : ''));
     const helps = this.o.helps, busy = this.over || this.thinking || this.checking;
+    if(this.pendingWarn && !this.over){
+      const w = this.pendingWarn;
+      setControls([{label:'Pensar otra vez', primary:true, on:w.think}, {label:'Jugarla igual', on:w.play}]);
+      const ml0 = $('#ml'); if(ml0){ ml0.innerHTML = moveListHTML(g.history(), this.startFen, g.history().length); scrollMoves(ml0); }
+      return;
+    }
     setControls([
+      this.over && this.evalJob && {label:'Ver evaluación', primary:true, on:()=>this.openEval()},
       helps && {label:'Pista', on:()=>this.hint(), disabled:busy},
       helps && {label:'Deshacer', on:()=>this.undo(), disabled:busy},
       {label:this.barShown ? 'Ocultar barra' : 'Mostrar barra', on:()=>this.toggleBar()},
@@ -1266,11 +1324,17 @@ class Coach{
     return m;
   }
   renderFeed(){
-    const box = $('#feed'); if(!box) return;
+    const box = $('#feed'); if(!box){ this.renderTip(); return; }
     box.innerHTML = this.msgs.map(m => '<div class="msg ' + m.kind + '" data-id="' + m.id + '"><div class="who"><span>' + esc(m.label || 'Maestro') + '</span>' + (m.ai ? '<span>Claude</span>' : m.aiPending ? '<span>Claude escribe…</span>' : '') + '</div>' +
       '<div>' + esc(m.text) + '</div>' + (m.line ? '<p class="line">' + esc(m.line) + '</p>' : '') +
       (m.actions && !m.done ? '<div class="row">' + m.actions.map((a,i) => '<button class="btn small' + (i===0?' primary':'') + '" data-act="' + i + '">' + esc(a.label) + '</button>').join('') + '</div>' : '') + '</div>').join('');
     $$('[data-act]', box).forEach(b => b.onclick = () => { const id = b.closest('.msg').dataset.id; const m = this.msgs.find(x => x.id === id); if(!m || m.done) return; m.done = true; this.renderFeed(); m.actions[+b.dataset.act].on(); });
+    this.renderTip();
+  }
+  renderTip(){
+    const t = $('#tip'), m = this.msgs[0]; if(!t || App.session !== this.ses) return;
+    if(!m || (this.ses.pendingWarn && m.kind === 'warn' && !m.done)){ t.hidden = true; return; }
+    t.hidden = false; t.innerHTML = '<b>' + esc(m.label || 'Maestro') + ':</b> ' + esc(m.text);
   }
   start(){
     const p = this.prof;
@@ -1340,11 +1404,16 @@ class Coach{
     return numberedLine(fen, [m.san].concat(pvToSan(g.fen(), pv, n)));
   }
   warn(v, commit){
-    const c = this.consequence(v);
-    this.say('warn', 'Espera. Si juegas ' + v.san + ', ' + c.text + '. ' + (this.tip(c.cat) || '¿Seguro?'), {
+    const c = this.consequence(v), ses = this.ses;
+    const text = 'Espera. Si juegas ' + v.san + ', ' + c.text + '. ' + (this.tip(c.cat) || '¿Seguro?');
+    let msg = null;
+    const think = () => { ses.pendingWarn = null; if(msg) msg.done = true; this.renderFeed(); ses.update(); };
+    const play = () => { ses.pendingWarn = null; if(msg) msg.done = true; this.renderFeed(); v.forced = true; commit(); };
+    ses.pendingWarn = {text, think, play};
+    msg = this.say('warn', text, {
       label:'Aviso antes de ' + moveLabel(v.fen, v.san),
       facts:{momento:'aviso antes de un error grave', jugada:v.san, consecuencia:c.text, categoria:c.cat, eval_antes:fmtEval(v.before), eval_despues:fmtEval(v.after), linea_si_la_juega:this.lineText(v.fen, v.uci, v.refPv)},
-      actions:[{label:'Pensar otra vez', on:()=>{ this.ses.update(); }}, {label:'Jugarla igual', on:()=>{ v.forced = true; commit(); }}]
+      actions:[{label:'Pensar otra vez', on:think}, {label:'Jugarla igual', on:play}]
     });
   }
   afterUser(m, fenBefore, verdict){
@@ -1887,6 +1956,7 @@ class EvalSession{
     const gr = $('#egraph'); if(gr){ gr.innerHTML = evalGraph(E, this.ply); this.bindGraph(); }
   }
   async showLine(i, which){
+    revealBoard();
     const E = this.job.result, run = ++this.lineRun, tok = App.token;
     const P = E.per[i], line = which === 'best' ? (E.pv[i] || []) : [P.uci].concat(E.pv[i+1] || []);
     App.game = new Chess(E.fens[i]); Board.last = null; Board.arrows = []; Board.marks = {}; Board.movable = null; Board.render();
@@ -1944,7 +2014,7 @@ class EvalSession{
       '<div id="ml"></div>';
     $('#bk').onclick = () => this.back();
     $$('.moment').forEach(det => det.addEventListener('toggle', () => { if(det.open){ const i = +det.dataset.i; this.open = i; this.go(i, {moment:i}); this.claudeMoment(i); } }));
-    $$('[data-see]').forEach(b => b.onclick = () => this.go(+b.dataset.see, {moment:+b.dataset.see}));
+    $$('[data-see]').forEach(b => b.onclick = () => { this.go(+b.dataset.see, {moment:+b.dataset.see}); revealBoard(); });
     $$('[data-mine]').forEach(b => b.onclick = () => this.showLine(+b.dataset.mine, 'mine'));
     $$('[data-best]').forEach(b => b.onclick = () => this.showLine(+b.dataset.best, 'best'));
     const te = $('#trErr'); if(te) te.onclick = () => { App.mineFocus = todayCats; App.puzzleSource = 'mine'; switchTab('puzzles'); };
@@ -2323,9 +2393,11 @@ class PuzzleSession{
     const exp = await explainMistake(p.mistake);
     if(this.p !== p) return;
     p.expLoading = false; p.exp = exp; this.renderInfo();
+    if(exp && isMobile()){ const st = $('#status'); if(st && !/abajo/.test(st.textContent)) st.textContent = st.textContent + ' Desliza hacia abajo para ver la explicación.'; }
   }
   async showLine(which){
     const p = this.p; if(!p || !p.exp) return;
+    revealBoard();
     const m = p.mistake, first = which === 'best' ? m.best : m.playedUci, pv = which === 'best' ? p.exp.bestPv : p.exp.refPv;
     const tok = App.token, run = (this.lineRun = (this.lineRun || 0) + 1);
     App.game = new Chess(m.fen); Board.last = null; Board.marks = {}; Board.arrows = []; Board.render();
@@ -2363,7 +2435,7 @@ class PuzzleSession{
     if(!p){ box.innerHTML = ''; return; }
     const srcName = {lichess:'Lichess', chesscom:'Chess.com', mine:'Tus errores'}[p.src];
     let h = '<div class="item"><div class="t">' + esc(p.title) + '</div><div class="s">' + srcName + (p.src!=='mine' ? ', rating ' + p.rating : '') + '</div>';
-    if(p.themes.length) h += '<div class="row">' + p.themes.slice(0,4).map(t => '<span class="tag">' + esc((THEMES.find(x=>x[0]===t)||[0,t])[1]) + '</span>').join('') + '</div>';
+    if(p.themes.length) h += '<div class="row">' + p.themes.slice(0,4).map(t => '<span class="tag">' + esc(themeName(t)) + '</span>').join('') + '</div>';
     if(p.url && p.src !== 'mine') h += '<div class="row"><a href="' + esc(p.url) + '" target="_blank" rel="noopener">Ver en ' + srcName + '</a></div>';
     if(p.src === 'mine' && p.url && /^https?:/.test(p.url)) h += '<div class="row"><a href="' + esc(p.url) + '" target="_blank" rel="noopener">Abrir la partida en Chess.com</a></div>';
     h += '</div>';
@@ -2566,7 +2638,7 @@ class ReviewSession{
       '<div id="ml"></div>';
     $('#bk').onclick = () => switchTab('games');
     $('#deep').onclick = () => { const job = Evaluator.start(gameDescFromRec(r)); App.setSession(new EvalSession(job, {backLabel:'Partida', back:()=>App.setSession(new ReviewSession(r))})); };
-    $$('[data-go]').forEach(b => b.onclick = () => this.go(+b.dataset.go));
+    $$('[data-go]').forEach(b => b.onclick = () => { this.go(+b.dataset.go); revealBoard(); });
     $$('[data-pz]').forEach(b => b.onclick = () => { const m = an.mistakes[+b.dataset.pz]; App.setSession(new PuzzleSession(mistakePuzzle(m))); App.tab='puzzles'; $$('.tab').forEach(x=>x.setAttribute('aria-selected', x.dataset.tab==='puzzles')); });
     const one = $('#anOne'); if(one) one.onclick = async () => {
       one.disabled = true; const pg = $('#anProg'); pg.hidden = false; const tok = App.token;
