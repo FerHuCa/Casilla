@@ -51,6 +51,13 @@ No pide contraseña: solo lee tus datos públicos. Tus partidas en Chess.com ya 
 
 Al terminar verás tu precisión aproximada por partida, tus jugadas marcadas como imprecisión, error o error grave, y tus errores clasificados en: pieza colgada, táctica no vista, mate no visto, permitió mate o error posicional.
 
+### Apariencia
+El botón **Apariencia**, arriba a la derecha, abre un panel para personalizar la app. Los cambios se ven al instante:
+- **Tema:** Carbón, Papel (claro), Pizarra o Cuero.
+- **Fuente:** Clásica, Moderna, Libro o Técnica.
+- **Tablero:** Gris piedra, Madera, Nogal, Glaciar o Club.
+- **Piezas:** Clásicas, Merida, Celtic, Minimal o Chessnut.
+
 ### Progreso
 Resumen de tus niveles superados, la evolución de tu rating de puzzles, tus errores más comunes con una recomendación de qué entrenar, y la opción de exportar o importar un respaldo.
 
@@ -79,6 +86,7 @@ También se pierde una partida que dejes a medias: solo se registran las termina
 ## Créditos
 
 - Motor: [Stockfish](https://stockfishchess.org/) 10 compilado para navegador por [stockfish.js](https://github.com/lichess-org/stockfish.js) (licencia GPLv3).
+- Piezas: Clásicas de Colin M.L. Burnett (GPLv2+), Merida de Armando Hernández Marroquín (GPLv2+), Celtic de [Maurizio Monge](https://github.com/maurimo/chess-art) (MIT), Minimal (MPChess) de [Maxime Chupin](https://github.com/chupinmaxime) (GPLv3+) y Chessnut de [Alexis Luengas](https://github.com/LexLuengas/chessnut-pieces) (Apache 2.0), tomadas de [Lichess](https://github.com/lichess-org/lila).
 - Reglas de ajedrez: [chess.js](https://github.com/jhlywa/chess.js).
 - Puzzles: API pública de [Lichess](https://lichess.org) y de [Chess.com](https://www.chess.com/news/view/published-data-api).
 - Partidas: API pública de Chess.com.
