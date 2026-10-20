@@ -140,7 +140,7 @@ textarea{min-height:64px;font-size:13px;resize:vertical;font-family:ui-monospace
 .stats{display:flex;flex-direction:column;margin:12px 0 4px;border-top:1px solid var(--line)}
 .stat{display:flex;flex-direction:row-reverse;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--line)}
 .stat span:last-child{color:var(--muted);font-size:14px}
-.big{font-weight:600;font-size:15px}
+.big{font-weight:600;font-size:15px;text-align:right;max-width:60%}
 .result{padding:2px 0 2px 12px;margin:16px 0;border-left:2px solid var(--line2)}
 .result.good{border-left-color:var(--good)} .result.bad{border-left-color:var(--bad)} .result.warn{border-left-color:var(--warn)}
 .result strong{display:block;font-weight:600}
@@ -187,6 +187,20 @@ textarea{min-height:64px;font-size:13px;resize:vertical;font-family:ui-monospace
 .explain p{margin:0 0 6px;color:var(--text)}
 .explain b{font-weight:600}
 .explain .line{font-size:13px;color:var(--muted);padding:6px 0 6px 10px;border-left:2px solid var(--line2)}
+.clock{display:flex;justify-content:space-between;align-items:center;width:var(--bw);margin-left:22px;font-size:14px;color:var(--muted)}
+#clockTop{margin-bottom:8px}
+.clock[hidden]{display:none}
+.clock .tm{font-variant-numeric:tabular-nums;font-size:20px;font-weight:600;padding:1px 10px;border-radius:4px;background:var(--raise);color:var(--muted);min-width:86px;text-align:right}
+.clock.on .tm{background:var(--text);color:var(--onText)}
+.clock.low .tm{color:var(--bad)}
+.clock.on.low .tm{background:var(--bad);color:#fff}
+html.clocked{--bw:min(calc(100vh - 280px), calc(100vw - 540px), 680px)}
+.feed{border-top:1px solid var(--line);max-height:340px;overflow:auto;margin-bottom:6px}
+.msg{padding:9px 0 9px 10px;border-bottom:1px solid var(--line);font-size:14px;box-shadow:inset 2px 0 0 var(--line2)}
+.msg .who{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:2px}
+.msg.warn{box-shadow:inset 2px 0 0 var(--warn)} .msg.bad{box-shadow:inset 2px 0 0 var(--bad)} .msg.good{box-shadow:inset 2px 0 0 var(--good)} .msg.sum{box-shadow:inset 2px 0 0 var(--text)}
+.msg .line{font-size:13px;color:var(--muted);margin:4px 0 0}
+.msg .row{margin-top:8px}
 .catrow{display:grid;grid-template-columns:1fr auto;font-size:14px}
 
 /* jugadas */
@@ -309,6 +323,7 @@ html[data-pieces=chessnut] .pbp,.pz-chessnut-bp{background-image:url('data:image
   <div class="brand">Casilla</div>
   <nav class="tabs" role="tablist">
     <button class="tab" role="tab" data-tab="ladder">Escalera</button>
+    <button class="tab" role="tab" data-tab="coach">Maestro</button>
     <button class="tab" role="tab" data-tab="puzzles">Puzzles</button>
     <button class="tab" role="tab" data-tab="positions">Posiciones</button>
     <button class="tab" role="tab" data-tab="games">Mis partidas</button>
@@ -319,6 +334,7 @@ html[data-pieces=chessnut] .pbp,.pz-chessnut-bp{background-image:url('data:image
 </header>
 <main>
   <section class="stage">
+    <div class="clock" id="clockTop" hidden><span class="who"></span><span class="tm"></span></div>
     <div class="board-row">
       <div class="evalbar off" id="evalbar"><div class="fill"></div><span class="evtxt"></span></div>
       <div class="board-box">
@@ -335,6 +351,7 @@ html[data-pieces=chessnut] .pbp,.pz-chessnut-bp{background-image:url('data:image
       </div>
     </div>
     <div class="under">
+      <div class="clock" id="clockBot" hidden><span class="who"></span><span class="tm"></span></div>
       <div id="status" class="status" aria-live="polite"></div>
       <div id="controls" class="controls"></div>
     </div>
@@ -561,8 +578,9 @@ const Engine = {
   _send(c){ this.w.postMessage(c); },
   run(fen, o={}){
     return new Promise(resolve => {
-      const job = {fen, o, resolve, info:{}, tag:o.tag || 'ui'};
-      if(o.priority) this.q.unshift(job); else this.q.push(job);
+      const job = {fen, o, resolve, info:{}, tag:o.tag || 'ui', pr:o.priority === true ? 1 : (o.priority || 0)};
+      let i = this.q.findIndex(j => j.pr < job.pr); if(i < 0) i = this.q.length;
+      this.q.splice(i, 0, job);
       this._next();
     });
   },
@@ -745,7 +763,7 @@ const App = {
   ladderSel:null, ladderColor:'w', puzzleSource:'mix', puzzleTheme:'auto', posTab:'finales', mineFocus:null, playTier:null,
   setSession(s){
     if(this.session && this.session.exit) this.session.exit();
-    this.token++; Engine.cancel('ui'); this.busy = false;
+    this.token++; Engine.cancel('ui'); Engine.cancel('coach'); this.busy = false; Clocks.hide();
     this.session = s;
     Board.onMove = mv => s.onUserMove && s.onUserMove(mv);
     Board.sel = null; Board.arrows = []; Board.marks = {}; Board._endDrag();
@@ -773,7 +791,7 @@ function bindSeg(root, name, cb){ const s = root.querySelector('[data-seg="'+nam
 
 async function engineReply(cfg){
   const tok = App.token, fen = App.game.fen(), t0 = performance.now();
-  const r = await Engine.run(fen, {skill:cfg.skill, depth:cfg.depth||undefined, movetime:cfg.movetime, tag:'ui', priority:1});
+  const r = await Engine.run(fen, {skill:cfg.skill, depth:cfg.depth||undefined, movetime:cfg.movetime, tag:'ui', priority:3});
   if(tok !== App.token || !r || !r.best) return null;
   let uci = r.best;
   if(cfg.rnd && Math.random() < cfg.rnd){ const ms = App.game.moves({verbose:true}); const m = ms[Math.floor(Math.random()*ms.length)]; uci = moveUci(m); }
@@ -782,7 +800,45 @@ async function engineReply(cfg){
   return {uci, score:r.score};
 }
 
-/* ---------- Partida contra el motor (escalera, finales, FEN, posiciones) ---------- */
+/* ---------- Reloj ---------- */
+const TIME_CONTROLS = [['none','Sin reloj'],['180+2','3+2'],['300+0','5+0'],['600+5','10+5'],['900+10','15+10']];
+function parseTC(v){ if(!v || v === 'none') return null; const [b,i] = String(v).split('+').map(Number); return {base:b*1000, inc:(i||0)*1000}; }
+function tcLabel(v){ const t = TIME_CONTROLS.find(x => x[0] === v); return t ? t[1] : 'Sin reloj'; }
+function fmtClock(ms){ ms = Math.max(0, ms); if(ms < 10000) return (Math.floor(ms/100)/10).toFixed(1); const s = Math.ceil(ms/1000); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+function canMate(fen, color){
+  // ¿Tiene "color" material para dar mate con alguna secuencia legal?
+  const pos = fen.split(' ')[0]; let minors = 0, heavy = 0, oppOther = 0;
+  for(const ch of pos){ const l = ch.toLowerCase(); if(!'pnbrq'.includes(l)) continue; const c = ch === l ? 'b' : 'w';
+    if(c === color){ if(l === 'n' || l === 'b') minors++; else heavy++; } else oppOther++; }
+  if(heavy || minors >= 2) return true;
+  return minors === 1 && oppOther > 0;
+}
+class GameClock{
+  constructor(tc, onFlag, onTick){ this.tc = tc; this.t = {w:tc.base, b:tc.base}; this.side = null; this.paused = null; this.t0 = 0; this.onFlag = onFlag; this.onTick = onTick; this.iv = null; }
+  elapsed(){ return this.side ? performance.now() - this.t0 : 0; }
+  left(c){ return this.t[c] - (this.side === c ? this.elapsed() : 0); }
+  start(c){ this.side = c; this.t0 = performance.now(); if(!this.iv) this.iv = setInterval(() => this.tick(), 100); this.tick(); }
+  pause(){ if(!this.side) return; this.t[this.side] -= this.elapsed(); this.paused = this.side; this.side = null; this.tick(); }
+  resume(){ if(this.paused){ const c = this.paused; this.paused = null; this.start(c); } }
+  moved(c){ if(this.side === c) this.t[c] -= this.elapsed(); this.paused = null; this.t[c] += this.tc.inc; this.start(other(c)); }
+  stop(){ if(this.side){ this.t[this.side] -= this.elapsed(); this.side = null; } clearInterval(this.iv); this.iv = null; this.onTick && this.onTick(); }
+  tick(){
+    const c = this.side;
+    if(c && this.left(c) <= 0){ this.t[c] = 0; this.side = null; clearInterval(this.iv); this.iv = null; this.onTick && this.onTick(); this.onFlag(c); return; }
+    this.onTick && this.onTick();
+  }
+}
+const Clocks = {
+  hide(){ $('#clockTop').hidden = true; $('#clockBot').hidden = true; document.documentElement.classList.remove('clocked'); },
+  render(clk, user, oppName){
+    if(!clk){ this.hide(); return; }
+    document.documentElement.classList.add('clocked');
+    const set = (el, c, name) => { const left = clk.left(c); el.hidden = false; el.querySelector('.who').textContent = name; el.querySelector('.tm').textContent = fmtClock(left); el.classList.toggle('on', clk.side === c); el.classList.toggle('low', left < 20000); };
+    set($('#clockTop'), other(user), oppName); set($('#clockBot'), user, 'Tú');
+  }
+};
+
+/* ---------- Partida contra el motor (escalera, maestro, finales, FEN, posiciones) ---------- */
 class PlaySession{
   constructor(o){ this.o = o; }
   enter(){
@@ -790,33 +846,72 @@ class PlaySession{
     App.game = new Chess(o.fen || START_FEN);
     this.startFen = App.game.fen();
     this.user = o.userColor; Board.orient = this.user; Board.layout(); Board.movable = this.user; Board.last = null;
-    this.over = false; this.userMoves = 0; this.promoted = false; this.userEval = null; this.hintsUsed = false; this.result = null;
+    this.over = false; this.userMoves = 0; this.promoted = false; this.userEval = null; this.hintsUsed = false; this.result = null; this.thinking = false; this.checking = false;
     Engine.needNew = true;
     if(o.helps || o.goal) EvalBar.set(0); else EvalBar.hide();
+    this.coach = o.coach ? new Coach(this, o.coach) : null;
+    const tc = parseTC(o.clock);
+    this.clk = tc ? new GameClock(tc, c => this.flag(c), () => Clocks.render(this.clk, this.user, this.oppName)) : null;
     this.renderSide(); this.update();
-    if(App.game.turn() !== this.user) this.engineTurn();
+    if(this.clk) this.clk.start(App.game.turn()); else Clocks.hide();
+    if(this.coach) this.coach.start();
+    if(App.game.turn() !== this.user) this.engineTurn(); else if(this.coach) this.coach.userTurn();
   }
-  get tierName(){ return this.o.tier === STRONG ? 'Stockfish al máximo' : TIERS[this.o.tierIdx].n; }
-  onUserMove(mv){
-    if(this.over || this.thinking) return;
+  exit(){ if(this.clk) this.clk.stop(); Clocks.hide(); }
+  get oppName(){ return this.o.oppName || (this.o.tier === STRONG ? 'Stockfish' : TIERS[this.o.tierIdx].n); }
+  get tierName(){ return this.o.oppName ? 'El ' + this.o.oppName.toLowerCase() : (this.o.tier === STRONG ? 'Stockfish al máximo' : TIERS[this.o.tierIdx].n); }
+  async onUserMove(mv){
+    if(this.over || this.thinking || this.checking) return;
+    const fenBefore = App.game.fen();
+    const m0 = new Chess(fenBefore).move(mv); if(!m0) return;
+    if(this.coach && this.coach.guide){
+      this.checking = true; App.busy = true; if(this.clk) this.clk.pause();
+      setStatus('El maestro revisa tu jugada…');
+      const tok = App.token;
+      const v = await this.coach.preCheck(fenBefore, m0);
+      if(tok !== App.token || this.over) return;
+      this.checking = false; App.busy = false;
+      if(v && v.warn){ if(this.clk) this.clk.resume(); this.coach.warn(v, () => this.commitUserMove(mv, fenBefore, v)); this.update(); setStatus('El maestro te advierte antes de jugar.', 'warn'); return; }
+      return this.commitUserMove(mv, fenBefore, v);
+    }
+    this.commitUserMove(mv, fenBefore, null);
+  }
+  commitUserMove(mv, fenBefore, verdict){
+    if(this.over || App.game.fen() !== fenBefore) return;
     const m = App.game.move(mv); if(!m) return;
+    if(this.clk) this.clk.moved(this.user);
     this.userMoves++; if(m.promotion) this.promoted = true;
     Board.arrows = []; Board.marks = {}; Board.last = m; this.update();
+    if(this.coach) this.coach.afterUser(m, fenBefore, verdict);
     if(this.checkEnd()) return;
     this.engineTurn();
   }
   async engineTurn(){
     this.thinking = true; App.busy = true; this.update();
     const tok = App.token;
-    const r = await engineReply(this.o.tier);
-    if(tok !== App.token) return;
+    let cfg = this.o.tier;
+    if(this.clk){ const left = this.clk.left(other(this.user)); cfg = Object.assign({}, cfg, {movetime:Math.max(80, Math.min(cfg.movetime, Math.floor(left/40)))}); }
+    let r = null;
+    const book = this.coach ? this.coach.bookMove() : null;
+    if(book){ await sleep(450); r = {uci:book.uci, score:null, book}; }
+    else r = await engineReply(cfg);
+    if(tok !== App.token || this.over) return;
     App.busy = false; this.thinking = false;
     if(!r){ this.update(); return; }
     if(r.score){ this.userEval = -cpEq(r.score); if(this.o.helps || this.o.goal) EvalBar.set(this.user==='w' ? this.userEval : -this.userEval); }
     const m = App.game.move(uciObj(r.uci)); Board.last = m;
+    if(this.clk) this.clk.moved(other(this.user));
     this.update();
+    if(this.coach) this.coach.afterEngine(m, r);
     if(this.checkEnd()) return;
     this.checkGoal();
+    if(!this.over && this.coach) this.coach.userTurn();
+  }
+  flag(c){
+    if(this.over) return;
+    Engine.cancel('ui'); App.busy = false; this.thinking = false; this.checking = false;
+    if(!canMate(App.game.fen(), other(c))) return this.finish('d', 'Se acabó el tiempo, pero quien sigue en el reloj no tiene material para dar mate');
+    this.finish(c === this.user ? 'l' : 'w', c === this.user ? 'Se te acabó el tiempo' : 'A tu rival se le acabó el tiempo');
   }
   checkEnd(){
     const g = App.game; if(!g.game_over()) return false;
@@ -845,7 +940,9 @@ class PlaySession{
     }
   }
   finish(res, why){
-    this.over = true; Board.movable = null; App.busy = false;
+    if(this.over) return;
+    this.over = true; Board.movable = null; App.busy = false; this.thinking = false;
+    if(this.clk) this.clk.stop();
     const o = this.o;
     if(o.goal){
       this.result = {ok:res, why};
@@ -860,25 +957,38 @@ class PlaySession{
         }
         save();
       }
+      if(o.vsCoach){
+        const C = coachState(); const serious = !o.helps;
+        C.rec[res]++;
+        if(serious){
+          if(C.rating === null) C.rating = o.playerElo;
+          const exp = 1 / (1 + Math.pow(10, (o.coachElo - C.rating) / 400));
+          const delta = Math.round(32 * ((res==='w'?1:res==='d'?.5:0) - exp));
+          C.rating += delta; this.result.delta = delta; C.serious++;
+        }
+        save();
+      }
     }
+    if(this.coach) this.coach.finish(this.result);
     this.renderSide(); this.update();
   }
   async hint(){
-    if(this.over || this.thinking) return;
+    if(this.over || this.thinking || this.checking) return;
     this.hintsUsed = true; setStatus('Calculando pista…');
     const tok = App.token;
-    const r = await Engine.run(App.game.fen(), {movetime:900, tag:'ui', priority:1});
+    const r = await Engine.run(App.game.fen(), {movetime:900, tag:'ui', priority:3});
     if(tok !== App.token || !r || !r.best) return;
     Board.arrows = [{from:r.best.slice(0,2), to:r.best.slice(2,4), c:'h'}];
     EvalBar.set((App.game.turn()==='w'?1:-1) * cpEq(r.score));
     this.update();
   }
   undo(){
-    if(this.thinking || this.over) return;
+    if(this.thinking || this.over || this.checking) return;
     const g = App.game; if(!g.history().length) return;
     g.undo(); if(g.turn() !== this.user && g.history().length) g.undo();
-    if(g.turn() !== this.user){ this.engineTurn(); }
     const h = g.history({verbose:true}); Board.last = h[h.length-1] || null; Board.arrows = [];
+    if(this.coach) this.coach.onUndo();
+    if(g.turn() !== this.user){ this.engineTurn(); } else if(this.coach) this.coach.userTurn();
     this.update();
   }
   update(){
@@ -889,11 +999,11 @@ class PlaySession{
       if(this.o.goal) setStatus(r.ok ? 'Objetivo cumplido' : 'Objetivo no cumplido', r.ok ? 'good' : 'bad');
       else setStatus(r.res === 'w' ? 'Ganaste' : r.res === 'l' ? 'Perdiste' : 'Tablas', r.res === 'w' ? 'good' : r.res === 'l' ? 'bad' : '');
     } else if(this.thinking) setStatus(this.tierName + ' está pensando…');
-    else setStatus('Tu turno, juegas con ' + colorName(this.user) + (g.in_check() ? '. Estás en jaque.' : ''));
-    const helps = this.o.helps;
+    else if(!this.checking) setStatus('Tu turno, juegas con ' + colorName(this.user) + (g.in_check() ? '. Estás en jaque.' : ''));
+    const helps = this.o.helps, busy = this.over || this.thinking || this.checking;
     setControls([
-      helps && {label:'Pista', on:()=>this.hint(), disabled:this.over||this.thinking},
-      helps && {label:'Deshacer', on:()=>this.undo(), disabled:this.over||this.thinking},
+      helps && {label:'Pista', on:()=>this.hint(), disabled:busy},
+      helps && {label:'Deshacer', on:()=>this.undo(), disabled:busy},
       {label:'Girar tablero', on:()=>Board.flip()},
       !this.over && {label: this.o.goal ? 'Rendirse' : 'Abandonar', on:()=> this.o.goal ? this.finish(false,'Te rendiste') : this.finish('l','Abandono')},
       this.over && {label:'Analizar posición', on:()=>App.setSession(new AnalysisSession({fen:g.fen(), title:'Análisis libre', back:()=>App.setSession(new PlaySession(this.o))}))},
@@ -909,18 +1019,22 @@ class PlaySession{
       const kind = r.res==='w'?'good':r.res==='l'?'bad':'warn';
       res = '<div class="result ' + kind + '"><strong>' + (r.res==='w'?'Victoria':r.res==='l'?'Derrota':'Tablas') + '</strong>' + esc(r.why) + '.' +
         (r.unlocked ? '<br>Desbloqueaste el nivel ' + esc(r.unlocked) + '.' : '') +
+        (r.delta !== undefined ? '<br>Tu rating con el maestro: ' + coachState().rating + ' (' + (r.delta >= 0 ? '+' : '') + r.delta + ').' : '') +
         (r.res==='w' && o.ladder && (o.helps || this.hintsUsed) ? '<br>Usaste ayudas, así que esta victoria no desbloquea niveles.' : '') + '</div>';
     }
+    const desc = o.desc || ('Contra ' + this.tierName + (o.tier!==STRONG && o.tierIdx !== null ? ' (' + TIERS[o.tierIdx].elo + ')' : '') + '.' + (o.helps ? ' Con ayudas.' : '') + (o.clock && o.clock !== 'none' ? ' Ritmo ' + tcLabel(o.clock) + '.' : ''));
     side().innerHTML =
       '<button class="back" id="bk">← ' + esc(o.backLabel || 'Volver') + '</button>' +
       '<h2>' + esc(o.title) + '</h2>' +
-      '<p class="lede">' + esc(o.desc || ('Contra ' + this.tierName + (o.tier!==STRONG ? ' (' + TIERS[o.tierIdx].elo + ')' : '') + '.' + (o.helps ? ' Con ayudas.' : ''))) + '</p>' +
+      '<p class="lede">' + esc(desc) + '</p>' +
       res +
-      (r ? '<div class="row"><button class="btn primary" id="again">Repetir</button>' + (r.unlocked ? '<button class="btn" id="nextTier">Jugar contra ' + esc(r.unlocked) + '</button>' : '') + '</div>' : '') +
+      (r ? '<div class="row"><button class="btn primary" id="again">' + (o.vsCoach ? 'Otra partida' : 'Repetir') + '</button>' + (r.unlocked ? '<button class="btn" id="nextTier">Jugar contra ' + esc(r.unlocked) + '</button>' : '') + '</div>' : '') +
+      (this.coach ? '<h3>Maestro</h3><div class="feed" id="feed" aria-live="polite"></div>' : '') +
       '<div id="ml"></div>';
     $('#bk').onclick = () => o.back ? o.back() : switchTab(App.tab);
-    const ag = $('#again'); if(ag) ag.onclick = () => App.setSession(new PlaySession(Object.assign({}, o, o.ladder && o.colorPref==='r' ? {userColor: Math.random()<.5?'w':'b'} : {})));
+    const ag = $('#again'); if(ag) ag.onclick = () => o.vsCoach ? startCoachGame() : App.setSession(new PlaySession(Object.assign({}, o, o.ladder && o.colorPref==='r' ? {userColor: Math.random()<.5?'w':'b'} : {})));
     const nt = $('#nextTier'); if(nt) nt.onclick = () => { App.ladderSel = o.tierIdx + 1; startLadder(o.tierIdx + 1, o.colorPref, o.helps); };
+    if(this.coach) this.coach.renderFeed();
   }
 }
 
@@ -928,7 +1042,7 @@ class PlaySession{
 function renderLadderHome(){
   const u = S.ladder.unlocked;
   if(App.ladderSel === null || App.ladderSel >= u) App.ladderSel = u - 1;
-  const sel = App.ladderSel;
+  const sel = App.ladderSel, st = S.settings;
   const rows = TIERS.map((t,i) => {
     const rec = S.ladder.rec[i]; const locked = i >= u; const beaten = i < u - 1 || (rec && rec.w > 0 && i === TIERS.length-1);
     const extra = (i >= 6 ? (i===6?' M':' GM') : '');
@@ -940,7 +1054,9 @@ function renderLadderHome(){
     '<h2>Escalera</h2><p class="lede">Gana a cada nivel sin ayudas para abrir el siguiente. Los ELO son aproximados.</p>' +
     '<ol class="stairs">' + rows + '</ol>' +
     '<div class="field"><span class="lbl">Juegas con</span>' + segHTML('color', [['w','Blancas'],['b','Negras'],['r','Al azar']], App.ladderColor) + '</div>' +
-    '<label class="check"><input type="checkbox" id="helps"> <span>Con ayudas: pistas, deshacer y barra de evaluación. No cuenta para desbloquear.</span></label>' +
+    '<div class="field"><span class="lbl">Ritmo</span>' + segHTML('clock', TIME_CONTROLS, st.clock || 'none') + '</div>' +
+    '<label class="check"><input type="checkbox" id="helps"' + (st.ladderHelps ? ' checked' : '') + '> <span>Con ayudas: pistas, deshacer y barra de evaluación. No cuenta para desbloquear.</span></label>' +
+    '<label class="check"><input type="checkbox" id="lcoach"' + (st.ladderCoach ? ' checked' : '') + '> <span>El maestro comenta la partida. Sin ayudas, señala tus buenas jugadas y deja los errores para el resumen final; con ayudas, también te avisa antes de un error grave.</span></label>' +
     '<button class="btn primary wide" id="go">Jugar contra ' + TIERS[sel].n + '</button>';
   const root = side();
   $$('.stair', root).forEach(li => {
@@ -948,12 +1064,381 @@ function renderLadderHome(){
     li.onclick = pick; li.onkeydown = e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(); } };
   });
   bindSeg(root, 'color', v => App.ladderColor = v);
+  bindSeg(root, 'clock', v => { S.settings.clock = v; save(); });
+  $('#helps').onchange = e => { S.settings.ladderHelps = e.target.checked; save(); };
+  $('#lcoach').onchange = e => { S.settings.ladderCoach = e.target.checked; save(); };
   $('#go').onclick = () => startLadder(App.ladderSel, App.ladderColor, $('#helps').checked);
 }
 async function startLadder(i, colorPref, helps){
   if(!Engine.ready){ toast('Esperando a que cargue Stockfish…'); if(!(await Engine.whenReady())) return; }
   const color = colorPref === 'r' ? (Math.random() < .5 ? 'w' : 'b') : colorPref;
-  App.setSession(new PlaySession({tier:TIERS[i], tierIdx:i, ladder:true, helps, colorPref, userColor:color, title:'Nivel ' + (i+1) + ': ' + TIERS[i].n, backLabel:'Escalera', back:()=>switchTab('ladder')}));
+  const coach = S.settings.ladderCoach ? {mode: helps ? 'guide' : 'comment'} : null;
+  App.setSession(new PlaySession({tier:TIERS[i], tierIdx:i, ladder:true, helps, colorPref, userColor:color, clock:S.settings.clock || 'none', coach,
+    title:'Nivel ' + (i+1) + ': ' + TIERS[i].n, backLabel:'Escalera', back:()=>switchTab('ladder')}));
+}
+
+/* =========================================================
+   Maestro
+   ========================================================= */
+const TIER_ELO = [600, 900, 1200, 1500, 1800, 2100, 2400, 2700];
+function cfgForElo(e){
+  e = Math.max(400, Math.min(2800, e));
+  if(e <= TIER_ELO[0]){ const t = TIERS[0]; return {skill:0, depth:1, movetime:t.movetime, rnd:Math.min(.55, t.rnd + (TIER_ELO[0] - e) / 800)}; }
+  if(e >= TIER_ELO[7]) return Object.assign({}, TIERS[7]);
+  let k = 0; while(e > TIER_ELO[k+1]) k++;
+  const a = TIERS[k], b = TIERS[k+1], t = (e - TIER_ELO[k]) / (TIER_ELO[k+1] - TIER_ELO[k]);
+  const lerp = (x, y) => x + (y - x) * t;
+  return {skill:Math.round(lerp(a.skill, b.skill)), depth:b.depth === null ? (t > .5 ? null : a.depth + 3) : Math.round(lerp(a.depth, b.depth)), movetime:Math.round(lerp(a.movetime, b.movetime)), rnd:lerp(a.rnd, b.rnd)};
+}
+function coachState(){
+  if(!S.coach) S.coach = {rating:null, rec:{w:0,d:0,l:0}, serious:0, games:[]};
+  return S.coach;
+}
+function bandOf(e){ return e < 1000 ? 'inicial' : e < 1600 ? 'intermedio' : e < 2000 ? 'avanzado' : 'experto'; }
+const BAND_NAME = {inicial:'inicial', intermedio:'intermedio', avanzado:'avanzado', experto:'experto'};
+function playerModel(){
+  const me = S.username.toLowerCase(), out = {sources:[]};
+  let sum = 0, w = 0;
+  const recent = S.games.filter(g => g.tc !== 'daily').slice(0, 30).map(g => g.white.toLowerCase() === me ? g.wr : g.br).filter(x => x > 0);
+  if(recent.length >= 3){ const avg = recent.reduce((a,b) => a+b, 0) / recent.length; sum += avg * 3; w += 3; out.sources.push('tus partidas de Chess.com (' + Math.round(avg) + ')'); }
+  if(S.ladder.unlocked > 1){ const e = TIER_ELO[S.ladder.unlocked - 2]; sum += e * 1.5; w += 1.5; out.sources.push('la escalera (' + e + ')'); }
+  if(S.puzzles.hist.length >= 10){ const e = S.puzzles.rating - 250; sum += e; w += 1; out.sources.push('tus puzzles (' + S.puzzles.rating + ')'); }
+  const C = coachState();
+  if(C.serious >= 3 && C.rating !== null){ sum += C.rating * 3; w += 3; out.sources.push('tus partidas serias con el maestro (' + C.rating + ')'); }
+  out.elo = w ? Math.round(sum / w) : 1000;
+  out.band = bandOf(out.elo);
+  const p = errorProfile(); out.top = p.ranked.slice(0, 2).map(x => x[0]); out.total = p.total; out.phases = p.phases; out.games = p.games;
+  out.endShare = p.total ? Math.round(100 * (p.phases['Final'] || 0) / p.total) : 0;
+  return out;
+}
+let _tree = null, _treeKey = '';
+function posKey(fen){ return fen.split(' ').slice(0, 4).join(' '); }
+function openingTree(){
+  const key = S.username + ':' + S.games.length;
+  if(_tree && _treeKey === key) return _tree;
+  const me = S.username.toLowerCase(), tree = {};
+  for(const g of S.games){
+    if(!g.pgn) continue;
+    const uc = g.white.toLowerCase() === me ? 'w' : 'b';
+    const {headers, toks} = parsePGN(g.pgn); if(headers.FEN) continue;
+    const c = new Chess();
+    for(const t of toks.slice(0, 16)){
+      const k = posKey(c.fen()), turn = c.turn();
+      const m = c.move(t, {sloppy:true}); if(!m) break;
+      const node = tree[k] || (tree[k] = {opp:{}, me:{}});
+      const side = turn === uc ? node.me : node.opp;
+      side[m.san] = (side[m.san] || 0) + 1;
+    }
+  }
+  _tree = tree; _treeKey = key; return tree;
+}
+function bookLineMove(hist){
+  // Siguiente jugada de una línea de OPENINGS que coincida con la partida
+  const fits = OPENINGS.filter(o => { const l = o.line.split(' '); return l.length > hist.length && hist.every((m,i) => m.replace(/[+#]/g,'') === l[i].replace(/[+#]/g,'')); });
+  if(!fits.length) return null;
+  const o = fits[Math.floor(Math.random() * fits.length)];
+  return {san:o.line.split(' ')[hist.length], name:o.t};
+}
+function openingNow(hist){
+  if(hist.length < 4) return null;
+  const o = OPENINGS.find(o => { const l = o.line.split(' '); return hist.length <= l.length && hist.every((m,i) => m.replace(/[+#]/g,'') === l[i].replace(/[+#]/g,'')); });
+  return o ? o.t : null;
+}
+function threatScan(fen, user){
+  // Capturas que el rival podría hacer si le tocara mover y que ganan material
+  const parts = fen.split(' '); parts[1] = other(user); parts[3] = '-';
+  const f = parts.join(' '); if(!new Chess().validate_fen(f).valid) return null;
+  const g = new Chess(f); let best = null;
+  for(const m of g.moves({verbose:true})){
+    if(!m.captured || m.captured === 'p') continue;
+    const t = new Chess(f); t.move(m);
+    const defended = t.moves({verbose:true}).some(x => x.to === m.to && x.captured);
+    const gain = defended ? VAL[m.captured] - VAL[m.piece] : VAL[m.captured];
+    if(gain >= 2 && (!best || gain > best.gain)) best = {gain, piece:m.piece, target:m.captured, sq:m.to, from:m.from};
+  }
+  return best;
+}
+function moveLabel(fen, san){ const p = fen.split(' '); return (+p[5] || 1) + (p[1] === 'w' ? '. ' : '... ') + san; }
+
+class Coach{
+  constructor(ses, opts){
+    this.ses = ses; this.guide = opts.mode === 'guide'; this.vs = !!ses.o.vsCoach;
+    this.prof = playerModel(); this.band = this.prof.band;
+    this.msgs = []; this.moveEvals = []; this.pre = null; this.warned = {}; this.pending = Promise.resolve();
+    this.said = {}; this.lastThreat = null; this.deferred = [];
+    this.tree = this.vs && S.username ? openingTree() : null;
+  }
+  get user(){ return this.ses.user; }
+  say(kind, text, extra){
+    const m = Object.assign({id:Math.random().toString(36).slice(2), kind, text, at:App.game.history().length}, extra || {});
+    this.msgs.unshift(m); this.renderFeed();
+    if(m.facts) ClaudeAI.enhance(this, m);
+    return m;
+  }
+  renderFeed(){
+    const box = $('#feed'); if(!box) return;
+    box.innerHTML = this.msgs.map(m => '<div class="msg ' + m.kind + '" data-id="' + m.id + '"><div class="who"><span>' + esc(m.label || 'Maestro') + '</span>' + (m.ai ? '<span>Claude</span>' : m.aiPending ? '<span>Claude escribe…</span>' : '') + '</div>' +
+      '<div>' + esc(m.text) + '</div>' + (m.line ? '<p class="line">' + esc(m.line) + '</p>' : '') +
+      (m.actions && !m.done ? '<div class="row">' + m.actions.map((a,i) => '<button class="btn small' + (i===0?' primary':'') + '" data-act="' + i + '">' + esc(a.label) + '</button>').join('') + '</div>' : '') + '</div>').join('');
+    $$('[data-act]', box).forEach(b => b.onclick = () => { const id = b.closest('.msg').dataset.id; const m = this.msgs.find(x => x.id === id); if(!m || m.done) return; m.done = true; this.renderFeed(); m.actions[+b.dataset.act].on(); });
+  }
+  start(){
+    const p = this.prof;
+    if(this.vs){
+      const top = p.top.length ? ' Tu error más común es ' + p.top[0].toLowerCase() + '; voy a estar atento a eso.' : '';
+      this.say('info', 'Por ' + (p.sources.length ? p.sources.join(', ') : 'falta de datos') + ', te estimo en unos ' + p.elo + ' puntos (nivel ' + BAND_NAME[p.band] + '). Voy a jugar a unos ' + this.ses.o.coachElo + '.' + top +
+        (this.tree && Object.keys(this.tree).length ? ' En la apertura te pondré las líneas que más te juegan tus rivales.' : ''));
+    } else {
+      this.say('info', this.guide ? 'Te acompaño en esta partida. Comento los momentos clave y te aviso antes de un error grave.' : 'Te acompaño en esta partida. Durante el juego solo señalo lo bueno; tus errores los repasamos al final.');
+    }
+  }
+  userTurn(){
+    const fen = App.game.fen();
+    if(this.pre && this.pre.fen === fen) return;
+    const pre = {fen, r:null};
+    pre.p = Engine.run(fen, {movetime:650, multipv:2, tag:'coach', priority:2}).then(r => { pre.r = r; return r; });
+    this.pre = pre;
+  }
+  onUndo(){ this.pre = null; this.lastThreat = null; }
+  async getPre(fen){
+    if(this.pre && this.pre.fen === fen) return this.pre.r || await this.pre.p;
+    this.pre = null; this.userTurn(); return await this.pre.p;
+  }
+  async analyzeMove(fenBefore, m){
+    const pre = await this.getPre(fenBefore); if(!pre || !pre.best) return null;
+    const before = cpEq(pre.score), uci = moveUci(m);
+    const g = new Chess(fenBefore); g.move({from:m.from, to:m.to, promotion:m.promotion});
+    let after, refPv;
+    if(pre.best === uci){ after = before; refPv = (pre.pv || []).slice(1); }
+    else if(g.in_checkmate()){ after = 1500; refPv = []; }
+    else if(g.game_over()){ after = 0; refPv = []; }
+    else { const r = await Engine.run(g.fen(), {movetime:500, tag:'coach', priority:2}); if(!r) return null; after = -cpEq(r.score); refPv = r.pv || []; }
+    const l2 = pre.lines && pre.lines[2];
+    const second = l2 ? cpEq(l2.score) : null;
+    const drop = pre.best === uci ? 0 : Math.max(0, winPct(before) - winPct(after));
+    const fp = fenBefore.split(' ');
+    return {fen:fenBefore, ply:((+fp[5] || 1) - 1) * 2 + (fp[1] === 'b' ? 1 : 0), uci, san:m.san, piece:m.piece, before, after, drop, best:pre.best, bestSan:uciToSan(fenBefore, pre.best), bestPv:(pre.pv || []).slice(1), refPv, second, isBest:pre.best === uci};
+  }
+  warnThreshold(){ return {inicial:20, intermedio:22, avanzado:25, experto:30}[this.band]; }
+  async preCheck(fenBefore, m){
+    const v = await this.analyzeMove(fenBefore, m); if(!v) return null;
+    const key = fenBefore + v.uci;
+    v.warn = v.drop >= this.warnThreshold() && v.before > -600 && !this.warned[key];
+    if(v.warn) this.warned[key] = true;
+    return v;
+  }
+  consequence(v){
+    const uc = this.user; const gP = new Chess(v.fen); const played = gP.move(uciObj(v.uci));
+    const line = applyLine(gP.fen(), v.refPv, 4); const r1 = line.moves[0];
+    const loss = matDiff(v.fen, uc) - matDiff(line.fen, uc);
+    if(v.after <= -1450) return {cat:'Permitió mate', text:'tu rival tiene mate' + (r1 ? ', empezando con ' + r1.san : '')};
+    if(v.before >= 1450 && v.after < 1450) return {cat:'Mate no visto', text:'dejas escapar un mate que tenías'};
+    if(r1 && r1.captured && r1.to === played.to && loss >= 2) return {cat:'Pieza colgada', text:'tu ' + PNAME[played.piece] + ' queda sin defensa en ' + played.to + ' y tu rival ' + pro(played.piece) + ' captura con ' + r1.san};
+    if(r1 && r1.captured && loss >= 2) return {cat:'Pieza colgada', text:'tu rival captura con ' + r1.san + ' y pierdes ' + matPhrase(loss)};
+    if(r1 && loss >= 2) return {cat:'Táctica no vista', text:'tu rival responde ' + r1.san + ' y gana ' + matPhrase(loss)};
+    const bl = applyLine(v.fen, [v.best].concat(v.bestPv), 4); const gain = matDiff(bl.fen, uc) - matDiff(v.fen, uc);
+    if(gain >= 2) return {cat:'Táctica no vista', text:'te pierdes ' + v.bestSan + ', que ganaba ' + matPhrase(gain)};
+    return {cat:'Error posicional', text:'tu posición empeora: ' + evalWords(v.after).replace('ibas','quedas').replace('la posición estaba','la posición queda')};
+  }
+  tip(cat){
+    const basic = {'Pieza colgada':'Antes de mover, mira qué piezas tuyas quedan sin defensa.', 'Permitió mate':'Revisa los jaques que tiene tu rival y las casillas de escape de tu rey.', 'Mate no visto':'Con el rey rival expuesto, revisa primero todos los jaques.', 'Táctica no vista':'Busca jaques, capturas y amenazas antes que jugadas tranquilas.', 'Error posicional':'Pregúntate qué quiere hacer tu rival con su próxima jugada.'};
+    return this.band === 'inicial' || this.band === 'intermedio' ? basic[cat] || '' : '';
+  }
+  lineText(fen, first, pv){
+    const n = {inicial:2, intermedio:4, avanzado:6, experto:8}[this.band];
+    const g = new Chess(fen); const m = g.move(uciObj(first)); if(!m) return '';
+    return numberedLine(fen, [m.san].concat(pvToSan(g.fen(), pv, n)));
+  }
+  warn(v, commit){
+    const c = this.consequence(v);
+    this.say('warn', 'Espera. Si juegas ' + v.san + ', ' + c.text + '. ' + (this.tip(c.cat) || '¿Seguro?'), {
+      label:'Aviso antes de ' + moveLabel(v.fen, v.san),
+      facts:{momento:'aviso antes de un error grave', jugada:v.san, consecuencia:c.text, categoria:c.cat, eval_antes:fmtEval(v.before), eval_despues:fmtEval(v.after), linea_si_la_juega:this.lineText(v.fen, v.uci, v.refPv)},
+      actions:[{label:'Pensar otra vez', on:()=>{ this.ses.update(); }}, {label:'Jugarla igual', on:()=>{ v.forced = true; commit(); }}]
+    });
+  }
+  afterUser(m, fenBefore, verdict){
+    this.msgs.forEach(x => { if(x.actions) x.done = true; }); this.renderFeed();
+    this.pending = this.pending.then(async () => {
+      const tok = App.token;
+      const v = verdict || await this.analyzeMove(fenBefore, m).catch(e => { console.warn(e); return null; });
+      if(!v || tok !== App.token) return;
+      this.moveEvals.push(v);
+      const label = moveLabel(v.fen, v.san), uc = this.user;
+      if(v.drop >= 20){
+        const c = this.consequence(v); v.cat = c.cat;
+        if(this.guide){
+          this.say('bad', (v.forced ? 'La jugaste igual: ' + c.text : c.text.charAt(0).toUpperCase() + c.text.slice(1)) + '. Era mejor ' + v.bestSan + '.', {label,
+            line:this.lineText(v.fen, v.best, v.bestPv),
+            facts:{momento:'error ya jugado', jugada:v.san, mejor:v.bestSan, consecuencia:c.text, categoria:c.cat, eval_antes:fmtEval(v.before), eval_despues:fmtEval(v.after), linea_mejor:this.lineText(v.fen, v.best, v.bestPv)}});
+        } else this.deferred.push(v);
+        return;
+      }
+      if(v.drop >= 10 && this.guide && this.band !== 'inicial'){ this.say('info', v.san + ' es jugable, pero ' + v.bestSan + ' era más preciso.', {label}); return; }
+      if(v.isBest){
+        const bl = applyLine(v.fen, [v.uci].concat(v.bestPv), 3); const gain = matDiff(bl.fen, uc) - matDiff(v.fen, uc);
+        if(v.before >= 1450 && !this.said.mate){ this.said.mate = true; this.say('good', 'Exacto, ' + v.san + ' va camino al mate.', {label}); }
+        else if(v.second !== null && winPct(v.before) - winPct(v.second) >= 20 && v.before > -400){ this.say('good', 'Muy bien: ' + v.san + ' era la única jugada que mantenía tu posición.', {label, facts:{momento:'encontró la única jugada buena', jugada:v.san, eval:fmtEval(v.before), segunda_mejor_eval:fmtEval(v.second)}}); }
+        else if(gain >= 2){ this.say('good', 'Bien visto: ' + v.san + ' gana ' + matPhrase(gain) + '.', {label, facts:{momento:'táctica encontrada', jugada:v.san, ganancia:matPhrase(gain), linea:this.lineText(v.fen, v.uci, v.bestPv)}}); }
+      }
+    }).catch(e => console.warn('coach', e));
+  }
+  afterEngine(m, r){
+    const g = App.game, hist = g.history();
+    if(r.book && r.book.src === 'tree' && !this.said.tree){ this.said.tree = true; this.say('info', 'Te pongo ' + r.book.san + ': es lo que más te han jugado tus rivales en esta posición (' + r.book.n + ' de tus partidas).'); }
+    if(this.said.tree && !r.book && !this.said.treeEnd){ this.said.treeEnd = true; this.say('info', 'Aquí se acaban las líneas de tus partidas. Desde ahora juego con el motor.'); }
+    const op = openingNow(hist); if(op && !this.said['op' + op]){ this.said['op' + op] = true; this.say('info', 'Estamos en la ' + op + '.'); }
+    if(!this.said.end && hist.length >= 20 && phaseOf(g.fen(), hist.length) === 'Final'){
+      this.said.end = true;
+      this.say('info', 'Entramos al final.' + (this.prof.endShare >= 30 ? ' El ' + this.prof.endShare + '% de tus errores analizados ocurren en finales: activa tu rey y cuenta los tiempos antes de cambiar piezas.' : ' Ahora el rey es una pieza de ataque: acércalo al centro.'));
+    }
+    if(this.guide && !g.game_over()){
+      const t = threatScan(g.fen(), this.user);
+      const key = t ? t.from + t.sq : null;
+      if(t && key !== this.lastThreat) this.say('warn', 'Ojo: su ' + PNAME[t.piece] + ' de ' + t.from + ' amenaza tu ' + PNAME[t.target] + ' de ' + t.sq + '.', {label:'Después de ' + m.san});
+      this.lastThreat = key;
+    }
+  }
+  bookMove(){
+    if(!this.vs) return null;
+    const g = App.game, hist = g.history(); if(hist.length >= 16) return null;
+    const node = this.tree && this.tree[posKey(g.fen())];
+    if(node && Object.keys(node.opp).length){
+      const ent = Object.entries(node.opp); const total = ent.reduce((a,[,n]) => a+n, 0);
+      let x = Math.random() * total;
+      for(const [san, n] of ent){ x -= n; if(x <= 0){ const mv = new Chess(g.fen()).move(san, {sloppy:true}); if(mv) return {uci:moveUci(mv), san, n, src:'tree'}; } }
+    }
+    if(this.said.treeEnd || hist.length >= 12) return null;
+    const bl = bookLineMove(hist);
+    if(bl){ const mv = new Chess(g.fen()).move(bl.san, {sloppy:true}); if(mv) return {uci:moveUci(mv), san:bl.san, src:'book'}; }
+    return null;
+  }
+  finish(result){
+    this.pending.then(() => this._finish(result)).catch(e => console.warn('coach', e));
+  }
+  _finish(result){
+    if(this.finished) return; this.finished = true;
+    const ev = this.moveEvals, n = ev.length, uc = this.user;
+    const accs = ev.map(v => Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * v.drop) - 3.1669)));
+    const acc = n ? Math.round(accs.reduce((a,b) => a+b, 0) / n) : null;
+    const bad = ev.filter(v => v.drop >= 20 && v.before > -600);
+    bad.forEach(v => { if(!v.cat) v.cat = this.consequence(v).cat; });
+    const cats = {}; bad.forEach(v => cats[v.cat] = (cats[v.cat] || 0) + 1);
+    const worst = bad.slice().sort((a,b) => b.drop - a.drop)[0];
+    let text = n >= 5 ? 'Precisión aproximada: ' + acc + '%. ' : '';
+    text += bad.length ? 'Tuviste ' + bad.length + ' error' + (bad.length > 1 ? 'es' : '') + ' importante' + (bad.length > 1 ? 's' : '') + '. ' : (n >= 5 ? 'Sin errores importantes. ' : '');
+    if(worst) text += 'El que más costó fue ' + moveLabel(worst.fen, worst.san) + ': ' + this.consequence(worst).text + '; la mejor era ' + worst.bestSan + '. ';
+    const top = this.prof.top[0];
+    if(top) text += cats[top] ? 'Volvió a aparecer tu patrón más común (' + top.toLowerCase() + '). ' : 'Hoy no apareció tu patrón más común (' + top.toLowerCase() + '): buena señal. ';
+    if(bad.length) text += 'Guardé estas posiciones en tus puzzles para repasarlas.';
+    if(!this.guide) this.deferred.forEach(v => { const c = this.consequence(v); this.say('bad', c.text.charAt(0).toUpperCase() + c.text.slice(1) + '. Era mejor ' + v.bestSan + '.', {label:moveLabel(v.fen, v.san), line:this.lineText(v.fen, v.best, v.bestPv)}); });
+    this.say('sum', text.trim() || 'Partida corta: no hay suficientes jugadas para un resumen.', {label:'Resumen',
+      facts:{momento:'resumen final de la partida', resultado:result.res || (result.ok ? 'objetivo cumplido' : 'objetivo no cumplido'), motivo:result.why, precision:acc, errores:bad.map(v => ({jugada:moveLabel(v.fen, v.san), mejor:v.bestSan, tipo:v.cat, consecuencia:this.consequence(v).text})), patron_comun_del_jugador:top || null}});
+    // Aprender: guardar errores para puzzles y perfil
+    const gid = 'coach:' + Date.now(), date = Math.floor(Date.now() / 1000), opp = this.ses.oppName;
+    if(bad.length || n >= 4){
+      const mistakes = bad.filter(v => v.best).map(v => ({id:gid + '#' + (v.ply+1), gid, ply:v.ply+1, fen:v.fen, played:v.san, playedUci:v.uci, best:v.best, bestSan:v.bestSan, drop:Math.round(v.drop), before:v.before, cat:v.cat, phase:phaseOf(v.fen, v.ply), date, opp, color:uc}));
+      S.analyses[gid] = {v:1, src:'coach', acc:acc || 0, w:[], tags:{}, cnt:{inacc:ev.filter(v => v.drop >= 10 && v.drop < 20).length, mistake:ev.filter(v => v.drop >= 20 && v.drop < 30).length, blunder:ev.filter(v => v.drop >= 30).length}, mistakes};
+    }
+    const C = coachState(); C.games.unshift({t:Date.now(), vs:this.vs, res:result.res || null, acc, errors:bad.length}); C.games = C.games.slice(0, 200);
+    save();
+  }
+}
+
+/* ---------- Claude (opcional) ---------- */
+const CLAUDE_MODELS = [['claude-haiku-5-5','Claude Haiku 5.5: rápido y económico'],['claude-sonnet-5-5','Claude Sonnet 5.5: explicaciones más finas']];
+const ClaudeAI = {
+  cfg(){ return Object.assign({on:false, key:'', model:'claude-haiku-5-5'}, S.settings.claude || {}); },
+  ready(){ const c = this.cfg(); return !!(c.on && c.key); },
+  async ask(system, user, maxTokens){
+    const c = this.cfg();
+    const r = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
+      headers:{'x-api-key':c.key, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:c.model, max_tokens:maxTokens || 220, system, messages:[{role:'user', content:user}]})});
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error((d.error && d.error.message) || ('HTTP ' + r.status));
+    return (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+  },
+  system(coach){
+    const p = coach.prof;
+    return 'Eres el Maestro de Casilla, un entrenador de ajedrez que acompaña a un jugador de nivel ' + p.band + ' (unos ' + p.elo + ' puntos ELO). ' +
+      'Escribe en español de México, tuteando, en una a tres frases cortas, sin saludos, sin relleno y sin guiones largos. ' +
+      'Usa solo los datos de Stockfish que te doy: no inventes jugadas, variantes ni evaluaciones. Escribe las jugadas tal como vienen, en notación algebraica. ' +
+      'Adapta la explicación al nivel: para nivel inicial explica la idea básica en palabras simples; para niveles altos sé concreto con la línea. ' +
+      (p.top.length ? 'Sus errores más comunes en sus partidas: ' + p.top.join(' y ').toLowerCase() + '.' : '');
+  },
+  queue:Promise.resolve(), lastError:null,
+  enhance(coach, m){
+    if(!this.ready()) return;
+    m.aiPending = true; coach.renderFeed();
+    const tok = App.token;
+    this.queue = this.queue.then(async () => {
+      if(tok !== App.token) return;
+      try{
+        const isSum = m.kind === 'sum';
+        const txt = await this.ask(this.system(coach) + (isSum ? ' Para el resumen usa hasta cinco frases y termina con una recomendación concreta de entrenamiento.' : ''),
+          'Momento de la partida: ' + m.facts.momento + '.\nDatos: ' + JSON.stringify(m.facts) + '\nComentario de referencia: ' + m.text + '\nEscribe tu comentario.', isSum ? 420 : 220);
+        if(tok !== App.token) return;
+        if(txt){ m.text = txt; m.ai = true; }
+        this.lastError = null;
+      }catch(e){ this.lastError = e.message; console.warn('Claude', e); }
+      m.aiPending = false; coach.renderFeed();
+    });
+  }
+};
+
+/* ---------- Pestaña Maestro ---------- */
+async function startCoachGame(){
+  if(!Engine.ready){ toast('Esperando a que cargue Stockfish…'); if(!(await Engine.whenReady())) return; }
+  const st = S.settings.coachPrefs || {}, mode = st.mode || 'guiada', colorPref = st.color || 'w';
+  const color = colorPref === 'r' ? (Math.random() < .5 ? 'w' : 'b') : colorPref;
+  const p = playerModel(), coachElo = Math.round((p.elo + 100) / 10) * 10, guided = mode === 'guiada';
+  App.setSession(new PlaySession({tier:cfgForElo(coachElo), tierIdx:null, ladder:false, vsCoach:true, helps:guided, coach:{mode:guided ? 'guide' : 'comment'},
+    coachElo, playerElo:p.elo, userColor:color, clock:st.clock || 'none', oppName:'Maestro',
+    title:'Contra el maestro', desc:'Juega a unos ' + coachElo + ' puntos. ' + (guided ? 'Partida guiada: te avisa antes de errores graves y puedes deshacer.' : 'Partida seria: solo comenta lo bueno durante el juego y cuenta para tu rating con el maestro.') + (st.clock && st.clock !== 'none' ? ' Ritmo ' + tcLabel(st.clock) + '.' : ''),
+    backLabel:'Maestro', back:()=>switchTab('coach')}));
+}
+function renderCoachHome(){
+  const p = playerModel(), C = coachState(), st = S.settings.coachPrefs || (S.settings.coachPrefs = {mode:'guiada', color:'w', clock:'none'});
+  const ai = ClaudeAI.cfg(), coachElo = Math.round((p.elo + 100) / 10) * 10;
+  const tree = S.username ? openingTree() : {};
+  const faced = Object.keys(tree).length;
+  side().innerHTML =
+    '<h2>Maestro</h2><p class="lede">Un rival que se adapta a tu nivel, te juega las aperturas que te ponen tus rivales y comenta los momentos clave de la partida.</p>' +
+    '<h3>Lo que sé de ti</h3><div class="stats">' +
+      '<div class="stat"><span class="big">~' + p.elo + '</span><span>Nivel estimado (' + BAND_NAME[p.band] + ')</span></div>' +
+      '<div class="stat"><span class="big">~' + coachElo + '</span><span>Fuerza del maestro</span></div>' +
+      '<div class="stat"><span class="big">' + (p.top.length ? esc(p.top.join(', ')) : 'Sin datos') + '</span><span>Errores más comunes</span></div>' +
+      '<div class="stat"><span class="big">' + (faced ? faced + ' posiciones' : 'Sin datos') + '</span><span>Aperturas aprendidas de tus partidas</span></div>' +
+      '<div class="stat"><span class="big">' + C.rec.w + ' / ' + C.rec.d + ' / ' + C.rec.l + '</span><span>Ganadas, tablas y perdidas contra mí</span></div>' +
+      (C.rating !== null ? '<div class="stat"><span class="big">' + C.rating + '</span><span>Tu rating con el maestro</span></div>' : '') +
+    '</div>' +
+    '<p class="note" style="margin-top:8px">Calculado a partir de ' + (p.sources.length ? esc(p.sources.join(', ')) : 'nada todavía: empiezo suponiendo 1000 puntos') + '. ' + (S.games.length ? '' : 'Carga tus partidas en Mis partidas para que aprenda de ti.') + '</p>' +
+    '<div class="field"><span class="lbl">Tipo de partida</span>' + segHTML('cmode', [['guiada','Guiada'],['seria','Seria']], st.mode) + '<p class="note" style="margin-top:6px">' + (st.mode === 'guiada' ? 'Te aviso antes de errores graves, señalo amenazas y puedes pedir pistas o deshacer.' : 'Sin ayudas. Durante el juego solo comento lo bueno; los errores los vemos al final. Cuenta para tu rating con el maestro.') + '</p></div>' +
+    '<div class="field"><span class="lbl">Juegas con</span>' + segHTML('ccolor', [['w','Blancas'],['b','Negras'],['r','Al azar']], st.color) + '</div>' +
+    '<div class="field"><span class="lbl">Ritmo</span>' + segHTML('cclock', TIME_CONTROLS, st.clock || 'none') + '</div>' +
+    '<button class="btn primary wide" id="cgo">Jugar contra el maestro</button>' +
+    '<h3>Comentarios con Claude (opcional)</h3>' +
+    '<p class="note">Sin esto, el maestro comenta con frases armadas a partir de Stockfish. Con tu clave de la API de Anthropic, Claude reescribe cada comentario en lenguaje natural. La clave se guarda solo en este navegador, se envía directo a Anthropic y no se incluye en los respaldos. Con Haiku cuesta menos de un centavo de dólar por partida.</p>' +
+    '<label class="check"><input type="checkbox" id="aion"' + (ai.on ? ' checked' : '') + '> <span>Usar Claude para los comentarios</span></label>' +
+    '<div class="field"><span class="lbl">Clave de la API</span><input type="password" id="aikey" value="' + esc(ai.key) + '" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></div>' +
+    '<div class="field"><span class="lbl">Modelo</span><select id="aimodel">' + CLAUDE_MODELS.map(([v,l]) => '<option value="' + v + '"' + (ai.model === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
+    '<div class="row"><button class="btn small" id="aitest">Probar conexión</button><a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Obtener una clave</a></div><p class="note" id="aist" style="margin-top:8px">' + (ClaudeAI.lastError ? 'Último error de Claude: ' + esc(ClaudeAI.lastError) : '') + '</p>';
+  const root = side();
+  const prefs = () => S.settings.coachPrefs;
+  bindSeg(root, 'cmode', v => { prefs().mode = v; save(); renderCoachHome(); });
+  bindSeg(root, 'ccolor', v => { prefs().color = v; save(); });
+  bindSeg(root, 'cclock', v => { prefs().clock = v; save(); });
+  $('#cgo').onclick = () => startCoachGame();
+  const saveAI = () => { S.settings.claude = {on:$('#aion').checked, key:$('#aikey').value.trim(), model:$('#aimodel').value}; save(); };
+  $('#aion').onchange = saveAI; $('#aikey').onchange = saveAI; $('#aimodel').onchange = saveAI;
+  $('#aitest').onclick = async () => {
+    saveAI(); const out = $('#aist');
+    if(!ClaudeAI.cfg().key){ out.textContent = 'Pega primero tu clave.'; return; }
+    out.textContent = 'Probando…';
+    try{ const t = await ClaudeAI.ask('Responde solo con la palabra: listo', 'Prueba de conexión', 10); out.textContent = 'Conexión correcta con ' + ClaudeAI.cfg().model + (t ? ' (respondió: ' + t + ')' : '') + '.'; }
+    catch(e){ out.textContent = 'No se pudo conectar: ' + e.message; }
+  };
 }
 
 /* ---------- Puzzles ---------- */
@@ -1271,7 +1756,7 @@ class PuzzleSession{
     let h = '<div class="item"><div class="t">' + esc(p.title) + '</div><div class="s">' + srcName + (p.src!=='mine' ? ', rating ' + p.rating : '') + '</div>';
     if(p.themes.length) h += '<div class="row">' + p.themes.slice(0,4).map(t => '<span class="tag">' + esc((THEMES.find(x=>x[0]===t)||[0,t])[1]) + '</span>').join('') + '</div>';
     if(p.url && p.src !== 'mine') h += '<div class="row"><a href="' + esc(p.url) + '" target="_blank" rel="noopener">Ver en ' + srcName + '</a></div>';
-    if(p.src === 'mine' && p.url) h += '<div class="row"><a href="' + esc(p.url) + '" target="_blank" rel="noopener">Abrir la partida en Chess.com</a></div>';
+    if(p.src === 'mine' && p.url && /^https?:/.test(p.url)) h += '<div class="row"><a href="' + esc(p.url) + '" target="_blank" rel="noopener">Abrir la partida en Chess.com</a></div>';
     h += '</div>';
     if(p.counted) h += '<div class="result ' + (p.delta >= 0 ? 'good' : 'bad') + '"><strong>' + (p.delta >= 0 ? '+' : '') + p.delta + ' de rating</strong>' + (p.delta >= 0 ? 'Puzzle resuelto al primer intento.' : 'Fallaste o pediste ayuda.') + '</div>';
     if(p.src === 'mine' && p.done){
@@ -1732,9 +2217,10 @@ function renderProgressHome(){
     '<div class="row"><button class="btn" id="exp">Exportar respaldo</button><button class="btn" id="imp">Importar respaldo</button><button class="btn" id="rst">Borrar todo</button><input type="file" id="impf" accept="application/json" hidden></div>';
   const tm = $('#trMine'); if(tm) tm.onclick = () => { App.mineFocus = [top[0]]; App.puzzleSource = 'mine'; switchTab('puzzles'); };
   const tt = $('#trTheme'); if(tt) tt.onclick = () => { App.puzzleTheme = CAT_THEME[top[0]] || 'mix'; App.puzzleSource = 'lichess'; switchTab('puzzles'); };
-  $('#exp').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(S)], {type:'application/json'})); a.download = 'casilla-respaldo-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); };
+  $('#exp').onclick = () => { const a = document.createElement('a'); const copy = JSON.parse(JSON.stringify(S)); if(copy.settings && copy.settings.claude) copy.settings.claude.key = '';
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(copy)], {type:'application/json'})); a.download = 'casilla-respaldo-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); };
   $('#imp').onclick = () => $('#impf').click();
-  $('#impf').onchange = async e => { const f = e.target.files[0]; if(!f) return; try{ S = Object.assign(defaults(), JSON.parse(await f.text())); save(); toast('Respaldo importado.'); renderProgressHome(); }catch(err){ toast('Ese archivo no es un respaldo válido.'); } };
+  $('#impf').onchange = async e => { const f = e.target.files[0]; if(!f) return; try{ const keep = S.settings.claude; S = Object.assign(defaults(), JSON.parse(await f.text())); if(keep && !(S.settings.claude && S.settings.claude.key)) S.settings.claude = keep; save(); toast('Respaldo importado.'); renderProgressHome(); }catch(err){ toast('Ese archivo no es un respaldo válido.'); } };
   $('#rst').onclick = () => { if(confirm('¿Borrar todo tu progreso, partidas y análisis guardados?')){ S = defaults(); save(); renderProgressHome(); } };
 }
 /* ---------- Apariencia ---------- */
@@ -1769,7 +2255,7 @@ function toggleLook(open){
   if(open){ renderLook(); const f = $('.opt[aria-checked=true]', box); if(f) f.focus(); } else btn.focus();
 }
 
-const HOMES = {ladder:renderLadderHome, positions:renderPositionsHome, games:renderGamesHome, progress:renderProgressHome};
+const HOMES = {ladder:renderLadderHome, coach:renderCoachHome, positions:renderPositionsHome, games:renderGamesHome, progress:renderProgressHome};
 
 /* =========================================================
    Arranque

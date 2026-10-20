@@ -28,6 +28,21 @@ Si activas **Con ayudas** tienes pistas, deshacer y barra de evaluación, pero e
 
 Los ELO son aproximados: el motor se debilita limitando su nivel de habilidad y su profundidad de cálculo.
 
+Puedes jugar sin reloj o con ritmo 3+2, 5+0, 10+5 o 15+10. Si se te acaba el tiempo pierdes, salvo que tu rival no tenga material para dar mate.
+
+Si activas **El maestro comenta la partida**, sin ayudas solo señala tus buenas jugadas y deja los errores para el resumen final; con ayudas, además te avisa antes de un error grave.
+
+### Maestro
+Un rival que aprende de ti:
+- **Estima tu nivel** con tus partidas de Chess.com, la escalera, tus puzzles y tus partidas serias contra él, y juega unos 100 puntos por encima.
+- **Te juega tus aperturas:** en la apertura usa las jugadas que más te han puesto tus rivales en Chess.com.
+- **Comenta los momentos clave:** buenas jugadas, la única jugada buena, tácticas encontradas, la entrada al final y un resumen al terminar. Sus explicaciones se ajustan a tu nivel.
+- **Partida guiada:** te avisa antes de un error grave ("Espera. Si juegas Nf6, tu rival tiene mate") y puedes pensar otra vez, pedir pistas o deshacer.
+- **Partida seria:** sin ayudas; los errores se repasan al final y el resultado cuenta para tu rating con el maestro.
+- Los errores de cada partida se guardan en tus puzzles de **Mis errores**.
+
+**Comentarios con Claude (opcional):** sin configurar nada, el maestro comenta con frases armadas a partir de Stockfish. Si pegas tu propia clave de la API de Anthropic, Claude reescribe cada comentario en lenguaje natural. La clave se guarda solo en tu navegador, se envía directo a Anthropic y no se incluye en los respaldos. Cada persona que use la app necesita su propia clave.
+
 ### Puzzles
 - **Lichess:** puzzles por tema (mate en 2, ataque doble, clavada, finales y más) ajustados a tu nivel.
 - **Chess.com:** puzzles diarios de su archivo.
