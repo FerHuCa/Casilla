@@ -4,7 +4,9 @@ Casilla es una app de ajedrez que corre completa en tu navegador, desde un solo 
 
 Juegas contra Stockfish por niveles o contra un maestro que se adapta a ti, resuelves puzzles y entrenas finales y aperturas. Al terminar cada partida recibes una evaluación con tus errores explicados a fondo. Si tienes cuenta en Chess.com, la app analiza tus partidas y te arma puzzles con tus propios errores.
 
-**Úsala en línea:** https://ferhuca.github.io/Casilla/
+**Úsala en línea:** https://casilla.io/
+
+Dirección alternativa: https://ferhuca.github.io/Casilla/
 
 ## Qué necesitas
 
@@ -14,7 +16,8 @@ Juegas contra Stockfish por niveles o contra un maestro que se adapta a ti, resu
 
 ## Cómo abrirla
 
-- **En línea (recomendado):** entra a https://ferhuca.github.io/Casilla/ y espera a que el indicador de arriba a la derecha diga **Stockfish 10 listo**. Tarda unos segundos la primera vez.
+- **En línea (recomendado):** entra a https://casilla.io/ y espera a que el indicador de arriba a la derecha diga **Stockfish 10 listo**. Tarda unos segundos la primera vez.
+- **Dirección alternativa:** https://ferhuca.github.io/Casilla/ tiene la misma versión. Algunas redes no logran conectarse con GitHub Pages; si una dirección no carga, usa la otra. Cada dirección guarda su propio progreso, así que conviene activar la [sincronización](#sincronizar-entre-computadora-y-celular) en la que uses.
 - **En el celular:** abre el enlace en Safari (iPhone) o Chrome (Android) y usa **Añadir a pantalla de inicio** para tenerla como un ícono de app. La interfaz está adaptada a pantallas desde 360 px:
   - El tablero ocupa todo el ancho y los relojes quedan arriba y abajo de él.
   - Debajo del tablero aparecen el estado de la partida, el último comentario del maestro y sus avisos con los botones **Pensar otra vez** y **Jugarla igual**. Al terminar aparece **Ver evaluación**.
@@ -153,6 +156,7 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
 
 ## Si algo no funciona
 
+- **"This site can't be reached" o ERR_CONNECTION_ABORTED:** tu red no logra conectarse con esa dirección. Abre la otra dirección (casilla.io o GitHub Pages) o cambia entre Wi-Fi y datos móviles.
 - **"Stockfish no cargó":** revisa tu conexión a internet y recarga la página.
 - **"No encontré ese usuario en Chess.com":** revisa que sea el nombre de usuario exacto. Puedes comprobarlo abriendo `https://api.chess.com/pub/player/TUUSUARIO/games/archives` en el navegador: si ves una lista de meses, la app te puede leer.
 - **No aparecen tus partidas de hoy:** Chess.com actualiza sus datos públicos cada 12 a 24 horas.
