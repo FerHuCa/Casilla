@@ -26,7 +26,8 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 | Reloj | `TIME_CONTROLS`, `GameClock`, `Clocks` |
 | Maestro | `playerModel`, `openingTree`, `threatScan`, `Coach`, `ClaudeAI` (opcional, con la API key del usuario) |
 | Explicaciones | `rootCause`, `bestIdea`, `categorize`, `explanationHTML` |
-| Evaluación post partida | `Evaluator`, `buildEvaluation`, `evalNarrative`, `deepMoment`, `evalGraph` |
+| Evaluación post partida | `Evaluator` (varios trabajos, el más reciente primero, en pausa mientras se juega), `evalJobFor` (reabre sin recalcular), `buildEvaluation`, `saveEvaluation`, `evalNarrative`, `deepMoment`, `moveComment` (comentario de cada jugada), `evalGraph`, `EvalSession` |
+| Historial de Casilla | `S.played` (partidas jugadas aquí, se guardan al terminar su evaluación), `openPlayed`, `playedHTML`; el análisis con `best` y `pv` vive en `S.analyses[gid]` |
 | Chess.com y Lichess | `jsonp`, `Analyzer`, `lichessDifficulty`, `mistakePuzzle` |
 | Pantallas de inicio | `renderLadderHome`, `renderCoachHome`, `renderGamesHome`, `renderPositionsHome`, `renderProgressHome`, `HOMES` |
 | Apariencia | `LOOK`, `LOOK_DEFAULT`, `applyLook`, `renderLook` |
@@ -72,6 +73,8 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 |---|---|
 | `coach.py`, `coach2.py` | Maestro: comentarios, adaptación, jugar contra él |
 | `evalt.py` | Evaluación al final de la partida |
+| `evalnav.py` | Recorrer la evaluación jugada por jugada: orden, comentarios y que nada regrese el tablero solo |
+| `historial.py` | Partidas de Casilla en Mis partidas, evaluación en segundo plano, puzzles con sus errores, sync |
 | `bar.py` | Barra de evaluación |
 | `mobile.py` | Auditoría de móvil (desbordes, tamaños táctiles) |
 | `sync.py` | Sincronización por gist |

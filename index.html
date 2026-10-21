@@ -240,6 +240,13 @@ html.clocked{--bw:min(calc(100vh - 280px), calc(100vw - 540px), 680px)}
 .moves .m{background:none;border:0;text-align:left;padding:4px 8px;cursor:pointer;border-bottom:1px solid var(--rowline)}
 .moves .m:hover{background:var(--raise)}
 .moves .m.cur{background:var(--cur)}
+.moves .m.foc{box-shadow:inset 0 0 0 2px var(--warn)}
+.mvnote{padding:8px 0 8px 12px;box-shadow:inset 2px 0 0 var(--line2)}
+.mvnote.good{box-shadow:inset 2px 0 0 var(--good)} .mvnote.warn{box-shadow:inset 2px 0 0 var(--warn)} .mvnote.bad{box-shadow:inset 2px 0 0 var(--bad)}
+.mvnote p{margin:4px 0 6px}
+.mvh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.mvk{font-size:13px;color:var(--muted)}
+.mvnote.good .mvk{color:var(--good)} .mvnote.warn .mvk{color:var(--warn)} .mvnote.bad .mvk{color:var(--bad)}
 .moves .m .num{color:var(--faint);display:inline-block;min-width:26px;font-size:13px}
 .moves .m sup{font-weight:600;margin-left:3px;font-size:11px}
 .t-inacc sup{color:var(--warn)} .t-mistake sup{color:var(--orange)} .t-blunder sup{color:var(--bad)}
@@ -397,6 +404,7 @@ html[data-style=bits] .egraph{border:3px solid var(--px)}
   .moves .m{padding:9px 8px}
   .moves{max-height:260px}
   .moment summary{padding:6px 0}
+  .mvwrap{display:none}
   footer{padding-bottom:calc(26px + env(safe-area-inset-bottom))}
 }
 @media (max-width:380px){
@@ -646,7 +654,7 @@ function cpEq(score){
 function fmtEval(v){
   if(Math.abs(v) >= 1500) return v > 0 ? '1-0' : '0-1';
   if(Math.abs(v) >= 1450){ const n = 1500 - Math.abs(v); return (v < 0 ? '-' : '') + 'M' + n; }
-  const x = v / 100; return (x > 0 ? '+' : '') + x.toFixed(1);
+  const x = v / 100; if(Math.abs(x) < .05) return '0.0'; return (x > 0 ? '+' : '') + x.toFixed(1);
 }
 function fmtDate(ts){ return new Date(ts*1000).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'2-digit'}); }
 function pvToSan(fen, pv, n=8){ const g=new Chess(fen); const out=[]; for(const u of (pv||[]).slice(0,n)){ const m=g.move(uciObj(u)); if(!m) break; out.push(m.san); } return out; }
@@ -690,7 +698,7 @@ const KEY = 'casilla.v1';
 function defaults(){ return {
   username:'', ladder:{unlocked:1, rec:{}},
   puzzles:{rating:1200, hist:[], solved:0, failed:0, streak:0, best:0, seen:{}},
-  games:[], analyses:{}, endgames:{}, openings:{}, settings:{movetime:400}
+  games:[], played:[], analyses:{}, endgames:{}, openings:{}, settings:{movetime:400}
 }; }
 let S = (() => { try{ const raw = localStorage.getItem(KEY); if(raw){ return Object.assign(defaults(), JSON.parse(raw)); } }catch(e){} return defaults(); })();
 function save(){ saveLocal(); if(typeof Sync !== 'undefined') Sync.dirty(); }
@@ -700,7 +708,12 @@ function saveLocal(){
   catch(e){
     // Cuota llena: recorta PGN de partidas antiguas
     S.games.slice(150).forEach(g => { if(!S.analyses[g.id]) g.pgn = ''; });
-    try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e2){ toast('No hay espacio para guardar más datos en este navegador.'); }
+    try{ localStorage.setItem(KEY, JSON.stringify(S)); }
+    catch(e2){
+      // Después, las líneas guardadas de las evaluaciones (se pueden recalcular)
+      Object.values(S.analyses).forEach(a => { delete a.best; delete a.pv; });
+      try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e3){ toast('No hay espacio para guardar más datos en este navegador.'); }
+    }
   }
 }
 
@@ -940,18 +953,19 @@ function setControls(list){
   const box = $('#controls'); box.innerHTML = '';
   for(const b of list){ if(!b) continue; const el=document.createElement('button'); el.className='btn' + (b.primary?' primary':''); el.textContent=b.label; el.disabled=!!b.disabled; el.onclick=b.on; box.appendChild(el); }
 }
-function moveListHTML(sans, startFen, cur, tags){
+// cur: posición mostrada (se resalta la jugada que llevó a ella). focus: jugada comentada antes de jugarse.
+function moveListHTML(sans, startFen, cur, tags, focus){
   const parts = startFen.split(' '); let num = +parts[5] || 1; const blackFirst = parts[1] === 'b';
   const mv = k => { const t = tags && tags[k]; const tc = t ? ({'?!':'inacc','?':'mistake','??':'blunder'})[t] : '';
     const lbl = (k===0 && blackFirst) || ((k + (blackFirst?1:0)) % 2 === 0) ? '<span class="num">' + (num + Math.floor((k + (blackFirst?1:0))/2)) + (k===0&&blackFirst?'...':'.') + '</span>' : '';
-    return '<li><button class="m ' + (cur===k+1?'cur ':'') + (tc?'t-'+tc:'') + '" data-ply="' + (k+1) + '">' + lbl + esc(sans[k]) + (t?'<sup>'+t+'</sup>':'') + '</button></li>'; };
+    return '<li><button class="m ' + (cur===k+1?'cur ':'') + (focus===k?'foc ':'') + (tc?'t-'+tc:'') + '" data-ply="' + (k+1) + '">' + lbl + esc(sans[k]) + (t?'<sup>'+t+'</sup>':'') + '</button></li>'; };
   let h = '<ol class="moves">';
   if(blackFirst && sans.length) h += '<li><span class="m"></span></li>';
   for(let k=0;k<sans.length;k++) h += mv(k);
   return h + '</ol>';
 }
 function scrollMoves(root){
-  const box = root.querySelector('.moves'), c = box && box.querySelector('.cur'); if(!c) return;
+  const box = root.querySelector('.moves'), c = box && box.querySelector('.cur, .foc'); if(!c) return;
   const top = c.offsetTop;
   if(top < box.scrollTop) box.scrollTop = top;
   else if(top + c.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = top + c.offsetHeight - box.clientHeight;
@@ -1054,7 +1068,7 @@ class PlaySession{
     this.startFen = App.game.fen();
     this.user = o.userColor; Board.orient = this.user; Board.layout(); Board.movable = this.user; Board.last = null;
     this.over = false; this.userMoves = 0; this.promoted = false; this.userEval = null; this.hintsUsed = false; this.result = null; this.thinking = false; this.checking = false;
-    Engine.needNew = true; Evaluator.cancel(); this.evalJob = null;
+    Engine.needNew = true; this.evalJob = null;
     this.gid = (o.vsCoach || o.coach ? 'coach:' : 'play:') + Date.now();
     this.barShown = !!(o.helps || o.goal || S.settings.showBar);
     this.barUsed = this.barShown && !o.helps && !o.goal;
@@ -1205,7 +1219,7 @@ class PlaySession{
     if(this.coach) this.coach.finish(this.result);
     this.refreshBar();
     if(!o.goal && App.game.history().length >= 4){
-      this.evalJob = Evaluator.start({gid:this.gid, startFen:this.startFen, sans:App.game.history(), user:this.user, opp:this.oppName, title:o.title, result:this.result, kind:o.vsCoach ? 'maestro' : o.ladder ? 'escalera' : 'partida'});
+      this.evalJob = Evaluator.start({gid:this.gid, startFen:this.startFen, sans:App.game.history(), user:this.user, opp:this.oppName, title:o.title, result:this.result, date:Math.floor(Date.now() / 1000), kind:o.vsCoach ? 'maestro' : o.ladder ? 'escalera' : 'partida'});
       this.evalJob.listeners.push(() => { if(App.session === this) this.renderEvalBox(); });
     }
     this.renderSide(); this.update();
@@ -1802,7 +1816,7 @@ function rootCause(E, i){
   if(mv.captured) out.push('Ese cambio favoreció a tu rival: después de capturar, su posición mejora más que la tuya.');
   if(r1) out.push('Su mejor respuesta es ' + r1.san + (moveNote(fen1, r1, uc) ? ' (' + moveNote(fen1, r1, uc) + ')' : '') + '.');
   if(!out.length || out.length === 1 && r1) out.unshift('No hay una táctica inmediata: el error es de plan.');
-  out.push('La ventaja pasó de ' + fmtEval(P.before) + ' a ' + fmtEval(P.after) + ' a tu favor.');
+  out.push('La evaluación pasó de ' + fmtEval(P.before) + ' a ' + fmtEval(P.after) + ' (desde tu lado).');
   return {cat:'Error posicional', text:out.join(' ')};
 }
 function capturersOnEmpty(fen, sq, color){
@@ -1819,7 +1833,7 @@ function bestIdea(E, i, ctx){
   if(!E.best[i]) return '';
   const g = new Chess(fen0), bm = g.move(uciObj(E.best[i])); if(!bm) return '';
   const fenB = g.fen(), ideas = [];
-  const line = applyLine(fen0, E.pv[i], 4), gain = matDiff(line.fen, uc) - matDiff(fen0, uc);
+  const gain = lineGain(E, i, uc, 4);
   if(/#/.test(bm.san)) ideas.push('es jaque mate inmediato');
   else if(P.before >= 1450) ideas.push('fuerza el mate en ' + Math.max(1, 1500 - P.before) + ' jugadas');
   if(bm.captured){
@@ -1860,6 +1874,7 @@ function bestIdea(E, i, ctx){
   if(!ideas.length){ const t0m = totalMobility(fen0, uc), t1m = totalMobility(fenB, uc); if(t1m - t0m >= 5) ideas.push('abre líneas: tus piezas ganan ' + (t1m - t0m) + ' casillas de movimiento'); }
   if(!ideas.length) ideas.push('mantiene tu posición sin conceder nada (' + fmtEval(P.before) + ')');
   let txt = 'La mejor era ' + moveLabel(fen0, bm.san) + ': ' + ideas.slice(0, 3).join('; ') + '.';
+  if(ctx.short) return txt;
   if(ctx.played && !P.isBest){
     const diff = ctx.cat === 'Pieza colgada' ? 'no deja piezas sin defensa' : ctx.cat === 'Permitió mate' ? 'no deja a tu rey expuesto al mate' : ctx.cat === 'Mate no visto' ? 'no deja escapar el mate' : ctx.cat === 'Táctica no vista' ? 'no permite la táctica de tu rival' : 'no empeora tu posición';
     txt += ' A diferencia de ' + ctx.played + ', ' + diff + ': la evaluación queda en ' + fmtEval(P.before) + ' en lugar de ' + fmtEval(P.after) + '.';
@@ -1878,16 +1893,34 @@ function bestIdea(E, i, ctx){
 function categorize(E, i){ return rootCause(E, i).cat; }
 
 /* ---------- Motor de evaluación ---------- */
+// Varios trabajos pueden convivir: el de una partida anterior sigue en segundo plano en lugar de perderse.
+// El más reciente usa el motor primero y todos esperan mientras haya una partida en juego.
 const Evaluator = {
-  job:null,
+  job:null, jobs:[], seq:0,
   start(desc){
-    this.cancel();
-    const job = {desc, progress:0, total:0, done:false, result:null, error:null, cancelled:false, listeners:[]};
-    this.job = job; job.promise = this._run(job).catch(e => { console.error(e); job.error = e.message; job.done = true; this._emit(job); });
+    const same = this.jobs.find(j => !j.cancelled && desc.gid && j.desc.gid === desc.gid && j.desc.sans.join(' ') === desc.sans.join(' '));
+    if(same){ this.job = same; return same; }
+    const job = {desc, progress:0, total:0, done:false, result:null, error:null, cancelled:false, listeners:[], seq:++this.seq};
+    job.tag = 'eval' + job.seq;
+    this.jobs.push(job); this.job = job;
+    job.promise = this._run(job).catch(e => { console.error(e); job.error = e.message; job.done = true; this._emit(job); })
+      .finally(() => { this.jobs = this.jobs.filter(j => j !== job); });
     return job;
   },
-  cancel(){ if(this.job && !this.job.done){ this.job.cancelled = true; Engine.cancel('eval'); } this.job = null; },
+  cancel(job){
+    job = job || this.job;
+    if(job && !job.done && !job.cancelled){ job.cancelled = true; Engine.cancel(job.tag); }
+    if(this.job === job) this.job = null;
+  },
   _emit(job){ job.listeners.forEach(f => { try{ f(job); }catch(e){ console.warn(e); } }); },
+  _wait(job){
+    const s = App.session;
+    if(s instanceof PlaySession && !s.over) return true;
+    const live = this.jobs.filter(j => j !== job && !j.done && !j.cancelled); if(!live.length) return false;
+    const shown = s && (s.job || s.evalJob);
+    if(shown === job) return false;
+    return live.includes(shown) || live.some(j => j.seq > job.seq);
+  },
   async _run(job){
     const d = job.desc, g = new Chess(d.startFen), fens = [g.fen()], moves = [];
     for(const s of d.sans){ const m = g.move(s, {sloppy:true}); if(!m) break; moves.push(m); fens.push(g.fen()); }
@@ -1895,14 +1928,20 @@ const Evaluator = {
     if(!(await Engine.whenReady())){ job.error = 'Stockfish no está disponible.'; job.done = true; this._emit(job); return; }
     const W = [], best = [], pv = [];
     for(let i = 0; i < n; i++){
+      while(!job.cancelled && this._wait(job)) await sleep(250);
       if(job.cancelled) return;
       const t = new Chess(fens[i]), stm = t.turn(); let v;
       if(t.in_checkmate()) v = -1500;
       else if(t.in_stalemate() || t.insufficient_material()) v = 0;
       else {
-        const r = await Engine.run(fens[i], {movetime:S.settings.evalTime || 450, tag:'eval', priority:1});
-        if(job.cancelled) return;
-        if(r){ v = cpEq(r.score); best[i] = r.best; pv[i] = (r.pv || []).slice(0, 12); } else v = 0;
+        // Un resultado vacío no se cuenta como 0.0: se vuelve a pedir la posición
+        let r = null;
+        for(let k = 0; k < 3 && !(r && r.score); k++){
+          r = await Engine.run(fens[i], {movetime:S.settings.evalTime || 450, tag:job.tag, priority:1});
+          if(job.cancelled) return;
+        }
+        if(r && r.score){ v = cpEq(r.score); best[i] = r.best; pv[i] = (r.pv || []).slice(0, 12); }
+        else v = i ? (stm === 'w' ? W[i-1] : -W[i-1]) : 0;
       }
       W[i] = stm === 'w' ? v : -v;
       job.progress = i + 1; this._emit(job);
@@ -1910,8 +1949,24 @@ const Evaluator = {
     job.result = buildEvaluation(d, fens, moves, W, best, pv);
     saveEvaluation(d, job.result);
     job.done = true; this._emit(job);
+    const s = App.session, watching = (s instanceof EvalSession && s.job === job) || (s instanceof PlaySession && s.evalJob === job);
+    if(!watching && d.kind !== 'chesscom') toast('Evaluación lista: la partida contra ' + (d.opp || 'tu rival') + ' ya está en Mis partidas.');
+    if(s instanceof HomeSession && App.tab === 'games' && !(document.activeElement && document.activeElement.closest('input,select'))) renderGamesHome();
   }
 };
+// Abre una evaluación guardada al instante; si no hay datos completos, la calcula
+function evalJobFor(desc){
+  const a = S.analyses[desc.gid];
+  if(a && a.deep && Array.isArray(a.best) && Array.isArray(a.pv) && Array.isArray(a.w)){
+    const g = new Chess(desc.startFen), fens = [g.fen()], moves = [];
+    for(const s of desc.sans){ const m = g.move(s, {sloppy:true}); if(!m) break; moves.push(m); fens.push(g.fen()); }
+    if(fens.length === a.w.length && a.best.length <= fens.length){
+      const E = buildEvaluation(desc, fens, moves, a.w, a.best.map(x => x || undefined), a.pv.map(x => x || []));
+      return (Evaluator.job = {desc, progress:fens.length, total:fens.length, done:true, result:E, error:null, cancelled:false, listeners:[], cached:true});
+    }
+  }
+  return Evaluator.start(desc);
+}
 function buildEvaluation(d, fens, moves, W, best, pv){
   const E = {desc:d, user:d.user, fens, moves, W, best, pv, per:[]};
   const accOf = drop => Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * drop) - 3.1669));
@@ -1942,7 +1997,7 @@ function buildEvaluation(d, fens, moves, W, best, pv){
     if(nx && nx.color === d.user && nx.drop >= 15 && !keys.some(k => k.i === nx.i)) keys.push({type:'missed', i:nx.i, sev:nx.drop, after:p.i});
   }
   if(!keys.length) mine.filter(p => p.drop >= 10 && best[p.i]).sort((a,b) => b.drop - a.drop).slice(0, 2).forEach(p => keys.push({type:'inacc', i:p.i, sev:p.drop}));
-  const goods = mine.filter(p => p.isBest && best[p.i]).map(p => { const l = applyLine(fens[p.i], pv[p.i], 3); return {p, gain:matDiff(l.fen, d.user) - matDiff(fens[p.i], d.user)}; }).filter(x => x.gain >= 2 || x.p.before >= 1450).slice(0, 2);
+  const goods = mine.filter(p => p.isBest && best[p.i]).map(p => ({p, gain:lineGain(E, p.i, d.user, 4)})).filter(x => x.gain >= 2 || x.p.before >= 1450).slice(0, 2);
   goods.forEach(x => keys.push({type:'good', i:x.p.i, sev:0, gain:x.gain}));
   E.keys = keys.sort((a,b) => b.sev - a.sev).slice(0, 7).sort((a,b) => a.i - b.i);
   // Punto de quiebre: la mayor caída de cualquier lado
@@ -1959,8 +2014,29 @@ function saveEvaluation(d, E){
     drop:Math.round(p.drop), before:p.before, cat:categorize(E, p.i), phase:p.phase, date, opp:d.opp, color:uc}));
   const prevExp = {}; ((S.analyses[d.gid] || {}).mistakes || []).forEach(m => { if(m.exp) prevExp[m.id] = m.exp; });
   mistakes.forEach(m => { if(prevExp[m.id]) m.exp = prevExp[m.id]; });
-  S.analyses[d.gid] = {v:1, src:d.kind, acc:E.userAcc || 0, w:E.W, tags, cnt:E.cnt, mistakes, mt:S.settings.evalTime || 450, deep:true};
+  // best y pv permiten reabrir la evaluación completa sin volver a calcularla
+  S.analyses[d.gid] = {v:1, src:d.kind, acc:E.userAcc || 0, w:E.W, tags, cnt:E.cnt, mistakes, mt:S.settings.evalTime || 450, deep:true,
+    best:E.fens.map((f, i) => E.best[i] || null), pv:E.fens.map((f, i) => (E.pv[i] || []).slice(0, 10))};
+  // Las partidas jugadas en Casilla entran al historial cuando su evaluación termina
+  if(d.kind !== 'chesscom'){
+    const rec = {id:d.gid, src:'casilla', kind:d.kind || 'partida', title:d.title || '', opp:d.opp || '', user:uc, start:d.startFen, sans:E.moves.map(m => m.san),
+      res:(d.result && d.result.res) || null, why:(d.result && d.result.why) || '', end:date};
+    S.played = (S.played || []).filter(g => g.id !== rec.id);
+    S.played.push(rec); S.played.sort((a,b) => b.end - a.end); S.played = S.played.slice(0, 300);
+  }
   save();
+}
+function descFromPlayed(rec){
+  return {gid:rec.id, startFen:rec.start || START_FEN, sans:rec.sans || [], user:rec.user, opp:rec.opp, title:rec.title || KIND_NAME[rec.kind] || 'Partida', result:{res:rec.res, why:rec.why}, date:rec.end, kind:rec.kind || 'partida'};
+}
+const KIND_NAME = {escalera:'Escalera', maestro:'Contra el maestro', partida:'Partida'};
+// mi: índice de una jugada para abrir directo en ella (por ejemplo, el error de un puzzle)
+function openPlayed(rec, mi){
+  const s = new EvalSession(evalJobFor(descFromPlayed(rec)), {backLabel:'Mis partidas', back:()=>switchTab('games')});
+  App.tab = 'games'; $$('.tab').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === 'games'));
+  App.setSession(s);
+  const E = s.job.done && s.job.result;
+  if(E && mi !== undefined && E.per[mi]){ if(E.keys.some(k => k.i === mi)) s.openMoment(mi); else s.go(mi, {moment:mi}); }
 }
 
 /* ---------- Comentario general del maestro ---------- */
@@ -1972,13 +2048,13 @@ function evalNarrative(E){
   const endOpen = Math.min(E.per.length, Math.max(8, E.per.findIndex(p => p.phase !== 'Apertura')));
   if(endOpen >= 8 && E.W[endOpen] !== undefined){
     const v = (uc === 'w' ? 1 : -1) * E.W[endOpen];
-    const name = openingNow(E.moves.slice(0, Math.min(E.moves.length, 16)).map(m => m.san)) || (d.opening || null);
+    const name = (posKey(d.startFen) === posKey(START_FEN) ? openingOf(E.moves.map(m => m.san)) : null) || (d.opening || null);
     out.push('Apertura' + (name ? ' (' + name + ')' : '') + ': al salir de ella, después de la jugada ' + Math.ceil(endOpen / 2) + ', ' + evalWords(v) + '.');
   }
   const t = E.turn;
   if(t && t.drop >= 20){
     const who = t.color === uc ? 'tuyo' : 'de ' + (d.opp || 'tu rival');
-    out.push('El momento decisivo fue ' + moveLabel(E.fens[t.i], t.san) + ', un error ' + who + ': la evaluación pasó de ' + fmtEval((uc === 'w' ? 1 : -1) * E.W[t.i]) + ' a ' + fmtEval((uc === 'w' ? 1 : -1) * E.W[t.i+1]) + ' a tu favor.');
+    out.push('El momento decisivo fue ' + moveLabel(E.fens[t.i], t.san) + ', un error ' + who + ': la evaluación pasó de ' + fmtEval((uc === 'w' ? 1 : -1) * E.W[t.i]) + ' a ' + fmtEval((uc === 'w' ? 1 : -1) * E.W[t.i+1]) + ' (desde tu lado).');
   }
   const missed = E.keys.filter(k => k.type === 'missed').length;
   if(missed) out.push('Tu rival se equivocó y no lo aprovechaste en ' + missed + (missed > 1 ? ' ocasiones.' : ' ocasión.'));
@@ -2020,6 +2096,116 @@ function deepMoment(E, k){
   return {title:moveLabel(fen0, P.san) + (P.tag ? ' ' + P.tag : '') + (sevName ? ', ' + sevName : '') + (k.type === 'missed' ? ', oportunidad perdida' : ''), sev:P.tag === '??' ? 'bad' : 'warn', cat:cause.cat, sections:sec,
     facts:{tipo:k.type === 'missed' ? 'oportunidad perdida' : 'error', jugada:moveLabel(fen0, P.san), gravedad:sevName, eval_antes:fmtEval(P.before), eval_despues:fmtEval(P.after), categoria:cause.cat, causa:cause.text, linea_tras_tu_jugada:lineTextPlain(ref), mejor_jugada:idea, linea_mejor:lineTextPlain(bestL)}};
 }
+/* ---------- Comentario de cada jugada, para recorrer la partida ---------- */
+const MOVE_KIND = {best:'La mejor', great:'Excelente', good:'Buena', ok:'Correcta', book:'Teoría', forced:'Única jugada', inacc:'Imprecisión', mistake:'Error', blunder:'Error grave', miss:'Oportunidad perdida', allow:'Permite mate', mate:'Jaque mate'};
+const ERR_KINDS = ['inacc', 'mistake', 'blunder', 'miss', 'allow'];
+function evalNow(v){
+  if(v >= 1450) return 'tienes mate forzado';
+  if(v <= -1450) return 'tu rival tiene mate forzado';
+  const x = fmtEval(v);
+  if(v >= 200) return 'vas mejor (' + x + ')';
+  if(v >= 70) return 'vas ligeramente mejor (' + x + ')';
+  if(v <= -200) return 'vas peor (' + x + ')';
+  if(v <= -70) return 'vas ligeramente peor (' + x + ')';
+  return 'la posición está equilibrada (' + x + ')';
+}
+function evalThen(v){
+  if(v >= 1450) return 'tenías mate forzado';
+  if(v <= -1450) return 'tu rival tenía mate forzado';
+  const x = fmtEval(v);
+  if(v >= 200) return 'ibas mejor (' + x + ')';
+  if(v >= 70) return 'ibas ligeramente mejor (' + x + ')';
+  if(v <= -200) return 'ibas peor (' + x + ')';
+  if(v <= -70) return 'ibas ligeramente peor (' + x + ')';
+  return 'la posición estaba equilibrada (' + x + ')';
+}
+// Jugada de teoría: la partida sigue, hasta aquí, alguna línea de OPENINGS. Se nombra solo si es una sola.
+function bookName(E, i){
+  if(posKey(E.desc.startFen) !== posKey(START_FEN)) return null;
+  const ls = openingLines(E.moves.slice(0, i + 1).map(m => m.san));
+  return ls.length ? (ls.length === 1 && i >= 2 ? ls[0].t : '') : null;
+}
+// Qué hizo la jugada i, cómo cambió la evaluación y qué era mejor. Las evaluaciones van desde el lado del usuario.
+function moveComment(E, i){
+  const cache = E.notes || (E.notes = []);
+  if(cache[i]) return cache[i];
+  const P = E.per[i], m = E.moves[i], uc = E.user, mine = P.color === uc;
+  const fen0 = E.fens[i], fen1 = E.fens[i+1], g1 = new Chess(fen1);
+  const uv = k => (uc === 'w' ? 1 : -1) * E.W[k];
+  const prev = i > 0 ? E.per[i-1] : null;
+  const missed = !!(prev && prev.drop >= 20 && P.drop >= 10);
+  const mateMissed = P.before >= 1450 && P.after < 1450;
+  const book = bookName(E, i), inBook = book !== null;
+  let k;
+  if(g1.in_checkmate()) k = 'mate';
+  else if(new Chess(fen0).moves().length === 1) k = 'forced';
+  else if(P.tag === '??') k = 'blunder';
+  else if(P.tag && missed) k = 'miss';
+  else if(P.tag === '?') k = 'mistake';
+  else if(P.tag === '?!') k = 'inacc';
+  else if(mateMissed) k = 'miss';
+  else if(P.after <= -1450 && P.before > -1450 && !P.isBest) k = 'allow';   // ya perdida, pero ahora con mate forzado
+  else if(inBook) k = 'book';
+  else if(P.isBest) k = 'best';
+  else if(P.drop < 2) k = 'great';
+  else if(P.drop < 5) k = 'good';
+  else k = 'ok';
+  const castle = m.flags.includes('k') ? 'enroca corto' : m.flags.includes('q') ? 'enroca largo' : '';
+  const what = k === 'mate' ? '' : [castle, moveNote(fen0, m, uc)].filter(Boolean).join(', ');
+  const out = [(mine ? 'Jugaste ' : 'Tu rival jugó ') + moveLabel(fen0, P.san) + (what ? ': ' + what : '') + '.'];
+  const evalLine = () => {
+    const b = uv(i), a = uv(i+1);
+    return Math.abs(winPct(a) - winPct(b)) >= 8 ? 'Antes ' + evalThen(b) + '; ahora ' + evalNow(a) + '.' : 'La evaluación casi no cambia: ' + evalNow(a) + '.';
+  };
+  const ended = g1.game_over();
+  if(k === 'mate') out.push(mine ? 'Es jaque mate: ganaste la partida.' : 'Es jaque mate: tu rival gana la partida.');
+  else if(g1.in_stalemate()) out.push('Rey ahogado: la partida termina en tablas.');
+  else if(g1.insufficient_material()) out.push('Ya no queda material para dar mate: tablas.');
+  else if(k === 'forced'){ out.push('Era la única jugada legal.'); out.push(evalLine()); }
+  else if(k === 'book') out.push('Es una jugada de teoría' + (book ? ', de la línea ' + book : '') + '.');
+  else if(k === 'best'){
+    out.push(mine ? 'Es la mejor jugada según Stockfish.' : 'Es la mejor jugada para tu rival.');
+    const gain = lineGain(E, i, P.color, 4);
+    if(gain >= 2 && P.before < 1450 && P.before > -1450) out.push((mine ? 'Con la continuación correcta ganas ' : 'Con la continuación correcta tu rival gana ') + matPhrase(gain) + '.');
+    out.push(evalLine());
+  } else if(!ERR_KINDS.includes(k)){
+    const alt = P.bestSan;
+    // Posiciones con mate de por medio: lo que importa es si el mate sigue
+    if(P.before <= -1450) out.push(mine ? 'Tu rival ya tenía mate forzado' + (alt ? '; ' + alt + ' lo hacía durar más.' : '.') : 'Tu rival ya no tenía defensa: tienes mate forzado.');
+    else if(P.before >= 1450 && P.after >= 1450) out.push(mine ? 'Sigues con mate forzado' + (alt ? ', aunque ' + alt + ' lo daba más rápido' : '') + '.' : 'Tu rival sigue con mate forzado.');
+    else {
+      if(mine) out.push(k === 'great' ? 'Muy precisa: vale prácticamente lo mismo que la mejor' + (alt ? ', ' + alt : '') + '.' : k === 'good' ? 'Buena jugada.' + (alt ? ' Stockfish prefería ' + alt + ', pero la diferencia es pequeña.' : '') : 'Correcta' + (alt ? ', aunque ' + alt + ' era más precisa' : '') + '.');
+      else out.push(k === 'ok' && alt ? 'Jugada aceptable de tu rival; ' + alt + ' era más precisa.' : 'Jugada sólida de tu rival.');
+      out.push(evalLine());
+    }
+  } else if(mine){
+    if(missed) out.push('Tu rival acababa de equivocarse con ' + prev.san + ' y esta jugada no lo aprovecha.');
+    let txt = '', cat = null;
+    if(mateMissed || k === 'allow' || P.tag === '?' || P.tag === '??'){ const c = rootCause(E, i); txt = c.text; cat = c.cat; out.push(txt); }
+    if(!/La evaluación pasó/.test(txt)) out.push(evalLine());
+    // Con la respuesta del rival, la mejor jugada se explica por lo que evitaba (como en los momentos clave)
+    const r1 = applyLine(fen1, E.pv[i+1], 1).moves[0];
+    if(!mateMissed && E.best[i]) out.push(bestIdea(E, i, {r1, mate:P.after <= -1450, cat, short:true}));
+  } else {
+    if(mateMissed) out.push('Tu rival tenía mate forzado y lo dejó pasar.');
+    else if(missed) out.push('Tu rival no aprovechó tu error de la jugada anterior.');
+    else if(k === 'allow') out.push('Tu rival ya iba perdido y esta jugada además te deja dar mate.');
+    else out.push('Es ' + ({inacc:'una imprecisión', mistake:'un error', blunder:'un error grave'}[k] || 'un error') + ' de tu rival.');
+    if(P.bestSan) out.push('Su mejor jugada era ' + P.bestSan + '.');
+    out.push(evalLine());
+    if(!ended && E.best[i+1]){
+      const gain = lineGain(E, i + 1, uc, 4), nx = E.per[i+1];
+      out.push('Tu mejor respuesta es ' + uciToSan(fen1, E.best[i+1]) + (gain >= 2 ? ', que gana ' + matPhrase(gain) : '') + (nx && nx.isBest ? ', y la encontraste.' : '.'));
+    }
+  }
+  // Amenazas nuevas que deja la jugada (solo en jugadas sin error, para no mezclar mensajes)
+  if(!ended && !ERR_KINDS.includes(k) && !g1.in_check() && !new Chess(fen0).in_check() && Math.abs(P.after) < 1450){
+    const victim = mine ? other(uc) : uc, t1 = threatScan(fen1, victim), t0 = threatScan(fen0, victim);
+    if(t1 && !(t0 && t0.sq === t1.sq && t0.from === t1.from) && !what.includes(pz(mine ? 'su' : 'tu', t1.target, t1.sq)))
+      out.push(mine ? 'Ahora amenazas ' + pz('su', t1.target, t1.sq) + ' con ' + pz('tu', t1.piece, t1.from) + '.' : 'Ojo: ahora amenaza ' + pz('tu', t1.target, t1.sq) + ' con ' + pz('su', t1.piece, t1.from) + '.');
+  }
+  return (cache[i] = {i, kind:k, name:MOVE_KIND[k], mine, label:moveLabel(fen0, P.san) + (P.tag ? ' ' + P.tag : ''), text:out.join(' '), key:E.keys.some(x => x.i === i)});
+}
 function evalGraph(E, cur){
   const n = E.W.length; if(n < 2) return '';
   const xs = i => (i / (n - 1) * 200).toFixed(2), ys = v => (40 - winPct(v) / 100 * 40).toFixed(2);
@@ -2032,18 +2218,17 @@ function evalGraph(E, cur){
 
 /* ---------- Pantalla de evaluación ---------- */
 class EvalSession{
-  constructor(job, o){ this.job = job; this.o = o || {}; this.ply = null; this.lineRun = 0; this.open = null; }
+  constructor(job, o){ this.job = job; this.o = o || {}; this.ply = null; this.lineRun = 0; this.open = null; this.focus = null; }
   enter(){
     const d = this.job.desc;
     const g = new Chess(d.startFen); for(const s of d.sans) if(!g.move(s, {sloppy:true})) break;
     App.game = g; Board.orient = d.user; Board.layout(); Board.movable = null; Board.last = null; EvalBar.hide();
-    this.keys = e => { if(e.target.closest('input,textarea,select')) return; if(!this.job.done || !this.job.result) return; if(e.key === 'ArrowLeft'){ this.go((this.ply ?? this.job.result.fens.length - 1) - 1); e.preventDefault(); } if(e.key === 'ArrowRight'){ this.go((this.ply ?? this.job.result.fens.length - 1) + 1); e.preventDefault(); } };
+    this.keys = e => { if(e.target.closest('input,textarea,select')) return; if(!this.job.done || !this.job.result) return; if(e.key === 'ArrowLeft'){ this.step(-1); e.preventDefault(); } if(e.key === 'ArrowRight'){ this.step(1); e.preventDefault(); } };
     window.addEventListener('keydown', this.keys);
     this.listener = j => { if(App.session !== this) return; if(j.done) this.renderSide(); else this.renderProgress(); };
     this.job.listeners.push(this.listener);
     this.renderSide();
-    if(this.job.done && this.job.result) this.go(this.job.result.fens.length - 1);
-    else { Board.render(); setStatus('Stockfish está evaluando la partida…'); setControls([{label:'Girar tablero', on:()=>Board.flip()}]); }
+    if(!(this.job.done && this.job.result)){ Board.render(); setStatus('Stockfish está evaluando la partida…'); setControls([{label:'Girar tablero', on:()=>Board.flip()}]); }
   }
   exit(){ window.removeEventListener('keydown', this.keys); this.job.listeners = this.job.listeners.filter(f => f !== this.listener); this.lineRun++; }
   onUserMove(mv){
@@ -2052,44 +2237,88 @@ class EvalSession{
     const job = this.job, o = this.o, ply = this.ply;
     App.setSession(new AnalysisSession({fen:g.fen(), orient:Board.orient, title:'Variante', backLabel:'Evaluación', back:()=>{ const s = new EvalSession(job, o); App.setSession(s); if(ply !== null) s.go(ply); }}));
   }
+  step(d){ const E = this.job.result; if(E) this.go((this.ply ?? E.fens.length - 1) + d); }
+  tags(){
+    const E = this.job.result;
+    if(!E.allTags){ E.allTags = {}; E.per.forEach(p => { if(p.tag) E.allTags[p.i] = p.tag; }); }
+    return E.allTags;
+  }
+  // p es la posición que se muestra (0 = inicio, k = después de la jugada k). Con opts.moment = i se muestra
+  // la posición antes de la jugada i, con flechas de lo jugado y de lo mejor.
   go(p, opts){
     const E = this.job.result; if(!E) return;
     this.lineRun++;
     this.ply = Math.max(0, Math.min(E.fens.length - 1, p));
+    const mom = opts && opts.moment !== undefined && E.per[opts.moment] ? opts.moment : null;
+    if(mom !== null) this.ply = mom;
+    this.focus = mom;
     App.game = new Chess(E.fens[this.ply]);
     Board.movable = App.game.game_over() ? null : 'both';
     Board.last = this.ply ? E.moves[this.ply - 1] : null; Board.marks = {}; Board.arrows = [];
-    if(opts && opts.moment !== undefined){
-      const i = opts.moment, P = E.per[i];
-      if(E.best[i]) Board.arrows.push({from:E.best[i].slice(0,2), to:E.best[i].slice(2,4), c:'g'});
-      if(P && !P.isBest) Board.arrows.push({from:P.uci.slice(0,2), to:P.uci.slice(2,4), c:'r'});
+    if(mom !== null){
+      const P = E.per[mom];
+      if(E.best[mom]) Board.arrows.push({from:E.best[mom].slice(0,2), to:E.best[mom].slice(2,4), c:'g'});
+      if(!P.isBest) Board.arrows.push({from:P.uci.slice(0,2), to:P.uci.slice(2,4), c:'r'});
     }
     EvalBar.set(E.W[this.ply] ?? 0);
     Board.render();
-    const mv = this.ply ? E.per[this.ply - 1] : null;
-    setStatus(mv ? moveLabel(E.fens[this.ply - 1], mv.san) + (mv.tag ? ' ' + mv.tag : '') + '. Evaluación ' + fmtEval(E.W[this.ply]) + ' (desde blancas).' : 'Posición inicial.', mv && mv.color === E.user && mv.tag === '??' ? 'bad' : '');
+    this.renderNote();
     setControls([
-      {label:'Inicio', on:()=>this.go(0)}, {label:'Anterior', on:()=>this.go(this.ply - 1)}, {label:'Siguiente', on:()=>this.go(this.ply + 1)}, {label:'Final', on:()=>this.go(E.fens.length - 1)},
+      {label:'Inicio', on:()=>this.go(0)}, {label:'Anterior', on:()=>this.step(-1)}, {label:'Siguiente', on:()=>this.step(1)}, {label:'Final', on:()=>this.go(E.fens.length - 1)},
       {label:'Girar', on:()=>Board.flip()},
     ]);
-    const ml = $('#ml'); if(ml){ const tags = {}; E.per.forEach(p => { if(p.color === E.user && p.tag) tags[p.i] = p.tag; }); ml.innerHTML = moveListHTML(E.moves.map(m => m.san), E.desc.startFen, this.ply, tags); scrollMoves(ml); }
+    const ml = $('#ml');
+    if(ml){
+      ml.innerHTML = moveListHTML(E.moves.map(m => m.san), E.desc.startFen, mom !== null ? null : this.ply, this.tags(), mom);
+      ml.onclick = e => { const b = e.target.closest('[data-ply]'); if(b){ this.go(+b.dataset.ply); revealBoard(); } };
+      scrollMoves(ml);
+    }
     const gr = $('#egraph'); if(gr){ gr.innerHTML = evalGraph(E, this.ply); this.bindGraph(); }
+  }
+  // Comentario de la jugada que se está viendo: en el estado, bajo el tablero en el celular y en el panel
+  renderNote(){
+    const E = this.job.result, mom = this.focus, idx = mom !== null ? mom : this.ply - 1;
+    const box = $('#mvnote'), tip = $('#tip');
+    if(idx < 0){
+      const t = 'Recorre la partida con Siguiente o con las flechas del teclado: cada jugada trae su comentario.';
+      setStatus('Posición inicial.');
+      if(box){ box.className = 'mvnote'; box.innerHTML = '<p class="note">' + esc(t) + '</p>'; }
+      if(tip){ tip.hidden = false; tip.textContent = t; }
+      return;
+    }
+    const c = moveComment(E, idx), P = E.per[idx];
+    const tone = c.mine ? ({blunder:'bad', mistake:'bad', allow:'bad', inacc:'warn', miss:'warn', best:'good', great:'good', mate:'good'}[c.kind] || '') : (c.kind === 'mate' ? 'bad' : '');
+    if(mom !== null) setStatus('Antes de ' + c.label + '. ' + (P.isBest ? 'Flecha verde: ' + (c.mine ? 'tu jugada' : 'su jugada') + ', la mejor.' : 'Flecha roja: ' + (c.mine ? 'lo que jugaste' : 'lo que jugó tu rival') + '. Flecha verde: la mejor' + (P.bestSan ? ', ' + P.bestSan : '') + '.'), tone);
+    else setStatus(c.label + ' · ' + c.name + ' · ' + fmtEval(E.W[this.ply]) + ' desde blancas', tone);
+    if(box){
+      box.className = 'mvnote ' + tone;
+      box.innerHTML = '<div class="mvh"><b>' + esc(c.label) + '</b><span class="mvk">' + esc(c.name) + '</span></div><p>' + esc(c.text) + '</p>' +
+        (c.key && this.open !== idx ? '<button class="btn small" data-deep="' + idx + '">Ver a fondo</button>' : '');
+      const dp = box.querySelector('[data-deep]'); if(dp) dp.onclick = () => this.openMoment(idx);
+    }
+    if(tip){ tip.hidden = false; tip.innerHTML = '<b>' + esc(c.name) + ':</b> ' + esc(c.text); }
   }
   async showLine(i, which){
     revealBoard();
     const E = this.job.result, run = ++this.lineRun, tok = App.token;
     const P = E.per[i], line = which === 'best' ? (E.pv[i] || []) : [P.uci].concat(E.pv[i+1] || []);
+    const head = which === 'best' ? 'Mejor línea' : P.color === E.user ? 'Tu jugada y lo que sigue' : 'Su jugada y lo que sigue', kind = which === 'best' ? 'good' : 'bad';
     App.game = new Chess(E.fens[i]); Board.last = null; Board.arrows = []; Board.marks = {}; Board.movable = null; Board.render();
-    setStatus(which === 'best' ? 'La mejor línea según Stockfish.' : 'Tu jugada y lo que sigue.', which === 'best' ? 'good' : 'bad');
+    setStatus(head + '…', kind);
     for(const u of line.slice(0, 9)){
       await sleep(750); if(run !== this.lineRun || tok !== App.token) return;
-      const m = App.game.move(uciObj(u)); if(!m) break; Board.last = m; Board.render();
+      const before = App.game.fen(), m = App.game.move(uciObj(u)); if(!m) break; Board.last = m; Board.render();
+      const note = moveNote(before, m, E.user);
+      setStatus(head + ': ' + moveLabel(before, m.san) + (note ? ', ' + note : '') + '.', kind);
     }
   }
   bindGraph(){ $$('#egraph [data-k]').forEach(c => c.onclick = () => this.openMoment(+c.dataset.k)); }
   openMoment(i){
-    const det = $('.moment[data-i="' + i + '"]'); if(det){ det.open = true; det.scrollIntoView({block:'nearest'}); }
+    this.open = i;
+    $$('.moment').forEach(det => { const on = +det.dataset.i === i; if(det.open !== on) det.open = on; });
+    const det = $('.moment[data-i="' + i + '"]'); if(det) det.scrollIntoView({block:'nearest'});
     this.go(i, {moment:i});
+    this.claudeMoment(i);
   }
   renderProgress(){
     const j = this.job, box = $('#evprog'); if(!box) return;
@@ -2100,7 +2329,7 @@ class EvalSession{
     const j = this.job, d = j.desc, o = this.o;
     const head = '<button class="back" id="bk">← ' + esc(o.backLabel || 'Volver') + '</button><h2>Evaluación</h2><p class="lede">' + esc((d.title || 'Partida') + (d.opp ? ' contra ' + d.opp : '') + '.') + '</p>';
     if(!j.done){
-      side().innerHTML = head + '<p>Stockfish revisa cada posición de la partida, de ambos lados, para que el maestro te explique los momentos clave.</p><div class="prog" id="evprog"><i></i></div><p class="note" id="evprogt"></p>';
+      side().innerHTML = head + '<p>Stockfish revisa cada posición de la partida, de ambos lados, para que el maestro te explique los momentos clave. Si sales de esta pantalla, la evaluación sigue y la partida queda en Mis partidas al terminar.</p><div class="prog" id="evprog"><i></i></div><p class="note" id="evprogt"></p>';
       $('#bk').onclick = () => this.back();
       this.renderProgress(); return;
     }
@@ -2108,6 +2337,7 @@ class EvalSession{
     const E = j.result;
     if(!E.narr) E.narr = evalNarrative(E);
     if(!E.moments) E.moments = E.keys.map(k => Object.assign({i:k.i, type:k.type}, deepMoment(E, k)));
+    if(this.open === null && this.ply === null && E.moments.length) this.open = E.moments[0].i;
     const todayCats = Object.keys(E.todayCats || {});
     const weakPhase = Object.entries(E.phaseAcc).sort((a,b) => a[1] - b[1])[0];
     side().innerHTML = head +
@@ -2117,12 +2347,13 @@ class EvalSession{
         '<div class="stat"><span class="big">' + E.cnt.blunder + ' / ' + E.cnt.mistake + ' / ' + E.cnt.inacc + '</span><span>Tus errores graves, errores e imprecisiones</span></div>' +
       '</div>' +
       '<div id="egraph" class="egwrap"></div><p class="note">Evaluación desde el lado de las blancas. Los puntos marcan tus errores: tócalos para ir a ese momento.</p>' +
+      '<div class="mvwrap"><h3>Jugada a jugada</h3><div id="mvnote" class="mvnote"></div></div>' +
       '<h3>Comentario del maestro</h3><div class="narr" id="narr">' + E.narr.map(t => '<p>' + esc(t) + '</p>').join('') + '</div>' +
       (E.narrAI ? '' : (ClaudeAI.ready() ? '<p class="note" id="narrai">Claude está escribiendo un comentario…</p>' : '')) +
-      '<h3>Momentos clave</h3>' + (E.moments.length ? '<div class="moments">' + E.moments.map((m, n) =>
-        '<details class="moment ' + m.sev + '" data-i="' + m.i + '"' + (this.open === m.i || (this.open === null && n === 0) ? ' open' : '') + '><summary>' + esc(m.title) + '</summary>' +
+      '<h3>Momentos clave</h3>' + (E.moments.length ? '<div class="moments">' + E.moments.map(m =>
+        '<details class="moment ' + m.sev + '" data-i="' + m.i + '"' + (this.open === m.i ? ' open' : '') + '><summary>' + esc(m.title) + '</summary>' +
         m.sections.map(([h, body, raw]) => '<h4>' + esc(h) + '</h4>' + (raw ? body : '<p>' + esc(body) + '</p>')).join('') +
-        (m.ai ? '<h4>Explicación de Claude</h4><p>' + esc(m.ai) + '</p>' : m.aiPending ? '<p class="note">Claude está escribiendo…</p>' : '') +
+        '<div class="mai">' + aiBlock(m) + '</div>' +
         '<div class="row"><button class="btn small" data-see="' + m.i + '">Ver en el tablero</button>' + (m.type !== 'good' ? '<button class="btn small" data-mine="' + m.i + '">Ver tu jugada</button>' : '') + '<button class="btn small" data-best="' + m.i + '">Ver la mejor línea</button></div></details>').join('') + '</div>'
         : '<p class="note">No hubo errores importantes. Buena partida.</p>') +
       '<h3>Qué entrenar</h3><div class="row">' +
@@ -2131,9 +2362,15 @@ class EvalSession{
         (weakPhase && weakPhase[0] === 'Final' ? '<button class="btn small" id="trEnd">Entrenar finales</button>' : '') +
         (o.again ? '<button class="btn small" id="trAgain">Jugar otra</button>' : '') +
       '</div>' +
-      '<div id="ml"></div>';
+      '<h3>Jugadas</h3><div id="ml"></div>';
     $('#bk').onclick = () => this.back();
-    $$('.moment').forEach(det => det.addEventListener('toggle', () => { if(det.open){ const i = +det.dataset.i; this.open = i; this.go(i, {moment:i}); this.claudeMoment(i); } }));
+    // Solo un clic del usuario abre o cierra un momento: volver a dibujar el panel no mueve el tablero
+    $$('.moment > summary').forEach(sm => sm.addEventListener('click', ev => {
+      ev.preventDefault();
+      const det = sm.parentElement, i = +det.dataset.i;
+      if(det.open){ det.open = false; this.open = -1; this.renderNote(); return; }
+      this.openMoment(i);
+    }));
     $$('[data-see]').forEach(b => b.onclick = () => { this.go(+b.dataset.see, {moment:+b.dataset.see}); revealBoard(); });
     $$('[data-mine]').forEach(b => b.onclick = () => this.showLine(+b.dataset.mine, 'mine'));
     $$('[data-best]').forEach(b => b.onclick = () => this.showLine(+b.dataset.best, 'best'));
@@ -2141,11 +2378,14 @@ class EvalSession{
     const tt = $('#trTheme'); if(tt) tt.onclick = () => { App.puzzleTheme = CAT_THEME[todayCats[0]]; App.puzzleSource = 'lichess'; switchTab('puzzles'); };
     const tn = $('#trEnd'); if(tn) tn.onclick = () => { App.posTab = 'finales'; switchTab('positions'); };
     const ta = $('#trAgain'); if(ta) ta.onclick = () => o.again();
-    if(this.ply === null) this.go(E.fens.length - 1); else this.go(this.ply);
+    if(this.ply !== null) this.go(this.ply, this.focus !== null ? {moment:this.focus} : undefined);
+    else if(this.open !== null && this.open >= 0) this.go(this.open, {moment:this.open});
+    else this.go(E.fens.length - 1);
     this.claudeNarrative();
-    const first = E.moments[0]; if(first && (this.open === null || this.open === first.i)) this.claudeMoment(first.i);
+    if(this.open !== null && this.open >= 0) this.claudeMoment(this.open);
   }
-  back(){ Evaluator.job === this.job && !this.job.done && Evaluator.cancel(); this.o.back ? this.o.back() : switchTab(App.tab); }
+  // Salir no cancela: la evaluación termina en segundo plano y la partida entra al historial
+  back(){ this.o.back ? this.o.back() : switchTab(App.tab); }
   claudeNarrative(){
     const E = this.job.result; if(!ClaudeAI.ready() || E.narrAI || E.narrPending) return;
     E.narrPending = true; const tok = App.token;
@@ -2166,17 +2406,21 @@ class EvalSession{
   claudeMoment(i){
     const E = this.job.result, m = (E.moments || []).find(x => x.i === i);
     if(!m || m.ai || m.aiPending || !ClaudeAI.ready()) return;
-    m.aiPending = true; const tok = App.token;
+    m.aiPending = true; this.paintAI(m);
+    const task = m.type === 'good'
+      ? 'Explica en cuatro a seis frases por qué fue una buena jugada, qué amenaza o gana y cuál es la idea detrás de ella.'
+      : 'Explica a fondo este momento en cuatro a seis frases: por qué la jugada fue un error, de dónde vino, cuál era la mejor jugada y la idea detrás de ella.';
     ClaudeAI.queue = ClaudeAI.queue.then(async () => {
-      try{
-        m.ai = await ClaudeAI.ask(ClaudeAI.system({prof:playerModel()}) + ' Explica a fondo este momento en cuatro a seis frases: por qué la jugada fue un error, de dónde vino, cuál era la mejor jugada y la idea detrás de ella. Usa solo los datos.',
-          'Momento: ' + JSON.stringify(m.facts), 450);
-      }catch(e){ ClaudeAI.lastError = e.message; }
+      try{ m.ai = await ClaudeAI.ask(ClaudeAI.system({prof:playerModel()}) + ' ' + task + ' Usa solo los datos.', 'Momento: ' + JSON.stringify(m.facts), 450); }
+      catch(e){ ClaudeAI.lastError = e.message; }
       m.aiPending = false;
-      if(tok === App.token && App.session === this) this.renderSide();
+      // Se actualiza solo ese bloque: el tablero y la jugada que estás viendo no cambian
+      if(App.session === this) this.paintAI(m);
     });
   }
+  paintAI(m){ const box = $('.moment[data-i="' + m.i + '"] .mai'); if(box) box.innerHTML = aiBlock(m); }
 }
+function aiBlock(m){ return m.ai ? '<h4>Explicación de Claude</h4><p>' + esc(m.ai) + '</p>' : m.aiPending ? '<p class="note">Claude está escribiendo…</p>' : ''; }
 function gameDescFromRec(rec){
   const user = rec.white.toLowerCase() === S.username.toLowerCase() ? 'w' : 'b';
   const b = buildGame(rec.pgn);
@@ -2328,6 +2572,11 @@ function numberedLine(fen, sans){
   const parts = fen.split(' '); let num = +parts[5] || 1; let white = parts[1] === 'w';
   return sans.map((san, i) => { const pre = white ? num + '. ' : (i === 0 ? num + '... ' : ''); if(!white) num++; white = !white; return pre + san; }).join(' ');
 }
+function lineGain(E, i, color, n){
+  const l = applyLine(E.fens[i], E.pv[i], n || 4); let base = matDiff(E.fens[i], color);
+  const pm = i > 0 ? E.moves[i-1] : null; if(pm && pm.captured) base = Math.max(base, matDiff(E.fens[i-1], color));
+  return matDiff(l.fen, color) - base;
+}
 function applyLine(fen, ucis, n){ const g = new Chess(fen); const moves = []; for(const u of (ucis || []).slice(0, n)){ const m = g.move(uciObj(u)); if(!m) break; moves.push(m); } return {fen:g.fen(), moves, game:g}; }
 function attackedBy(fen, sq){
   // Piezas rivales que ataca la pieza en sq (como si volviera a mover su dueño)
@@ -2366,7 +2615,12 @@ function explanationHTML(m, exp){
   else if(r1 && r1.captured && r1.to === played.to && loss >= 2){ a += 'Tu ' + PNAME[played.piece] + ' quedó sin defensa suficiente en ' + played.to + ': tu rival ' + pro(played.piece) + ' captura con ' + B(r1.san) + ' y pierdes ' + matPhrase(loss) + '. '; }
   else if(r1 && r1.captured && loss >= 2){ a += 'Dejaste sin defensa tu ' + PNAME[r1.captured] + ' de ' + r1.to + ': tu rival ' + pro(r1.captured) + ' captura con ' + B(r1.san) + ', y con la secuencia pierdes ' + matPhrase(loss) + '. '; }
   else if(r1 && loss >= 2){ a += 'Tu rival responde ' + B(r1.san) + ' y con esa secuencia gana ' + matPhrase(loss) + '. '; }
-  else if(r1){ a += 'No pierdes material de inmediato, pero tu rival responde ' + B(r1.san) + ' y toma la iniciativa. '; }
+  else if(r1){
+    // Si la línea del motor es corta, no se puede afirmar que no pierdes material: se describe la respuesta y la caída
+    const big = winPct(m.before) - winPct(exp.evP) >= 30;
+    a += r1.captured ? 'Tu rival responde ' + B(r1.san) + ', que captura tu ' + PNAME[r1.captured] + (big ? ', y la posición se te complica mucho. ' : ', y toma la iniciativa. ')
+      : big ? 'Tu rival responde ' + B(r1.san) + ' y la posición se te complica mucho. ' : 'No pierdes material de inmediato, pero tu rival responde ' + B(r1.san) + ' y toma la iniciativa. ';
+  }
   a += 'Antes de esa jugada ' + evalWords(m.before) + '; después, ' + evalWords(exp.evP).replace('tenías','tienes').replace('ibas','vas').replace('estaba','queda') + '.';
   // Mejor jugada
   const gB = new Chess(start); const best = gB.move(uciObj(m.best)); const fenB = gB.fen();
@@ -2387,7 +2641,7 @@ function explanationHTML(m, exp){
     else if(m.cat === 'Permitió mate' || m.cat === 'Pieza colgada') b += 'Evita la amenaza de tu rival. ';
     else b += 'Mantiene tu posición sin conceder nada. ';
   }
-  b += 'Con ella ' + evalWords(exp.evB).replace('tenías','tenías').replace('ibas','seguías').replace('la posición estaba','la posición seguía') + '.';
+  b += 'Con ella ' + evalNow(exp.evB) + '.';
   const bestSans = [m.bestSan].concat(pvToSan(fenB, exp.bestPv, 6));
   const refSans = [m.played].concat(pvToSan(fenP, exp.refPv, 6));
   return '<div class="explain">' +
@@ -2558,6 +2812,7 @@ class PuzzleSession{
     if(p.themes.length) h += '<div class="row">' + p.themes.slice(0,4).map(t => '<span class="tag">' + esc(themeName(t)) + '</span>').join('') + '</div>';
     if(p.url && p.src !== 'mine') h += '<div class="row"><a href="' + esc(p.url) + '" target="_blank" rel="noopener">Ver en ' + srcName + '</a></div>';
     if(p.src === 'mine' && p.url && /^https?:/.test(p.url)) h += '<div class="row"><a href="' + esc(p.url) + '" target="_blank" rel="noopener">Abrir la partida en Chess.com</a></div>';
+    if(p.src === 'mine' && p.mistake && (S.played || []).some(g => g.id === p.mistake.gid)) h += '<div class="row"><button class="btn small" id="pzGame">Ver la partida</button></div>';
     h += '</div>';
     if(p.counted) h += '<div class="result ' + (p.delta >= 0 ? 'good' : 'bad') + '"><strong>' + (p.delta >= 0 ? '+' : '') + p.delta + ' de rating</strong>' + (p.delta >= 0 ? 'Puzzle resuelto al primer intento.' : 'Fallaste o pediste ayuda.') + '</div>';
     if(p.src === 'mine' && p.done){
@@ -2566,6 +2821,7 @@ class PuzzleSession{
       else h += '<p class="note">No se pudo preparar la explicación. <button class="btn small" id="expRetry">Reintentar</button></p>';
     }
     box.innerHTML = h;
+    const pzg = $('#pzGame'); if(pzg) pzg.onclick = () => { const m = this.p.mistake, g = S.played.find(x => x.id === m.gid); if(g) openPlayed(g, m.ply - 1); };
     const sm = $('#seeMine'); if(sm) sm.onclick = () => this.showLine('mine');
     const sb = $('#seeBest'); if(sb) sb.onclick = () => this.showLine('best');
     const bk = $('#seeBack'); if(bk) bk.onclick = () => this.backToPosition();
@@ -2737,7 +2993,7 @@ class ReviewSession{
       {label:'Inicio', on:()=>this.go(0)}, {label:'Anterior', on:()=>this.go(this.ply-1)}, {label:'Siguiente', on:()=>this.go(this.ply+1)}, {label:'Final', on:()=>this.go(this.b.fens.length-1)},
       {label:'Girar', on:()=>Board.flip()},
     ]);
-    const ml = $('#ml'); if(ml){ ml.innerHTML = moveListHTML(this.b.moves.map(m=>m.san), this.b.start, this.ply, an && an.tags); scrollMoves(ml); }
+    const ml = $('#ml'); if(ml){ ml.innerHTML = moveListHTML(this.b.moves.map(m=>m.san), this.b.start, this.ply, an && an.tags); ml.onclick = e => { const b = e.target.closest('[data-ply]'); if(b){ this.go(+b.dataset.ply); revealBoard(); } }; scrollMoves(ml); }
   }
   onUserMove(mv){
     const fen = App.game.fen(); const g = new Chess(fen); const m = g.move(mv); if(!m) return;
@@ -2757,7 +3013,7 @@ class ReviewSession{
       '<div class="row" style="margin-top:12px"><button class="btn small" id="deep">Evaluación a fondo</button><a href="' + esc(r.id) + '" target="_blank" rel="noopener">Abrir en Chess.com</a></div>' +
       '<div id="ml"></div>';
     $('#bk').onclick = () => switchTab('games');
-    $('#deep').onclick = () => { const job = Evaluator.start(gameDescFromRec(r)); App.setSession(new EvalSession(job, {backLabel:'Partida', back:()=>App.setSession(new ReviewSession(r))})); };
+    $('#deep').onclick = () => { const job = evalJobFor(gameDescFromRec(r)); App.setSession(new EvalSession(job, {backLabel:'Partida', back:()=>App.setSession(new ReviewSession(r))})); };
     $$('[data-go]').forEach(b => b.onclick = () => { this.go(+b.dataset.go); revealBoard(); });
     $$('[data-pz]').forEach(b => b.onclick = () => { const m = an.mistakes[+b.dataset.pz]; App.setSession(new PuzzleSession(mistakePuzzle(m))); App.tab='puzzles'; $$('.tab').forEach(x=>x.setAttribute('aria-selected', x.dataset.tab==='puzzles')); });
     const one = $('#anOne'); if(one) one.onclick = async () => {
@@ -2868,12 +3124,27 @@ async function loadChessCom(user, months, status){
   return added;
 }
 let gamesFilter = 'all';
+// Líneas de OPENINGS que empiezan con estas jugadas
+function openingLines(hist){ const h = hist.map(m => m.replace(/[+#]/g, '')); return OPENINGS.filter(o => { const l = o.line.split(' '); return h.length <= l.length && h.every((m, k) => m === l[k].replace(/[+#]/g, '')); }); }
+// Nombre de la apertura solo si la partida siguió al menos 6 jugadas de una sola línea conocida
+function openingOf(sans){ for(let k = Math.min(sans.length, 17); k >= 6; k--){ const ls = openingLines(sans.slice(0, k)); if(ls.length === 1) return ls[0].t; if(ls.length) break; } return null; }
+function playedHTML(){
+  const list = S.played || []; if(!list.length) return '';
+  return '<h3>Jugadas en Casilla</h3><p class="note">Cada partida entra aquí cuando termina su evaluación. Tócala para ver la evaluación completa.</p>' +
+    '<ul class="games">' + list.slice(0, 60).map(g => {
+      const an = S.analyses[g.id], res = g.res || 'd', errs = an && an.cnt ? an.cnt.blunder + an.cnt.mistake : 0;
+      const op = posKey(g.start || START_FEN) === posKey(START_FEN) ? openingOf(g.sans || []) : 'desde una posición';
+      return '<li class="game" data-pid="' + esc(g.id) + '" tabindex="0"><span class="c ' + g.user + '"></span><span><div class="o">vs ' + esc(g.opp || 'Stockfish') + '</div><div class="meta">' + fmtDate(g.end) + ', ' + esc(g.title || KIND_NAME[g.kind] || 'Partida') + (op ? ', ' + esc(op) : '') + (an ? ', precisión ' + an.acc + '%' : '') + (errs ? ', ' + errs + (errs > 1 ? ' errores' : ' error') : '') + '</div></span><span class="res ' + res + '">' + (res==='w'?'1':res==='l'?'0':'½') + '</span></li>';
+    }).join('') + '</ul>' + (list.length > 60 ? '<p class="note">Mostrando las 60 más recientes.</p>' : '');
+}
 function renderGamesHome(){
   const hasUser = !!S.username;
   const list = S.games.filter(g => gamesFilter === 'all' || g.tc === gamesFilter);
   const pending = S.games.filter(g => !S.analyses[g.id] && g.pgn);
   side().innerHTML =
-    '<h2>Mis partidas</h2><p class="lede">Lee tus partidas públicas de Chess.com. Solo necesitas tu usuario, sin contraseña.</p>' +
+    '<h2>Mis partidas</h2><p class="lede">Tus partidas jugadas aquí y las de Chess.com. Los errores de todas las partidas evaluadas alimentan tus puzzles.</p>' +
+    playedHTML() +
+    '<h3>Chess.com</h3><p class="note">Lee tus partidas públicas de Chess.com. Solo necesitas tu usuario, sin contraseña.</p>' +
     '<div class="field"><span class="lbl">Usuario de Chess.com</span><div class="row" style="flex-wrap:nowrap"><input type="text" id="user" value="' + esc(S.username) + '" placeholder="tu_usuario" autocomplete="off" spellcheck="false">' +
     '<select id="months" style="width:auto"><option value="1">1 mes</option><option value="3" selected>3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>' +
     '<button class="btn primary wide" id="load">' + (hasUser && S.games.length ? 'Actualizar partidas' : 'Cargar partidas') + '</button><p class="note" id="loadst" style="margin-top:8px"></p></div>' +
@@ -2895,13 +3166,15 @@ function renderGamesHome(){
   $('#load').onclick = async () => {
     const u = $('#user').value.trim(); if(!u){ toast('Escribe tu usuario de Chess.com.'); return; }
     const btn = $('#load'); btn.disabled = true; const st = t => { const e = $('#loadst'); if(e) e.textContent = t; };
-    if(S.username && S.username.toLowerCase() !== u.toLowerCase()){ S.games = []; S.analyses = {}; }
+    // Otro usuario de Chess.com: se borran sus partidas, pero no las jugadas en Casilla ni sus análisis
+    if(S.username && S.username.toLowerCase() !== u.toLowerCase()){ S.games = []; const keep = {}; for(const k in S.analyses) if(!/^https?:/.test(k)) keep[k] = S.analyses[k]; S.analyses = keep; }
     S.username = u;
     try{ const added = await loadChessCom(u, +$('#months').value, st); toast(added + ' partidas nuevas cargadas.'); if(App.tab === 'games' && App.session instanceof HomeSession) renderGamesHome(); }
     catch(e){ st(e.code === 404 ? 'No encontré ese usuario en Chess.com.' : 'Error: ' + e.message); btn.disabled = false; }
   };
   bindSeg(root, 'tc', v => { gamesFilter = v; renderGamesHome(); });
-  $$('.game', root).forEach(li => { const open = () => { const g = S.games.find(x => x.id === li.dataset.id); if(g && g.pgn) App.setSession(new ReviewSession(g)); else toast('Esta partida ya no tiene PGN guardado.'); }; li.onclick = open; li.onkeydown = e => { if(e.key==='Enter') open(); }; });
+  $$('.game[data-pid]', root).forEach(li => { const open = () => { const g = (S.played || []).find(x => x.id === li.dataset.pid); if(g) openPlayed(g); }; li.onclick = open; li.onkeydown = e => { if(e.key==='Enter') open(); }; });
+  $$('.game[data-id]', root).forEach(li => { const open = () => { const g = S.games.find(x => x.id === li.dataset.id); if(g && g.pgn) App.setSession(new ReviewSession(g)); else toast('Esta partida ya no tiene PGN guardado.'); }; li.onclick = open; li.onkeydown = e => { if(e.key==='Enter') open(); }; });
   const bgo = $('#bgo');
   if(bgo) bgo.onclick = () => {
     if(Analyzer.running){ Analyzer.stop = true; Engine.cancel('batch'); bgo.textContent = 'Deteniendo…'; return; }
@@ -3080,7 +3353,7 @@ function stripForSync(st){
 }
 function syncKey(st){ const c = stripForSync(st); delete c.meta; return canon(c); }
 function isFresh(st){
-  return !st.username && !(st.games || []).length && (st.ladder && st.ladder.unlocked || 1) <= 1 &&
+  return !st.username && !(st.games || []).length && !(st.played || []).length && (st.ladder && st.ladder.unlocked || 1) <= 1 &&
     !((st.puzzles && st.puzzles.hist) || []).length && !Object.keys(st.analyses || {}).length &&
     !((st.coach && st.coach.games) || []).length && !Object.keys(st.endgames || {}).length;
 }
@@ -3106,6 +3379,8 @@ function mergeState(L, Rin){
   // Partidas: unión por id
   const gm = {}; for(const g of [...(R.games || []), ...(L.games || [])]){ const e = gm[g.id]; if(!e || (!e.pgn && g.pgn)) gm[g.id] = g; }
   out.games = Object.values(gm).sort((a,b) => b.end - a.end).slice(0, 400);
+  const pm = {}; for(const g of [...(R.played || []), ...(L.played || [])]) pm[g.id] = g;
+  out.played = Object.values(pm).sort((a,b) => b.end - a.end).slice(0, 300);
   // Análisis: unión; si ambos existen, gana el más profundo; se conservan las explicaciones de los dos
   out.analyses = {};
   for(const k of new Set([...Object.keys(L.analyses || {}), ...Object.keys(R.analyses || {})])){

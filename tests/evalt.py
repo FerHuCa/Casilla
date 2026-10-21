@@ -25,7 +25,7 @@ with sync_playwright() as p:
     print('saved', pg.evaluate("Object.entries(S.analyses).map(([k,a])=>k.slice(0,6)+':'+a.mistakes.length+':'+!!a.deep)"))
     # 2) evaluación a fondo de una partida de Chess.com
     pg.click('.tab[data-tab=games]'); pg.fill('#user',U); pg.click('#load'); pg.wait_for_function("S.games.length===3",timeout=10000); time.sleep(.4)
-    pg.click('.game >> nth=2'); time.sleep(.5); pg.click('#deep'); pg.wait_for_function("Evaluator.job && Evaluator.job.done", timeout=120000); time.sleep(.5)
+    pg.click('.game[data-id] >> nth=2'); time.sleep(.5); pg.click('#deep'); pg.wait_for_function("Evaluator.job && Evaluator.job.done", timeout=120000); time.sleep(.5)
     print('==== chess.com ====\n' + pg.inner_text('#side')[:3000])
     pg.screenshot(path=OUT+'e3.png')
     b.close()

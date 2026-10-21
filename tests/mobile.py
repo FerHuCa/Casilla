@@ -45,7 +45,7 @@ with sync_playwright() as p:
     pg.click('.tab[data-tab=positions]'); time.sleep(.3); shot(pg,'07_positions')
     pg.click('.tab[data-tab=games]'); pg.fill('#user',U); pg.click('#load'); pg.wait_for_function("S.games.length===3",timeout=10000); time.sleep(.5)
     shot(pg,'08_games')
-    pg.click('.game >> nth=2'); time.sleep(.6); shot(pg,'09_review')
+    pg.click('.game[data-id] >> nth=2'); time.sleep(.6); shot(pg,'09_review')
     pg.click('#deep'); pg.wait_for_function("Evaluator.job && Evaluator.job.done", timeout=120000); time.sleep(.6)
     shot(pg,'10_eval', full=False); shot(pg,'10_eval_full')
     pg.click('.tab[data-tab=progress]'); time.sleep(.3); shot(pg,'11_progress')

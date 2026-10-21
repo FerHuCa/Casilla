@@ -55,8 +55,9 @@ Un rival que aprende de ti:
 - Cada persona que use la app necesita su propia clave. Puedes obtenerla en https://console.anthropic.com/settings/keys
 
 ### Evaluación al final de cada partida
-Al terminar una partida de la escalera, contra el maestro o desde una posición, Stockfish revisa todas las jugadas de ambos lados. Tarda de 20 a 30 segundos y mientras tanto puedes seguir en la pantalla de resultado. Después, **Ver evaluación completa** muestra:
+Al terminar una partida de la escalera, contra el maestro o desde una posición, Stockfish revisa todas las jugadas de ambos lados. Tarda de 20 a 30 segundos y mientras tanto puedes seguir en la pantalla de resultado. Si sales o empiezas otra partida, la evaluación no se pierde: sigue en segundo plano (se pausa mientras juegas) y te avisa cuando termina. Después, **Ver evaluación completa** muestra:
 - **Resumen:** tu precisión y la de tu rival, tus errores graves, errores e imprecisiones, y una gráfica de la evaluación con tus errores marcados. Toca un punto para ir a ese momento.
+- **Jugada a jugada:** con **Siguiente**, las flechas del teclado o tocando una jugada de la lista, recorres la partida una jugada a la vez. Cada jugada, tuya o de tu rival, trae su comentario: si fue la mejor, teoría, buena, imprecisión, error, error grave, oportunidad perdida o si permite mate; qué hizo (captura, jaque, ataque o amenaza nueva); cómo cambió la evaluación desde tu lado; y, si no fue la mejor, cuál era y por qué. En el celular el comentario aparece debajo del tablero.
 - **Comentario del maestro:** cómo saliste de la apertura, el momento decisivo, oportunidades que no aprovechaste, tu precisión por fase y si apareció tu patrón de error más frecuente.
 - **Momentos clave, explicados a fondo:**
   1. Qué pasó.
@@ -66,7 +67,7 @@ Al terminar una partida de la escalera, contra el maestro o desde una posición,
   5. La línea del motor, comentada.
   6. Una lección para la próxima.
 
-  Cada momento tiene botones para ver tu jugada y la mejor línea en el tablero.
+  Al abrir un momento, el tablero muestra la posición antes de esa jugada: la flecha roja es lo que se jugó y la verde, la mejor. Con **Siguiente** ves qué pasó después. Cada momento tiene botones para ver tu jugada y la mejor línea en el tablero, comentadas jugada por jugada.
 - **Qué entrenar:** puzzles con estos mismos errores, el tema de Lichess relacionado o finales.
 
 Las explicaciones detectan bien amenazas previas, piezas sin defensa, ataques dobles, clavadas y ataques descubiertos. En errores puramente posicionales son más generales: muestran la diferencia de evaluación y la línea del motor, pero no siempre pueden nombrar el plan.
@@ -74,7 +75,7 @@ Las explicaciones detectan bien amenazas previas, piezas sin defensa, ataques do
 ### Puzzles
 - **Lichess:** puzzles por tema (mate en 2, ataque doble, clavada, finales y más) ajustados a tu nivel.
 - **Chess.com:** puzzles diarios de su archivo.
-- **Mis errores:** posiciones de tus propias partidas donde fallaste. Al terminar cada uno ves qué jugaste en la partida, de dónde vino el error y la idea de la mejor jugada.
+- **Mis errores:** posiciones de tus propias partidas donde fallaste, tanto de Chess.com como de las que juegas en Casilla. Al terminar cada uno ves qué jugaste en la partida, de dónde vino el error y la idea de la mejor jugada. Si el error es de una partida jugada aquí, **Ver la partida** abre su evaluación en ese momento.
 - **Combinado:** mezcla las tres fuentes.
 
 El tema **Recomendado para ti** elige puzzles según tus errores más frecuentes. La app lleva tu rating de puzzles y tu racha; solo cuenta para el rating si lo resuelves al primer intento sin pedir pista.
@@ -85,7 +86,10 @@ El tema **Recomendado para ti** elige puzzles según tus errores más frecuentes
 - **De mis partidas:** tus errores más frecuentes agrupados por tipo. Puedes resolverlos como puzzle o volver a jugar desde esa posición.
 - **FEN:** pega cualquier posición para jugarla o analizarla.
 
-### Mis partidas (Chess.com)
+### Mis partidas
+**Jugadas en Casilla:** cada partida de la escalera, contra el maestro o desde una posición entra a esta lista cuando termina su evaluación, con el resultado, tu precisión y tus errores. Tócala para ver otra vez la evaluación completa, al instante y sin volver a calcularla. Sus errores ya están en tus puzzles de **Mis errores**.
+
+**Chess.com:**
 1. Escribe tu **nombre de usuario** de Chess.com, el que aparece en la URL de tu perfil, no tu nombre visible.
 2. Elige cuántos meses cargar y pulsa **Cargar partidas**.
 3. Pulsa **Analizar** para que Stockfish revise tus partidas. En modo Normal tarda unos 30 segundos por partida y puedes seguir usando la app mientras tanto.

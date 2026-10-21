@@ -1,0 +1,65 @@
+exec(open('coach.py').read().split("with sync_playwright() as p:")[0])
+# Navegación de la evaluación: cada paso avanza exactamente una jugada, cada jugada trae su comentario
+# y nada (respuestas de Claude, abrir momentos, volver a dibujar el panel) regresa el tablero por su cuenta.
+def ply(pg): return pg.evaluate("App.session.ply")
+fails=[]
+def check(name, cond):
+    print(('OK   ' if cond else 'FALLA ') + name)
+    if not cond: fails.append(name)
+with sync_playwright() as p:
+    b=p.chromium.launch(); ctx=b.new_context(viewport={'width':1400,'height':950}); ctx.route('**/*',handle2); pg=ctx.new_page()
+    pg.on('pageerror',lambda e: (print('PAGEERROR',e), fails.append('pageerror')))
+    pg.on('console',lambda m: print('C',m.text) if m.type in ('error','warning') and 'ERR_FAILED' not in m.text else None)
+    pg.goto(APP); pg.wait_for_function("Engine.ready",timeout=60000)
+    pg.evaluate("S.settings.evalTime=200; S.settings.claude={on:true,key:'sk-test',model:'claude-haiku-5-5'}")
+    pg.click('.tab[data-tab=games]'); pg.fill('#user',U); pg.click('#load'); pg.wait_for_function("S.games.length===3",timeout=10000); time.sleep(.4)
+    pg.click('.game[data-id] >> nth=0'); time.sleep(.5); pg.click('#deep')
+    pg.wait_for_function("App.session.job && App.session.job.done", timeout=120000); time.sleep(1.5)
+    n = pg.evaluate("App.session.job.result.fens.length")
+    first = pg.evaluate("App.session.job.result.keys[0].i")
+    check('al abrir muestra el primer momento clave', ply(pg) == first and pg.evaluate("App.session.focus") == first)
+    print('  estado:', pg.inner_text('#status'))
+    check('el estado habla de la jugada del momento', pg.evaluate(f"document.querySelector('#status').textContent.includes(App.session.job.result.per[{first}].san)"))
+    check('la lista resalta la jugada del momento', pg.locator('#ml .m.foc').count() == 1 and pg.locator('#ml .m.foc').get_attribute('data-ply') == str(first + 1))
+    pg.click('#controls >> text=Inicio'); time.sleep(.3)
+    seq=[ply(pg)]; moved=[]
+    for k in range(n-1):
+        pg.click('#controls >> text=Siguiente'); time.sleep(.25)
+        seq.append(ply(pg))
+        st = pg.inner_text('#status'); nt = pg.inner_text('#mvnote')
+        print(' ', seq[-1], '|', st)
+        san = pg.evaluate(f"App.session.job.result.per[{seq[-1]-1}].san")
+        if san not in st or san not in nt: moved.append(('comentario', seq[-1]))
+        pg.evaluate("App.session.renderSide()"); time.sleep(.25)
+        if ply(pg) != seq[-1]: moved.append(('render', seq[-1], ply(pg)))
+    check('Siguiente recorre todas las jugadas en orden', seq == list(range(n)))
+    check('volver a dibujar el panel no mueve el tablero ni cambia el comentario', not moved)
+    if moved: print('  ', moved)
+    # Abrir un momento con clic, ir a otra jugada y esperar a Claude: el tablero se queda donde está
+    pg.click('#controls >> text=Final'); time.sleep(.2)
+    pg.evaluate("App.session.job.result.moments.forEach(m=>{m.ai=null; m.aiPending=false})")
+    pg.click(f'.moment[data-i="{first}"] > summary'); time.sleep(.1)
+    if not pg.evaluate(f"document.querySelector('.moment[data-i=\"{first}\"]').open"):
+        pg.click(f'.moment[data-i="{first}"] > summary'); time.sleep(.1)
+    pg.click('#controls >> text=Siguiente'); pg.click('#controls >> text=Siguiente'); time.sleep(1.5)
+    check('la respuesta de Claude no regresa el tablero', ply(pg) == first + 2)
+    check('la explicación de Claude aparece en su momento', 'Explicación de Claude' in pg.inner_text(f'.moment[data-i="{first}"]'))
+    # Teclado
+    pg.keyboard.press('ArrowLeft'); time.sleep(.2)
+    check('flecha izquierda retrocede una jugada', ply(pg) == first + 1)
+    # La animación de una línea no se interrumpe por un render
+    want = pg.evaluate(f"Math.min(2, (App.session.job.result.pv[{first}] || []).length)")
+    pg.click(f'.moment[data-i="{first}"] [data-best]'); time.sleep(2.4)
+    hist = pg.evaluate("App.game.history().length")
+    print('  línea animada:', hist, 'de', want, '|', pg.inner_text('#status'))
+    check('la mejor línea se anima en el tablero', want > 0 and hist >= want)
+    pg.screenshot(path=OUT+'nav1.png')
+    # Móvil: el comentario de la jugada aparece bajo el tablero
+    pg.set_viewport_size({'width':390,'height':844}); time.sleep(.3)
+    pg.evaluate("App.session.go(3)"); time.sleep(.3)
+    tip = pg.inner_text('#tip')
+    print('  tip:', tip)
+    check('en el celular el comentario va bajo el tablero', pg.is_visible('#tip') and len(tip) > 10 and not pg.is_visible('#mvnote'))
+    pg.screenshot(path=OUT+'nav2_movil.png')
+    b.close()
+print('\nRESULTADO:', 'todo bien' if not fails else 'fallas: ' + ', '.join(fails))

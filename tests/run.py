@@ -93,7 +93,7 @@ with sync_playwright() as p:
     pg.wait_for_function("Object.keys(S.analyses).length===3 && !Analyzer.running",timeout=120000)
     print(pg.evaluate("JSON.stringify(Object.values(S.analyses).map(a=>({acc:a.acc,cnt:a.cnt,tags:a.tags,m:a.mistakes.map(m=>[m.played,m.bestSan,m.cat,m.phase,m.drop])})))"))
     time.sleep(.5); pg.screenshot(path=OUT+'4_games.png')
-    pg.click('.game >> nth=2'); time.sleep(.6)
+    pg.click('.game[data-id] >> nth=2'); time.sleep(.6)
     pg.click('[data-go] >> nth=0'); time.sleep(.4)
     pg.screenshot(path=OUT+'5_review.png')
     pg.click('.tab[data-tab=positions]'); pg.click('[data-seg=pt] button[data-v=mias]'); time.sleep(.3)
