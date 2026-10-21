@@ -74,6 +74,8 @@ with sync_playwright() as p:
     # 5) Sincronización: se unen los historiales
     merged = pg.evaluate("""(()=>{ const R = JSON.parse(JSON.stringify(S)); R.played = [{id:'play:1', src:'casilla', kind:'partida', title:'Otra', opp:'X', user:'b', start:START_FEN, sans:['e4','e5'], res:'d', why:'', end:1}]; const L = JSON.parse(JSON.stringify(S)); const out = mergeState(L, R); return [out.played.length, L.played.length]; })()""")
     check('mergeState une el historial', merged[0] == merged[1] + 1)
+    keep = pg.evaluate(f"""(()=>{{ const L = JSON.parse(JSON.stringify(S)), R = JSON.parse(JSON.stringify(S)); delete L.analyses['{gid1}'].best; delete L.analyses['{gid1}'].pv; return Array.isArray(mergeState(L, R).analyses['{gid1}'].best); }})()""")
+    check('mergeState conserva las líneas guardadas', keep)
     # 6) Persiste al recargar
     pg.reload(); pg.wait_for_function("Engine.ready",timeout=60000)
     check('el historial sobrevive a recargar', pg.evaluate(f"S.played.some(g=>g.id==='{gid1}')"))

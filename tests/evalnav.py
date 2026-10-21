@@ -47,6 +47,16 @@ with sync_playwright() as p:
     # Teclado
     pg.keyboard.press('ArrowLeft'); time.sleep(.2)
     check('flecha izquierda retrocede una jugada', ply(pg) == first + 1)
+    # Anterior desde un momento: misma posición, ahora con el comentario de la jugada que llevó a ella
+    pg.evaluate(f"App.session.openMoment({first})"); time.sleep(.2)
+    pg.click('#controls >> text=Anterior'); time.sleep(.2)
+    check('Anterior desde un momento no se salta un comentario', ply(pg) == first and pg.evaluate("App.session.focus") is None)
+    # Mover una pieza abre una variante; al volver sigue el mismo momento
+    pg.evaluate(f"App.session.openMoment({first})"); time.sleep(.2)
+    pg.evaluate("(()=>{ const m = App.game.moves({verbose:true})[0]; App.session.onUserMove({from:m.from, to:m.to, promotion:m.promotion}); })()"); time.sleep(.3)
+    pg.evaluate("App.session.o.back()"); time.sleep(.4)
+    st = pg.evaluate("[App.session.constructor.name, App.session.ply, App.session.focus, App.session.open]")
+    check('volver de una variante conserva el momento', st == ['EvalSession', first, first, first])
     # La animación de una línea no se interrumpe por un render
     want = pg.evaluate(f"Math.min(2, (App.session.job.result.pv[{first}] || []).length)")
     pg.click(f'.moment[data-i="{first}"] [data-best]'); time.sleep(2.4)

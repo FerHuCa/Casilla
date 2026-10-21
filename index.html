@@ -1950,7 +1950,7 @@ const Evaluator = {
     saveEvaluation(d, job.result);
     job.done = true; this._emit(job);
     const s = App.session, watching = (s instanceof EvalSession && s.job === job) || (s instanceof PlaySession && s.evalJob === job);
-    if(!watching && d.kind !== 'chesscom') toast('Evaluación lista: la partida contra ' + (d.opp || 'tu rival') + ' ya está en Mis partidas.');
+    if(!watching) toast('Evaluación lista: la partida contra ' + (d.opp || 'tu rival') + (d.kind === 'chesscom' ? ', en Mis partidas, ya tiene su evaluación a fondo.' : ' ya está en Mis partidas.'));
     if(s instanceof HomeSession && App.tab === 'games' && !(document.activeElement && document.activeElement.closest('input,select'))) renderGamesHome();
   }
 };
@@ -1994,7 +1994,7 @@ function buildEvaluation(d, fens, moves, W, best, pv){
   for(const p of E.per){
     if(p.color === d.user || p.drop < 25) continue;
     const nx = E.per[p.i + 1];
-    if(nx && nx.color === d.user && nx.drop >= 15 && !keys.some(k => k.i === nx.i)) keys.push({type:'missed', i:nx.i, sev:nx.drop, after:p.i});
+    if(nx && nx.color === d.user && nx.drop >= 15 && best[nx.i] && !keys.some(k => k.i === nx.i)) keys.push({type:'missed', i:nx.i, sev:nx.drop, after:p.i});
   }
   if(!keys.length) mine.filter(p => p.drop >= 10 && best[p.i]).sort((a,b) => b.drop - a.drop).slice(0, 2).forEach(p => keys.push({type:'inacc', i:p.i, sev:p.drop}));
   const goods = mine.filter(p => p.isBest && best[p.i]).map(p => ({p, gain:lineGain(E, p.i, d.user, 4)})).filter(x => x.gain >= 2 || x.p.before >= 1450).slice(0, 2);
@@ -2032,11 +2032,10 @@ function descFromPlayed(rec){
 const KIND_NAME = {escalera:'Escalera', maestro:'Contra el maestro', partida:'Partida'};
 // mi: índice de una jugada para abrir directo en ella (por ejemplo, el error de un puzzle)
 function openPlayed(rec, mi){
-  const s = new EvalSession(evalJobFor(descFromPlayed(rec)), {backLabel:'Mis partidas', back:()=>switchTab('games')});
+  const job = evalJobFor(descFromPlayed(rec)), s = new EvalSession(job, {backLabel:'Mis partidas', back:()=>switchTab('games')});
+  if(mi !== undefined && mi >= 0 && mi < (rec.sans || []).length){ s.ply = mi; s.focus = mi; s.open = -1; s.wantMoment = mi; }
   App.tab = 'games'; $$('.tab').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === 'games'));
   App.setSession(s);
-  const E = s.job.done && s.job.result;
-  if(E && mi !== undefined && E.per[mi]){ if(E.keys.some(k => k.i === mi)) s.openMoment(mi); else s.go(mi, {moment:mi}); }
 }
 
 /* ---------- Comentario general del maestro ---------- */
@@ -2159,8 +2158,10 @@ function moveComment(E, i){
   };
   const ended = g1.game_over();
   if(k === 'mate') out.push(mine ? 'Es jaque mate: ganaste la partida.' : 'Es jaque mate: tu rival gana la partida.');
-  else if(g1.in_stalemate()) out.push('Rey ahogado: la partida termina en tablas.');
-  else if(g1.insufficient_material()) out.push('Ya no queda material para dar mate: tablas.');
+  else if(g1.in_stalemate() || g1.insufficient_material()){
+    out.push(g1.in_stalemate() ? 'Rey ahogado: la partida termina en tablas.' : 'Ya no queda material para dar mate: tablas.');
+    if(P.before >= 70) out.push((mine ? 'Ibas mejor (' : 'Tu rival iba mejor (') + fmtEval(P.before) + ') y ' + (mine ? 'dejaste' : 'dejó') + ' escapar la ventaja.');
+  }
   else if(k === 'forced'){ out.push('Era la única jugada legal.'); out.push(evalLine()); }
   else if(k === 'book') out.push('Es una jugada de teoría' + (book ? ', de la línea ' + book : '') + '.');
   else if(k === 'best'){
@@ -2234,10 +2235,10 @@ class EvalSession{
   onUserMove(mv){
     const E = this.job.result; if(!E) return;
     const g = new Chess(App.game.fen()); const m = g.move(mv); if(!m) return;
-    const job = this.job, o = this.o, ply = this.ply;
-    App.setSession(new AnalysisSession({fen:g.fen(), orient:Board.orient, title:'Variante', backLabel:'Evaluación', back:()=>{ const s = new EvalSession(job, o); App.setSession(s); if(ply !== null) s.go(ply); }}));
+    const job = this.job, o = this.o, {ply, focus, open} = this;
+    App.setSession(new AnalysisSession({fen:g.fen(), orient:Board.orient, title:'Variante', backLabel:'Evaluación', back:()=>{ const s = new EvalSession(job, o); Object.assign(s, {ply, focus, open}); App.setSession(s); }}));
   }
-  step(d){ const E = this.job.result; if(E) this.go((this.ply ?? E.fens.length - 1) + d); }
+  step(d){ const E = this.job.result; if(!E) return; if(this.focus !== null && d < 0) return this.go(this.ply); this.go((this.ply ?? E.fens.length - 1) + d); }
   tags(){
     const E = this.job.result;
     if(!E.allTags){ E.allTags = {}; E.per.forEach(p => { if(p.tag) E.allTags[p.i] = p.tag; }); }
@@ -2288,7 +2289,7 @@ class EvalSession{
     }
     const c = moveComment(E, idx), P = E.per[idx];
     const tone = c.mine ? ({blunder:'bad', mistake:'bad', allow:'bad', inacc:'warn', miss:'warn', best:'good', great:'good', mate:'good'}[c.kind] || '') : (c.kind === 'mate' ? 'bad' : '');
-    if(mom !== null) setStatus('Antes de ' + c.label + '. ' + (P.isBest ? 'Flecha verde: ' + (c.mine ? 'tu jugada' : 'su jugada') + ', la mejor.' : 'Flecha roja: ' + (c.mine ? 'lo que jugaste' : 'lo que jugó tu rival') + '. Flecha verde: la mejor' + (P.bestSan ? ', ' + P.bestSan : '') + '.'), tone);
+    if(mom !== null) setStatus('Antes de ' + c.label + '. ' + (P.isBest ? 'Flecha verde: ' + (c.mine ? 'tu jugada' : 'su jugada') + ', la mejor.' : 'Flecha roja: ' + (c.mine ? 'lo que jugaste' : 'lo que jugó tu rival') + '.' + (E.best[mom] ? ' Flecha verde: la mejor' + (P.bestSan ? ', ' + P.bestSan : '') + '.' : '')), tone);
     else setStatus(c.label + ' · ' + c.name + ' · ' + fmtEval(E.W[this.ply]) + ' desde blancas', tone);
     if(box){
       box.className = 'mvnote ' + tone;
@@ -2329,7 +2330,7 @@ class EvalSession{
     const j = this.job, d = j.desc, o = this.o;
     const head = '<button class="back" id="bk">← ' + esc(o.backLabel || 'Volver') + '</button><h2>Evaluación</h2><p class="lede">' + esc((d.title || 'Partida') + (d.opp ? ' contra ' + d.opp : '') + '.') + '</p>';
     if(!j.done){
-      side().innerHTML = head + '<p>Stockfish revisa cada posición de la partida, de ambos lados, para que el maestro te explique los momentos clave. Si sales de esta pantalla, la evaluación sigue y la partida queda en Mis partidas al terminar.</p><div class="prog" id="evprog"><i></i></div><p class="note" id="evprogt"></p>';
+      side().innerHTML = head + '<p>Stockfish revisa cada posición de la partida, de ambos lados, para que el maestro te explique los momentos clave. Si sales de esta pantalla, la evaluación sigue en segundo plano' + (d.kind === 'chesscom' ? ' y te aviso al terminar.' : ' y la partida queda en Mis partidas al terminar.') + '</p><div class="prog" id="evprog"><i></i></div><p class="note" id="evprogt"></p>';
       $('#bk').onclick = () => this.back();
       this.renderProgress(); return;
     }
@@ -2337,6 +2338,7 @@ class EvalSession{
     const E = j.result;
     if(!E.narr) E.narr = evalNarrative(E);
     if(!E.moments) E.moments = E.keys.map(k => Object.assign({i:k.i, type:k.type}, deepMoment(E, k)));
+    if(this.wantMoment !== undefined){ const w = this.wantMoment; delete this.wantMoment; if(E.per[w]){ this.open = E.keys.some(k => k.i === w) ? w : -1; } else { this.ply = null; this.focus = null; this.open = null; } }
     if(this.open === null && this.ply === null && E.moments.length) this.open = E.moments[0].i;
     const todayCats = Object.keys(E.todayCats || {});
     const weakPhase = Object.entries(E.phaseAcc).sort((a,b) => a[1] - b[1])[0];
@@ -3385,7 +3387,8 @@ function mergeState(L, Rin){
   out.analyses = {};
   for(const k of new Set([...Object.keys(L.analyses || {}), ...Object.keys(R.analyses || {})])){
     const a = L.analyses[k], b = R.analyses[k];
-    let pick = a && b ? (b.deep && !a.deep ? b : a) : (a || b);
+    const hasL = x => x && Array.isArray(x.best);
+    let pick = a && b ? ((b.deep && !a.deep) || (b.deep && a.deep && !hasL(a) && hasL(b)) ? b : a) : (a || b);
     pick = JSON.parse(JSON.stringify(pick));
     const exps = {}; [a, b].forEach(x => ((x && x.mistakes) || []).forEach(m => { if(m.exp) exps[m.id] = m.exp; }));
     (pick.mistakes || []).forEach(m => { if(!m.exp && exps[m.id]) m.exp = exps[m.id]; });
