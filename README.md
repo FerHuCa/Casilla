@@ -96,6 +96,7 @@ Al abrir una partida ves cada jugada marcada como imprecisión, error o error gr
 
 ### Apariencia
 El botón **Apariencia** abre un panel para personalizar la app. Los cambios se ven al instante:
+- **Estilo:** Plano (el original) o Relieve, con botones que se hunden al presionarlos, paneles con profundidad, tablero con marco y piezas con sombra.
 - **Tema:** Carbón, Papel (claro), Pizarra o Cuero.
 - **Fuente:** Clásica, Moderna, Libro o Técnica.
 - **Tablero:** Gris piedra, Madera, Nogal, Glaciar o Club.
