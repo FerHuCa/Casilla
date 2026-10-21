@@ -96,11 +96,13 @@ Al abrir una partida ves cada jugada marcada como imprecisión, error o error gr
 
 ### Apariencia
 El botón **Apariencia** abre un panel para personalizar la app. Los cambios se ven al instante:
-- **Estilo:** Plano (el original) o Relieve, con botones que se hunden al presionarlos, paneles con profundidad, tablero con marco y piezas con sombra.
-- **Tema:** Carbón, Papel (claro), Pizarra o Cuero.
-- **Fuente:** Clásica, Moderna, Libro o Técnica.
-- **Tablero:** Gris piedra, Madera, Nogal, Glaciar o Club.
-- **Piezas:** Clásicas, Merida, Celtic, Minimal o Chessnut.
+- **Estilo:** Plano (el original); Relieve, con botones que se hunden al presionarlos, paneles con profundidad, tablero con marco y piezas con sombra; u 8 bits, con bordes gruesos y sombras sólidas de videojuego retro.
+- **Tema:** Carbón, Papel (claro), Pizarra, Cuero o Arcade.
+- **Fuente:** Clásica, Moderna, Libro, Técnica o Pixel.
+- **Tablero:** Gris piedra, Madera, Nogal, Glaciar, Club o Arcade.
+- **Piezas:** Clásicas, Merida, Celtic, Minimal, Chessnut, Pixel o Retro.
+
+El botón **Todo en 8 bits** aplica de un toque el estilo, tema, fuente, tablero y piezas retro.
 
 ### Progreso
 Tus niveles superados, la evolución de tu rating de puzzles, tus errores más comunes con una recomendación de qué entrenar, tus finales y aperturas repasados, la sincronización entre dispositivos y la opción de exportar o importar un respaldo.
@@ -178,6 +180,9 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
   - Celtic, de [Maurizio Monge](https://github.com/maurimo/chess-art) (MIT).
   - Minimal (MPChess), de [Maxime Chupin](https://github.com/chupinmaxime) (GPLv3+).
   - Chessnut, de [Alexis Luengas](https://github.com/LexLuengas/chessnut-pieces) (Apache 2.0).
+  - Pixel, de therealqtpi (AGPLv3+).
+  - Retro, de [RhosGFX](https://rhosgfx.itch.io/) (CC0).
+- Fuentes pixel: Press Start 2P y Pixelify Sans, de Google Fonts (SIL Open Font License).
 - Reglas de ajedrez: [chess.js](https://github.com/jhlywa/chess.js).
 - Puzzles: API pública de [Lichess](https://lichess.org) y de [Chess.com](https://www.chess.com/news/view/published-data-api).
 - Partidas: API pública de Chess.com.
