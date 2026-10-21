@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "description": "Dependencias locales para las pruebas de Casilla (se sirven en lugar de los CDN)",
+  "dependencies": {
+    "chess.js": "0.10.3",
+    "stockfish.js": "10.0.2"
+  }
+}
