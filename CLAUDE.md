@@ -74,6 +74,7 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `coach.py`, `coach2.py` | Maestro: comentarios, adaptación, jugar contra él |
 | `evalt.py` | Evaluación al final de la partida |
 | `evalnav.py` | Recorrer la evaluación jugada por jugada: orden, comentarios y que nada regrese el tablero solo |
+| `claude.py` | Conexión con Claude: encabezados, pensamiento apagado por modelo, reintento y errores (API simulada) |
 | `historial.py` | Partidas de Casilla en Mis partidas, evaluación en segundo plano, puzzles con sus errores, sync |
 | `bar.py` | Barra de evaluación |
 | `mobile.py` | Auditoría de móvil (desbordes, tamaños táctiles) |
