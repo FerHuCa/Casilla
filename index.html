@@ -86,7 +86,7 @@ html[data-theme=cuero]{
   --onText:#241D17; --textHover:#FFFFFF; --rowline:#352B23; --cur:#43372C;
   --evalbg:#43372C; --evalfill:#F1E9DD; --veil:rgba(40,33,27,.8); --frame:#1A1511;
 }
-/* Fuentes opcionales: se descargan solo al elegirlas (ver loadLookFont) */
+/* Fuentes opcionales: van en fonts/ y solo se descargan cuando el preset activo las usa */
 }
 html[data-font=moderna]{--fBody:'Manrope',system-ui,sans-serif;--fHead:'Manrope',system-ui,sans-serif}
 html[data-font=libro]{--fBody:'Literata',Georgia,serif;--fHead:'Literata',Georgia,serif}
@@ -391,7 +391,7 @@ html[data-style=relieve] h2{font-weight:700}
 /* ---- Tema, tablero, fuente y estilo 8 bits ---- */
 html[data-theme=arcade]{
   --bg:#1a1c2c; --raise:#262b44; --line:#3a4466; --line2:#5a6988;
-  --text:#f4f4f4; --muted:#94b0c2; --faint:#6b7f9e;
+  --text:#f4f4f4; --muted:#94b0c2; --faint:#8A9DBA;
   --good:#38b764; --bad:#e04a62; --warn:#ffcd75; --orange:#ef7d57;
   --onText:#1a1c2c; --textHover:#ffffff; --rowline:#2c3150; --cur:#3a4466;
   --evalbg:#29366f; --evalfill:#f4f4f4; --veil:rgba(26,28,44,.85); --frame:#000;
@@ -606,6 +606,24 @@ footer{font-size:var(--fs-xs)}
 @media (max-width:1000px){
   .tabs{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent);padding-right:40px}
 }
+/* Fuentes de los presets (OFL 1.1, autoalojadas). El navegador solo las descarga cuando el preset activo las usa. */
+@font-face{font-family:'Manrope';src:url('fonts/Manrope-latin.woff2') format('woff2');font-weight:400 700;font-style:normal;font-display:swap}
+@font-face{font-family:'Literata';src:url('fonts/Literata-latin.woff2') format('woff2');font-weight:400 600;font-style:normal;font-display:swap}
+@font-face{font-family:'IBM Plex Sans';src:url('fonts/IBMPlexSans-latin.woff2') format('woff2');font-weight:400 600;font-style:normal;font-display:swap}
+@font-face{font-family:'IBM Plex Mono';src:url('fonts/IBMPlexMono-500-latin.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'IBM Plex Mono';src:url('fonts/IBMPlexMono-600-latin.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Press Start 2P';src:url('fonts/PressStart2P-latin.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Pixelify Sans';src:url('fonts/PixelifySans-latin.woff2') format('woff2');font-weight:400 600;font-style:normal;font-display:swap}
+.presets{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
+.preset{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:center;text-align:left;border:1px solid var(--line2);border-radius:var(--r-sm);padding:10px;background:none;cursor:pointer;color:var(--text);font:inherit}
+.preset:hover{background:var(--raise)}
+.preset[aria-checked=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.pv{width:92px;height:62px;border-radius:var(--r-sm);overflow:hidden;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);box-shadow:inset 0 0 0 1px rgba(127,127,127,.35)}
+.pv i{display:block;background-size:88%;background-position:center;background-repeat:no-repeat}
+.pv .aa{font-style:normal;font-weight:600;font-size:13px;line-height:31px;text-align:center}
+.pt b{display:block;font-size:15px;font-weight:600}
+.pt span{display:block;font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:2px}
+.pt .tag{display:inline-block;margin-top:5px;font-size:11px;padding:1px 6px;border-radius:var(--r-round);background:var(--raise);color:var(--muted)}
 </style>
 </head>
 <body>
@@ -3765,7 +3783,7 @@ function renderProgressHome(){
   $('#exp').onclick = () => { const a = document.createElement('a'); const copy = JSON.parse(JSON.stringify(S)); if(copy.settings && copy.settings.claude) copy.settings.claude.key = ''; if(copy.settings) delete copy.settings.sync;
     a.href = URL.createObjectURL(new Blob([JSON.stringify(copy)], {type:'application/json'})); a.download = 'casilla-respaldo-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); };
   $('#imp').onclick = () => $('#impf').click();
-  $('#impf').onchange = async e => { const f = e.target.files[0]; if(!f) return; try{ const keep = S.settings.claude, keepSync = S.settings.sync; S = Object.assign(defaults(), JSON.parse(await f.text())); if(keep && !(S.settings.claude && S.settings.claude.key)) S.settings.claude = keep; if(keepSync) S.settings.sync = keepSync; else delete S.settings.sync; save(); toast('Respaldo importado.'); renderProgressHome(); }catch(err){ toast('Ese archivo no es un respaldo válido.'); } };
+  $('#impf').onchange = async e => { const f = e.target.files[0]; if(!f) return; try{ const keep = S.settings.claude, keepSync = S.settings.sync; S = Object.assign(defaults(), JSON.parse(await f.text())); if(keep && !(S.settings.claude && S.settings.claude.key)) S.settings.claude = keep; if(keepSync) S.settings.sync = keepSync; else delete S.settings.sync; migrateStoredLook(); save(); applyLook(); toast('Respaldo importado.'); renderProgressHome(); }catch(err){ toast('Ese archivo no es un respaldo válido.'); } };
   $('#rst').onclick = () => { if(confirm(Sync.on() ? '¿Borrar todo tu progreso en este navegador? La sincronización se desconectará y el gist no se borra.' : '¿Borrar todo tu progreso, partidas y análisis guardados?')){ S = defaults(); saveLocal(); Sync.setState('off'); renderProgressHome(); } };
   renderSyncBox();
 }
@@ -3777,34 +3795,76 @@ const LOOK = {
   pieces:[['cburnett','Clásicas'],['merida','Merida'],['celtic','Celtic'],['mpchess','Minimal'],['chessnut','Chessnut'],['pixel','Pixel'],['rhosgfx','Retro']],
   style:[['plano','Plano'],['relieve','Relieve'],['bits','8 bits']]
 };
-const LOOK_FONTS = {moderna:'Manrope:wght@400;600;700', libro:'Literata:opsz,wght@7..72,400;7..72,600', tecnica:'IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500;600', pixel:'Press+Start+2P&family=Pixelify+Sans:wght@400;600'};
-function loadLookFont(f){ if(!LOOK_FONTS[f] || document.getElementById('lf-' + f)) return; const k = document.createElement('link'); k.id = 'lf-' + f; k.rel = 'stylesheet'; k.href = 'https://fonts.googleapis.com/css2?family=' + LOOK_FONTS[f] + '&display=swap'; document.head.appendChild(k); }
 const LOOK_DEFAULT = {theme:'carbon', font:'clasica', board:'piedra', pieces:'cburnett', style:'plano'};
-function look(){ const l = Object.assign({}, LOOK_DEFAULT, S.settings.look || {}); for(const k in LOOK) if(!LOOK[k].some(o => o[0] === l[k])) l[k] = LOOK_DEFAULT[k]; return l; }
-function applyLook(){ const l = look(), d = document.documentElement; loadLookFont(l.font); d.dataset.theme = l.theme; d.dataset.font = l.font; d.dataset.board = l.board; d.dataset.pieces = l.pieces; d.dataset.style = l.style; }
+const PRESETS = [
+  {id:'clasico', n:'Clásico', d:'El de siempre: sobrio, para jugar muchas horas.', modes:{oscuro:'carbon', claro:'papel'}, font:'clasica', board:'piedra', pieces:'cburnett', style:'plano'},
+  {id:'madera', n:'Madera', d:'Tablero de club en papel claro, letra de libro.', theme:'papel', font:'libro', board:'madera', pieces:'merida', style:'plano'},
+  {id:'pizarra', n:'Pizarra', d:'Fría y moderna, buen contraste de noche.', theme:'pizarra', font:'moderna', board:'glaciar', pieces:'mpchess', style:'plano'},
+  {id:'cuero', n:'Cuero', d:'Cálido y oscuro, tablero de nogal.', theme:'cuero', font:'libro', board:'nogal', pieces:'celtic', style:'plano'},
+  {id:'club', n:'Club', d:'Verde de torneo y letra técnica para estudiar.', theme:'papel', font:'tecnica', board:'club', pieces:'chessnut', style:'plano'},
+  {id:'relieve', n:'Relieve', d:'Botones y tablero con volumen, como un juego físico.', modes:{oscuro:'carbon', claro:'papel'}, font:'clasica', board:'madera', pieces:'cburnett', style:'relieve'},
+  {id:'bits', n:'8 bits', d:'Todo retro: colores, letra, piezas y tablero pixel.', theme:'arcade', font:'pixel', board:'arcade', pieces:'pixel', style:'bits'},
+  {id:'arcade', n:'Arcade', d:'Colores arcade con piezas Retro, sin letra pixel.', theme:'arcade', font:'tecnica', board:'arcade', pieces:'rhosgfx', style:'plano'}
+];
+const PREF_DEFAULT = {preset:'clasico', mode:'oscuro'};
+function presetById(id){ return PRESETS.find(p => p.id === id); }
+function presetLook(p, mode){ return {theme: p.modes ? (p.modes[mode] || p.modes.oscuro) : p.theme, font:p.font, board:p.board, pieces:p.pieces, style:p.style}; }
+/* Migración del formato viejo {theme, font, board, pieces, style} a {preset, mode} (spec B, sección 11). */
+function migrateLook(old){
+  const l = Object.assign({}, LOOK_DEFAULT, old || {});
+  const pref = (preset, mode) => ({preset, mode: mode || 'oscuro'});
+  const modeOf = () => l.theme === 'papel' ? 'claro' : 'oscuro';
+  for(const p of PRESETS) for(const m of (p.modes ? Object.keys(p.modes) : [null])){ const pl = presetLook(p, m); if(Object.keys(pl).every(k => pl[k] === l[k])) return pref(p.id, m); }
+  if(l.style === 'bits' || l.font === 'pixel' || l.pieces === 'pixel') return pref('bits');
+  if(l.theme === 'arcade' || l.board === 'arcade' || l.pieces === 'rhosgfx') return pref('arcade');
+  if(l.style === 'relieve') return pref('relieve', modeOf());
+  const cands = PRESETS.filter(p => !p.modes).map(p => ({id:p.id, look:presetLook(p)}));
+  cands.push({id:'clasico', look:presetLook(presetById('clasico'), 'oscuro')}, {id:'clasico', look:presetLook(presetById('clasico'), 'claro')});
+  const sc = c => (c.look.board === l.board ? 3 : 0) + (c.look.theme === l.theme ? 3 : 0) + (c.look.pieces === l.pieces ? 2 : 0) + (c.look.font === l.font ? 1 : 0);
+  const max = Math.max(...cands.map(sc)), top = [...new Set(cands.filter(c => sc(c) === max).map(c => c.id))];
+  if(max < 3 || top.length > 1 || top[0] === 'clasico') return pref('clasico', modeOf());
+  return pref(top[0]);
+}
+function lookPref(raw){
+  raw = raw === undefined ? S.settings.look : raw;
+  if(raw && typeof raw === 'object' && 'preset' in raw){ const p = presetById(raw.preset); if(!p) return Object.assign({}, PREF_DEFAULT); return {preset:p.id, mode: raw.mode === 'claro' ? 'claro' : 'oscuro'}; }
+  if(raw && typeof raw === 'object') return migrateLook(raw);
+  return Object.assign({}, PREF_DEFAULT);
+}
+function migrateStoredLook(){ if(S && S.settings) S.settings.look = lookPref(S.settings.look); }
+function look(){ const r = lookPref(); return presetLook(presetById(r.preset), r.mode); }
+function applyLook(){ const l = look(), d = document.documentElement; d.dataset.theme = l.theme; d.dataset.font = l.font; d.dataset.board = l.board; d.dataset.pieces = l.pieces; d.dataset.style = l.style; }
+function setPref(pref){ S.settings.look = pref; save(); applyLook(); renderLook(); }
 function renderLook(){
-  const l = look(), box = $('#look'); Object.keys(LOOK_FONTS).forEach(loadLookFont);
-  const group = (key, title, sw) => '<h3>' + title + '</h3><div class="opts" role="radiogroup" aria-label="' + title + '">' +
-    LOOK[key].map(o => '<button class="opt" role="radio" aria-checked="' + (l[key] === o[0]) + '" data-k="' + key + '" data-v="' + o[0] + '">' + sw(o) + '<span class="nm">' + o[1] + '</span></button>').join('') + '</div>';
+  const cur = lookPref(), cp = presetById(cur.preset), box = $('#look');
+  const th = id => LOOK.theme.find(o => o[0] === id), bd = id => LOOK.board.find(o => o[0] === id), fo = id => LOOK.font.find(o => o[0] === id);
+  const pv = p => { const t = th(presetLook(p, p === cp ? cur.mode : 'oscuro').theme), b = bd(p.board);
+    return '<span class="pv" aria-hidden="true">' + [0,1,2,3,4,5,6,7].map(i => { const sq = ((i % 4) + Math.floor(i / 4)) % 2 ? b[3] : b[2];
+      if(i === 3) return '<i class="aa" style="background:' + t[2] + ';color:' + t[3] + ';font-family:' + fo(p.font)[2] + '">Aa</i>';
+      const pc = i === 1 ? ' class="pz-' + p.pieces + '-wn"' : i === 6 ? ' class="pz-' + p.pieces + '-bq"' : '';
+      return '<i' + pc + ' style="background-color:' + sq + '"></i>'; }).join('') + '</span>'; };
   box.innerHTML = '<div class="head"><h2>Apariencia</h2><button class="btn small" id="lookClose">Listo</button></div>' +
-    '<p class="note">Los cambios se ven al instante y se guardan en este navegador.</p>' +
-    '<button class="btn small" id="preset8">Todo en 8 bits</button>' +
-    group('style', 'Estilo', o => '<span class="sw-style ' + o[0] + '"><i></i><b></b></span>') +
-    group('theme', 'Tema', o => '<span class="sw-theme" style="background:' + o[2] + ';color:' + o[3] + ';box-shadow:inset 0 0 0 1px rgba(127,127,127,.35)">Aa<i style="background:' + o[3] + '"></i></span>') +
-    group('font', 'Fuente', o => '<span class="sw-font" style="font-family:' + o[2] + '">Casilla<small style="font-family:' + o[3] + '">1. e4 e5 2. Nf3</small></span>') +
-    group('board', 'Tablero', o => '<span class="sw-board">' + [0,1,2,3,4,5,6,7,8,9,10,11].map(i => '<i style="background:' + (((i % 6) + Math.floor(i / 6)) % 2 ? o[3] : o[2]) + '"></i>').join('') + '</span>') +
-    group('pieces', 'Piezas', o => '<span class="sw-pieces">' + ['wk','wn','bq','bp'].map(c => '<span class="pz-' + o[0] + '-' + c + '"></span>').join('') + '</span>') +
-    '<div class="row" style="margin-top:20px"><button class="btn small" id="lookReset">Restablecer apariencia</button></div>';
-  $$('.opt', box).forEach(b => b.onclick = () => { S.settings.look = Object.assign(look(), {[b.dataset.k]: b.dataset.v}); save(); applyLook(); renderLook(); const nb = $('.opt[data-k="' + b.dataset.k + '"][data-v="' + b.dataset.v + '"]'); if(nb) nb.focus(); });
+    '<p class="note">Elige un estilo completo: tablero, piezas, letra y colores ya vienen combinados.</p>' +
+    '<div class="presets" role="radiogroup" aria-label="Estilo">' + PRESETS.map(p => '<button class="preset" role="radio" aria-checked="' + (p === cp) + '" tabindex="' + (p === cp ? 0 : -1) + '" data-p="' + p.id + '">' + pv(p) +
+      '<span class="pt"><b>' + p.n + '</b><span>' + p.d + '</span>' + (p.modes ? '<span class="tag">Claro u oscuro</span>' : '') + '</span></button>').join('') + '</div>' +
+    (cp.modes ? '<h3>Modo</h3><div class="seg" role="group" aria-label="Modo">' + ['claro','oscuro'].map(m => '<button data-m="' + m + '" aria-pressed="' + (cur.mode === m) + '">' + (m === 'claro' ? 'Claro' : 'Oscuro') + '</button>').join('') + '</div>' : '') +
+    '<div class="row" style="margin-top:20px"><button class="btn small" id="lookReset">Volver a Clásico</button></div>';
+  const pick = id => { setPref({preset:id, mode:cur.mode}); const nb = $('.preset[data-p="' + id + '"]'); if(nb) nb.focus(); };
+  $$('.preset', box).forEach(b => {
+    b.onclick = () => pick(b.dataset.p);
+    b.onkeydown = e => { const k = e.key, i = PRESETS.findIndex(p => p.id === b.dataset.p); let j = -1;
+      if(k === 'ArrowDown' || k === 'ArrowRight') j = (i + 1) % PRESETS.length; else if(k === 'ArrowUp' || k === 'ArrowLeft') j = (i - 1 + PRESETS.length) % PRESETS.length; else if(k === 'Home') j = 0; else if(k === 'End') j = PRESETS.length - 1;
+      if(j >= 0){ e.preventDefault(); pick(PRESETS[j].id); } };
+  });
+  $$('[data-m]', box).forEach(b => b.onclick = () => { setPref({preset:cp.id, mode:b.dataset.m}); const nb = $('[data-m="' + b.dataset.m + '"]', box); if(nb) nb.focus(); });
   $('#lookClose').onclick = () => toggleLook(false);
-  $('#preset8').onclick = () => { S.settings.look = {theme:'arcade', font:'pixel', board:'arcade', pieces:'pixel', style:'bits'}; save(); applyLook(); renderLook(); };
-  $('#lookReset').onclick = () => { S.settings.look = Object.assign({}, LOOK_DEFAULT); save(); applyLook(); renderLook(); };
+  $('#lookReset').onclick = () => { setPref({preset:'clasico', mode:cur.mode}); const nb = $('#lookReset'); if(nb) nb.focus(); };
 }
 function toggleLook(open){
   const box = $('#look'), btn = $('#lookBtn');
   open = open === undefined ? box.hidden : open;
   box.hidden = !open; btn.setAttribute('aria-expanded', open);
-  if(open){ renderLook(); const f = $('.opt[aria-checked=true]', box); if(f) f.focus(); } else btn.focus();
+  if(open){ renderLook(); const f = $('.preset[aria-checked=true]', box); if(f) f.focus(); } else btn.focus();
 }
 
 /* =========================================================
@@ -4043,7 +4103,7 @@ const Sync = {
   }
 };
 function onRemoteApplied(first){
-  applyLook();
+  migrateStoredLook(); applyLook();
   if(App.session instanceof HomeSession && HOMES[App.tab]) HOMES[App.tab]();
   toast(first ? 'Se combinó tu progreso con el de tus otros dispositivos.' : 'Progreso actualizado desde otro dispositivo.');
 }
@@ -4078,7 +4138,7 @@ const HOMES = {ladder:renderLadderHome, coach:renderCoachHome, positions:renderP
    Arranque
    ========================================================= */
 function boot(){
-  applyLook();
+  migrateStoredLook(); applyLook();
   if(typeof Chess === 'undefined'){
     side().innerHTML = '<h2>Sin conexión</h2><p class="lede">Casilla necesita internet para descargar la librería de ajedrez y el motor. Conéctate y recarga la página.</p>';
     setPill('err', 'Sin conexión'); return;
