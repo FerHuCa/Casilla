@@ -31,6 +31,9 @@ def handle(route):
         f=url.split('/')[-1]
         ct='application/wasm' if f.endswith('.wasm') else 'text/javascript'
         return route.fulfill(path=DEPS+'stockfish.js/'+f,headers=h,content_type=ct)
+    if 'cdn.jsdelivr.net/npm/stockfish@' in url:
+        f=url.split('#')[0].split('/')[-1]
+        return route.fulfill(path=DEPS+'stockfish/bin/'+f,headers={"Access-Control-Allow-Origin":"*"},content_type='application/wasm' if f.endswith('.wasm') else 'text/javascript')
     if 'fonts.g' in url: return route.abort()
     if 'api.chess.com' in url:
         p=url.split('api.chess.com')[1].split('?')[0]

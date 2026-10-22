@@ -647,6 +647,7 @@ footer{font-size:var(--fs-xs)}
 /* =========================================================
    Constantes
    ========================================================= */
+const SF_VERSION = (()=>{ try{ const q = new URLSearchParams(location.search).get('sf'); if(q) return +q; }catch(e){} return 19; })();
 const SF_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/';
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const GLYPH = {k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
@@ -843,7 +844,18 @@ function handshake(w, ms){
     w.postMessage('uci');
   });
 }
+const SF19_BASE = 'https://cdn.jsdelivr.net/npm/stockfish@19.0.1/bin/';
+async function createSF19(){
+  const wasmUrl = SF19_BASE + 'stockfish-19-lite-single.wasm';
+  const u = URL.createObjectURL(new Blob(['importScripts(' + JSON.stringify(SF19_BASE + 'stockfish-19-lite-single.js') + ');'], {type:'text/javascript'}));
+  const w = new Worker(u + '#' + encodeURIComponent(wasmUrl));
+  try{ await handshake(w, 30000); return {w, flavor:'WASM 19 lite'}; }
+  catch(e){ w.terminate(); throw e; }
+}
 async function createSF(){
+  if(SF_VERSION === 19 && typeof WebAssembly === 'object'){
+    try{ return await createSF19(); }catch(e){ console.warn('Stockfish 19 no disponible, uso Stockfish 10', e); }
+  }
   const wasm = typeof WebAssembly === 'object' && WebAssembly.validate(Uint8Array.of(0,97,115,109,1,0,0,0));
   if(wasm){
     let w;
