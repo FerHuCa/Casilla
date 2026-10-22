@@ -1542,12 +1542,14 @@ class Coach{
     const ses = this.ses, g = App.game;
     if(!this.quiz || ses.over || ses.pendingQuiz || g.game_over() || g.in_check() || g.turn() !== this.user) return false;
     const T = threatsFor(g.fen(), this.user); if(!T) return false;
-    const real = T.caps.length > 0 || !!T.mate;
+    const real = T.caps.length > 0 || !!T.mate || T.checks.length > 0;
     // Sin amenaza también se pregunta a veces, para que la pregunta no delate que hay algo
     if(!real && (g.history().length < 6 || Math.random() > .35)) return false;
     const kingSq = kingSquare(g.fen(), this.user);
     const targets = new Set(T.caps.map(c => c.sq)), attackers = new Set(T.caps.map(c => c.from));
     if(T.mate){ targets.add(kingSq); attackers.add(T.mate.from); }
+    // Jaque que gana material: vale tocar el rey, la pieza que se pierde, las que ataca o la pieza que da el jaque
+    T.checks.forEach(c => { targets.add(kingSq); targets.add(c.sq); c.hit.forEach(s => targets.add(s)); attackers.add(c.from); });
     ses.pendingQuiz = {T, real, targets, attackers, kingSq, fen:g.fen()};
     Board.movable = null; Board.sel = null; Board.onTap = sq => this.answerThreat(sq); Board.render();
     this.say('info', 'Revisa sus jaques, capturas y amenazas. Si no ves nada, pulsa Nada directo.', {label:'Antes de tu jugada'});
@@ -1556,15 +1558,25 @@ class Coach{
   }
   threatText(q){
     const T = q.T, g = new Chess(q.fen);
-    if(T.mate){ const pc = g.get(T.mate.from); return {text:'su ' + PNAME[pc.type] + ' de ' + T.mate.from + ' te da mate con ' + T.mate.san, from:T.mate.from, to:T.mate.to, mark:q.kingSq}; }
-    const c = T.caps[0]; if(!c) return null;
-    return {text:'su ' + PNAME[c.piece] + ' de ' + c.from + ' gana tu ' + PNAME[c.target] + ' de ' + c.sq, from:c.from, to:c.sq, mark:c.sq};
+    if(T.mate){ const pc = g.get(T.mate.from); return {kind:'mate', text:'su ' + PNAME[pc.type] + ' de ' + T.mate.from + ' te da mate con ' + T.mate.san, from:T.mate.from, to:T.mate.to, mark:q.kingSq}; }
+    const c = T.caps[0], k = T.checks[0];
+    if(k && (!c || k.gain > c.gain)) return {kind:'jaque', text:'su ' + PNAME[k.piece] + ' de ' + k.from + ' te da jaque con ' + k.san + ' y gana tu ' + PNAME[k.target] + ' de ' + k.sq, from:k.from, to:k.to, mark:k.sq, then:k.by === k.to && k.sq !== k.to ? {from:k.to, to:k.sq} : null};
+    if(!c) return null;
+    return {kind:'cap', text:'su ' + PNAME[c.piece] + ' de ' + c.from + ' gana tu ' + PNAME[c.target] + ' de ' + c.sq, from:c.from, to:c.sq, mark:c.sq};
+  }
+  threatExtra(q, main){
+    // Otras amenazas además de la principal, para mencionarlas en una frase
+    const T = q.T; if(T.mate || !main) return '';
+    const more = [];
+    if(main.kind !== 'jaque' && T.checks[0]) more.push('el jaque ' + T.checks[0].san);
+    T.caps.forEach((c, i) => { if(!(main.kind === 'cap' && i === 0)) more.push('tu ' + PNAME[c.target] + ' de ' + c.sq); });
+    return more.length ? ' También vigila ' + more.slice(0, 2).join(' y ') + '.' : '';
   }
   answerThreat(sq){
     const ses = this.ses, q = ses.pendingQuiz; if(!q || ses.over) return;
     if(sq !== null && !new Chess(q.fen).get(sq)){ toast('Toca una pieza, o pulsa Nada directo.'); return; }
     const ok = q.real ? (sq !== null && (q.targets.has(sq) || q.attackers.has(sq))) : sq === null;
-    const main = this.threatText(q), extra = q.T.caps.length > 1 && !q.T.mate ? ' También vigila ' + q.T.caps.slice(1, 3).map(c => 'tu ' + PNAME[c.target] + ' de ' + c.sq).join(' y ') + '.' : '';
+    const main = this.threatText(q), extra = this.threatExtra(q, main);
     if(q.real){ this.qa.real++; if(ok) this.qa.spotted++; } else { this.qa.calm++; if(ok) this.qa.calmOk++; }
     let text;
     if(q.real && ok) text = 'Bien visto: ' + main.text + '. Elige tu jugada pensando en eso.' + extra;
@@ -1572,10 +1584,10 @@ class Coach{
     else if(ok) text = 'Correcto: no hay amenaza directa. Puedes jugar tu plan.';
     else text = 'No había amenaza directa sobre esa pieza. Revisa jaques, capturas y amenazas, pero no te defiendas de algo que no existe.';
     const H = S.threats || (S.threats = {hist:[]}); if(!H.hist) H.hist = [];
-    H.hist.push({t:Date.now(), ok, k:q.T.mate ? 'mate' : q.real ? 'cap' : 'none'}); if(H.hist.length > 300) H.hist = H.hist.slice(-300);
+    H.hist.push({t:Date.now(), ok, k:q.real && main ? main.kind : 'none'}); if(H.hist.length > 300) H.hist = H.hist.slice(-300);
     save();
     ses.pendingQuiz = null; Board.onTap = null; Board.movable = this.user;
-    Board.arrows = main ? [{from:main.from, to:main.to, c:'r'}] : []; Board.marks = {};
+    Board.arrows = main ? [{from:main.from, to:main.to, c:'r'}].concat(main.then ? [{from:main.then.from, to:main.then.to, c:'r'}] : []) : []; Board.marks = {};
     if(main) Board.marks[main.mark] = ok ? 'good' : 'bad'; else if(sq) Board.marks[sq] = 'bad';
     this.say(ok ? 'good' : 'bad', text, {label:'Revisión de amenazas', facts:{momento:'pregunta del maestro: qué amenaza el rival', acierto:ok, amenaza:main ? main.text : 'ninguna directa'}});
     ses.update();
@@ -2538,19 +2550,66 @@ function gameDescFromRec(rec){
 /* ---------- Revisión de amenazas ---------- */
 function kingSquare(fen, color){ const b = new Chess(fen).board(); for(let r = 0; r < 8; r++) for(let f = 0; f < 8; f++){ const p = b[r][f]; if(p && p.type === 'k' && p.color === color) return 'abcdefgh'[f] + (8 - r); } return null; }
 function threatsFor(fen, user){
-  // Lo que el rival haría si le tocara mover: capturas que ganan al menos dos puntos y mate en una
+  // Lo que el rival haría si le tocara mover: capturas que ganan al menos dos puntos, mate en una
+  // y jaques que ganan material (ataque doble o enfilada con jaque)
   const f = asTurn(fen, other(user)); if(!f) return null;
-  const out = {caps:[], mate:null};
+  const out = {caps:[], mate:null, checks:[]}, checks = [];
+  let base = 0;
   for(const m of new Chess(f).moves({verbose:true})){
     const t = new Chess(f); t.move(m);
     if(t.in_checkmate()){ if(!out.mate) out.mate = {from:m.from, to:m.to, san:m.san}; continue; }
-    if(!m.captured || m.captured === 'p') continue;
+    if(t.in_check()) checks.push(m);
+    if(!m.captured) continue;
     const defended = t.moves({verbose:true}).some(x => x.to === m.to && x.captured);
     const gain = defended ? VAL[m.captured] - VAL[m.piece] : VAL[m.captured];
+    if(gain > base) base = gain;
+    if(m.captured === 'p') continue;
     if(gain >= 2 && !out.caps.some(c => c.sq === m.to && c.from === m.from)) out.caps.push({gain, piece:m.piece, target:m.captured, sq:m.to, from:m.from, san:m.san});
   }
   out.caps.sort((a,b) => b.gain - a.gain);
+  for(const m of checks){
+    const w = checkWin(f, m);
+    // El jaque cuenta solo si gana al menos dos puntos más que la mejor captura directa:
+    // si ya hay una pieza colgada, esa es la amenaza y el jaque no agrega nada que aprender
+    if(w && w.gain - base >= 2 && !out.caps.some(c => c.from === m.from && c.sq === m.to && c.gain >= w.gain)) out.checks.push(w);
+  }
+  out.checks.sort((a,b) => b.gain - a.gain);
   return out;
+}
+// Material que gana el rival con el jaque m: el usuario elige su mejor respuesta y el rival su mejor captura después.
+// Devuelve null si alguna respuesta deja la ganancia por debajo de dos puntos.
+function checkWin(f, m){
+  const t = new Chess(f); t.move(m);
+  const s0 = (m.captured ? VAL[m.captured] : 0) + (m.promotion ? VAL[m.promotion] - 1 : 0);
+  let worst = null;
+  for(const r of t.moves({verbose:true})){
+    t.move(r);
+    let net = s0 - (r.captured ? VAL[r.captured] : 0) - (r.promotion ? VAL[r.promotion] - 1 : 0), loot = null;
+    if(t.in_checkmate()) net = -99;
+    else {
+      let best = 0;
+      for(const c of t.moves({verbose:true})){
+        if(!c.captured) continue;
+        t.move(c);
+        const back = t.moves({verbose:true}).some(x => x.to === c.to);
+        t.undo();
+        const gain = VAL[c.captured] - (back ? VAL[c.piece] : 0);
+        // La pieza que se pierde, en la casilla donde está ahora (si la respuesta la movió, de donde salió)
+        if(gain > best){ best = gain; loot = {type:c.captured, sq:c.to === r.to ? r.from : c.to, by:c.from}; }
+      }
+      net += best;
+    }
+    t.undo();
+    if(!worst || net < worst.net) worst = {net, loot};
+    if(worst.net < 2) return null;
+  }
+  if(!worst) return null;
+  const loot = worst.loot || (m.captured ? {type:m.captured, sq:m.to, by:m.from} : null);
+  if(!loot) return null;
+  // Piezas que ataca la pieza que da jaque: tocarlas también cuenta como acierto
+  let hit = [];
+  try{ const a = asTurn(t.fen(), m.color); if(a) hit = new Chess(a).moves({square:m.to, verbose:true}).filter(x => x.captured && x.captured !== 'k' && VAL[x.captured] >= 3).map(x => x.to); }catch(e){}
+  return {gain:worst.net, from:m.from, to:m.to, san:m.san, piece:m.piece, target:loot.type, sq:loot.sq, by:loot.by, hit};
 }
 function threatStats(n){
   const h = ((S.threats || {}).hist || []).filter(x => x.k !== 'none').slice(-(n || 20));

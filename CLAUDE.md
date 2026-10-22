@@ -25,7 +25,7 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 | App y sesiones | `App` (`App.setSession`), `HomeSession`, `PlaySession`, `PuzzleSession`, `OpeningSession`, `AnalysisSession`, `ReviewSession`, `EvalSession` |
 | Reloj | `TIME_CONTROLS`, `GameClock`, `Clocks` |
 | Maestro | `playerModel`, `openingTree`, `threatScan`, `Coach` (con `askThreat`/`answerThreat` en modo Amenazas), `ClaudeAI` (opcional, con la API key del usuario) |
-| Revisión de amenazas | `threatsFor`, `kingSquare`, `threatStats`; historial en `S.threats.hist`; `Board.onTap` recibe el toque mientras hay pregunta |
+| Revisión de amenazas | `threatsFor` (capturas, mate en una y jaques que ganan material con `checkWin`), `kingSquare`, `threatStats`; historial en `S.threats.hist`; `Board.onTap` recibe el toque mientras hay pregunta |
 | Repaso espaciado | `DAY_START` (el día cambia a las 4), `dayKey`, `dueIn`, `srsQueue`, `srsRecord`, `srsStats`; tarjetas en `S.srs[idDelError]` |
 | Ruta a 1500 | `planState`, `planDay`, `planStage`, `planSteps`, `planEndgame`, `planCheck`, `planStreak`, `stageChecks`, `planGo`, `planHTML`; datos en `S.plan` |
 | Explicaciones | `rootCause`, `bestIdea`, `categorize`, `explanationHTML` |
@@ -104,5 +104,4 @@ python3 -c "import re;s=open('index.html').read();open('/tmp/c.js','w').write(re
 ## Pendientes conocidos
 
 - **Cuentas de usuario con Firebase** (inicio de sesión con Google, base de datos para que amigos tengan su cuenta), manteniendo la sincronización por gist como alternativa. Se pospuso; hace falta el `firebaseConfig` del proyecto cuando se retome.
-- **Modo Amenazas: ataques dobles con jaque.** `threatsFor` solo cuenta capturas que ganan al menos dos puntos y mates en una; no reconoce un jaque que además ataca otra pieza (por ejemplo, un caballo que da jaque y ataca la dama). Agregar esa detección en `threatsFor`, aceptar como acierto tocar la pieza atacada o el rey en `answerThreat`, describirla en `threatText`, cubrirla en `tests/ruta.py` y quitar la aclaración del README.
 - No se pudo verificar casilla.io desde el sandbox (el proxy bloquea github.io, cdnjs y el dominio); confirmar en un navegador después de cada push.
