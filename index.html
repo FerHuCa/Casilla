@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="apple-touch-icon-180.png" sizes="180x180">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#F3F3F0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#242322" media="(prefers-color-scheme: dark)">
 <title>Casilla: entrenamiento de ajedrez</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 <style>
@@ -102,7 +110,11 @@ a:hover{text-decoration-color:var(--text)}
 /* encabezado */
 .top{display:flex;align-items:baseline;gap:34px;padding:0 32px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .brand{font-family:var(--fHead);font-weight:600;font-size:22px;padding:16px 0}
-.brand .mark{display:none}
+.brand{display:flex;align-items:center;gap:var(--sp-2,8px)}
+.brand .mark{width:28px;height:28px;flex:none}
+.brand .mk-claro{display:none}
+html[data-theme=papel] .brand .mk-claro{display:block}
+html[data-theme=papel] .brand .mk-oscuro{display:none}
 .tabs{display:flex;gap:24px;flex-wrap:wrap}
 .tab{background:none;border:0;color:var(--muted);padding:18px 0 15px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tab:hover{color:var(--text)}
@@ -598,7 +610,7 @@ footer{font-size:var(--fs-xs)}
 </head>
 <body>
 <header class="top">
-  <div class="brand">Casilla</div>
+  <div class="brand"><img class="mark mk-oscuro" src="logo-oscuro.svg" alt="" width="28" height="28"><img class="mark mk-claro" src="logo-claro.svg" alt="" width="28" height="28">Casilla</div>
   <nav class="tabs" role="tablist">
     <button class="tab" role="tab" data-tab="ladder">Escalera</button>
     <button class="tab" role="tab" data-tab="coach">Maestro</button>
