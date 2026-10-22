@@ -47,5 +47,15 @@ with sync_playwright() as p:
     print(' ', out)
     check('clave inválida se reporta', 'No se pudo conectar: invalid x-api-key' in out)
     check('la clave no queda en el respaldo', pg.evaluate("(()=>{ const c = JSON.parse(JSON.stringify(S)); return !!(stripForSync(c).settings.claude); })()") is False)
+    # Opción B: Claude, Anthropic y Stockfish solo aparecen en los ajustes de IA (y Stockfish en el crédito del pie)
+    import re as _re
+    for tab in ['ladder','puzzles','positions','games','progress','coach']:
+        pg.click(f'.tab[data-tab={tab}]'); time.sleep(.4)
+        txt=pg.evaluate("""(()=>{ const c = document.body.cloneNode(true); c.querySelectorAll('footer,script,style,#look').forEach(e=>e.remove());
+          const side = c.querySelector('#side'); if(side){ const h = [...side.querySelectorAll('h3')].find(x => /Comentarios con Claude/.test(x.textContent)); if(h){ let n = h; while(n){ const nx = n.nextSibling; n.remove(); n = nx; } } }
+          return c.innerText; })()""")
+        hits=_re.findall(r'(?i)claude|anthropic|stockfish', txt)
+        check(f'sin menciones de Claude/Anthropic/Stockfish fuera de los ajustes de IA ({tab})', not hits)
+    check('crédito de Stockfish en el pie', 'Stockfish' in pg.inner_text('footer') and 'GPL' in pg.inner_text('footer'))
     b.close()
 print('\nRESULTADO:', 'todo bien' if not fails else 'fallas: ' + ', '.join(fails))

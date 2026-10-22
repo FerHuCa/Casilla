@@ -1,9 +1,13 @@
 exec(open('run.py').read().split("logs=[]")[0])
 with sync_playwright() as p:
-    b=p.chromium.launch(); ctx=b.new_context(viewport={'width':1400,'height':900}); ctx.route('**/*',handle); pg=ctx.new_page()
+    b=p.chromium.launch(); REQ=[]; ctx=b.new_context(viewport={'width':1400,'height':900}); ctx.route('**/*',handle); pg=ctx.new_page(); pg.on('request', lambda r: REQ.append(r.url))
     pg.on('pageerror',lambda e: print('PAGEERROR',e))
     pg.goto(APP); pg.wait_for_function("Engine.ready",timeout=60000)
+    gf=[u for u in REQ if 'fonts.g' in u]
+    print('OK   ' if not gf else 'FALLA ', 'con la fuente por defecto no se pide Google Fonts', gf)
+    print('OK   ' if any(u.endswith('SourceSans3-latin.woff2') for u in REQ) else 'FALLA ', 'Source Sans 3 autoalojada')
     pg.click('#lookBtn'); time.sleep(.3); pg.screenshot(path=OUT+'look0.png')
+    print('OK   ' if pg.locator('.opt[data-k=font]').count()==5 else 'FALLA ', 'se conservan las 5 fuentes de Apariencia')
     combos=[('papel','libro','madera','merida'),('pizarra','moderna','glaciar','celtic'),('cuero','tecnica','nogal','chessnut'),('carbon','clasica','club','mpchess')]
     for i,(t,f,bd,pc) in enumerate(combos):
         for k,v in (('theme',t),('font',f),('board',bd),('pieces',pc)):

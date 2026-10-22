@@ -43,7 +43,7 @@ with sync_playwright() as p:
         pg.click(f'.moment[data-i="{first}"] > summary'); time.sleep(.1)
     pg.click('#controls >> text=Siguiente'); pg.click('#controls >> text=Siguiente'); time.sleep(1.5)
     check('la respuesta de Claude no regresa el tablero', ply(pg) == first + 2)
-    check('la explicación de Claude aparece en su momento', 'Explicación de Claude' in pg.inner_text(f'.moment[data-i="{first}"]'))
+    check('la explicación escrita aparece en su momento', 'Explicación' in pg.inner_text(f'.moment[data-i="{first}"]'))
     # Teclado
     pg.keyboard.press('ArrowLeft'); time.sleep(.2)
     check('flecha izquierda retrocede una jugada', ply(pg) == first + 1)
