@@ -122,14 +122,17 @@ No pide contraseña: solo lee tus datos públicos. Tus partidas en Chess.com ya 
 Al abrir una partida ves cada jugada marcada como imprecisión, error o error grave, tu precisión aproximada y tus errores clasificados: pieza colgada, táctica no vista, mate no visto, permitió mate o error posicional. El botón **Evaluación a fondo** abre la misma evaluación completa que recibes al terminar una partida en la app.
 
 ### Apariencia
-El botón **Apariencia** abre un panel para personalizar la app. Los cambios se ven al instante:
-- **Estilo:** Plano (el original); Relieve, con botones que se hunden al presionarlos, paneles con profundidad, tablero con marco y piezas con sombra; u 8 bits, con bordes gruesos y sombras sólidas de videojuego retro.
-- **Tema:** Carbón, Papel (claro), Pizarra, Cuero o Arcade.
-- **Fuente:** Clásica, Moderna, Libro, Técnica o Pixel.
-- **Tablero:** Gris piedra, Madera, Nogal, Glaciar, Club o Arcade.
-- **Piezas:** Clásicas, Merida, Celtic, Minimal, Chessnut, Pixel o Retro.
+El botón **Apariencia** abre un panel con 8 estilos completos. Cada uno combina tema, tablero, piezas, letra y estilo de botones, y el cambio se ve al instante:
+- **Clásico** (por defecto): sobrio, tablero gris piedra y piezas clásicas. Tiene modo claro u oscuro.
+- **Madera:** papel claro, tablero de madera, piezas Merida y letra de libro.
+- **Pizarra:** oscuro y frío, tablero glaciar, piezas Minimal y letra moderna.
+- **Cuero:** cálido y oscuro, tablero de nogal y piezas Celtic.
+- **Club:** papel claro, tablero verde de torneo, piezas Chessnut y letra técnica.
+- **Relieve:** botones que se hunden, paneles con profundidad y tablero con marco. Tiene modo claro u oscuro.
+- **8 bits:** todo retro, con colores, letra, piezas y tablero pixel.
+- **Arcade:** colores arcade con piezas Retro, sin letra pixel.
 
-El botón **Todo en 8 bits** aplica de un toque el estilo, tema, fuente, tablero y piezas retro.
+**Volver a Clásico** deja la apariencia por defecto. Si usabas una combinación propia en una versión anterior, la app elige el estilo más parecido la primera vez que abres la nueva versión.
 
 ### Progreso
 Tus niveles superados, la evolución de tu rating de puzzles, tus errores más comunes con una recomendación de qué entrenar, tus finales y aperturas repasados, tu avance en la ruta a 1500, la sincronización entre dispositivos y la opción de exportar o importar un respaldo.
@@ -209,8 +212,8 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
   - Chessnut, de [Alexis Luengas](https://github.com/LexLuengas/chessnut-pieces) (Apache 2.0).
   - Pixel, de therealqtpi (AGPLv3+).
   - Retro, de [RhosGFX](https://rhosgfx.itch.io/) (CC0).
-- Fuentes de interfaz: Source Sans 3 y Source Serif 4, de Adobe, incluidas en `fonts/` (SIL Open Font License).
-- Fuentes pixel: Press Start 2P y Pixelify Sans, de Google Fonts (SIL Open Font License).
+- Fuentes: Source Sans 3 y Source Serif 4 (Adobe), Manrope, Literata, IBM Plex Sans y Mono, incluidas en `fonts/` (SIL Open Font License).
+- Fuentes pixel: Press Start 2P y Pixelify Sans, incluidas en `fonts/` (SIL Open Font License).
 - Reglas de ajedrez: [chess.js](https://github.com/jhlywa/chess.js).
 - Puzzles: API pública de [Lichess](https://lichess.org) y de [Chess.com](https://www.chess.com/news/view/published-data-api).
 - Partidas: API pública de Chess.com.
