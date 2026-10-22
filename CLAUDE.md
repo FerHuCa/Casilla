@@ -104,4 +104,5 @@ python3 -c "import re;s=open('index.html').read();open('/tmp/c.js','w').write(re
 ## Pendientes conocidos
 
 - **Cuentas de usuario con Firebase** (inicio de sesión con Google, base de datos para que amigos tengan su cuenta), manteniendo la sincronización por gist como alternativa. Se pospuso; hace falta el `firebaseConfig` del proyecto cuando se retome.
+- **Modo Amenazas: ataques dobles con jaque.** `threatsFor` solo cuenta capturas que ganan al menos dos puntos y mates en una; no reconoce un jaque que además ataca otra pieza (por ejemplo, un caballo que da jaque y ataca la dama). Agregar esa detección en `threatsFor`, aceptar como acierto tocar la pieza atacada o el rey en `answerThreat`, describirla en `threatText`, cubrirla en `tests/ruta.py` y quitar la aclaración del README.
 - No se pudo verificar casilla.io desde el sandbox (el proxy bloquea github.io, cdnjs y el dominio); confirmar en un navegador después de cada push.
