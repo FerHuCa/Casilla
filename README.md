@@ -35,17 +35,39 @@ Ocho niveles, desde Peón (~600 ELO) hasta Gran Maestro (2700+). Gana a un nivel
 
 Antes de jugar eliges:
 - **Color:** blancas, negras o al azar.
-- **Ritmo:** sin reloj, 3+2, 5+0, 10+5 o 15+10. Si se te acaba el tiempo pierdes, salvo que tu rival no tenga material para dar mate; en ese caso son tablas.
+- **Ritmo:** sin reloj, 3+2, 5+0, 10+5, 15+10 o 30+20. Si se te acaba el tiempo pierdes, salvo que tu rival no tenga material para dar mate; en ese caso son tablas.
 - **Con ayudas:** pistas, deshacer y barra de evaluación. Esas victorias no desbloquean niveles.
 - **Barra de evaluación:** se muestra a un costado del tablero. Sin ayudas cuenta como ayuda, así que esa victoria tampoco desbloquea.
 - **El maestro comenta la partida:** sin ayudas solo señala tus buenas jugadas y deja los errores para el final; con ayudas, además te avisa antes de un error grave.
 
 ### Maestro
-Un rival que aprende de ti:
+Tu entrenador. Combina una ruta de estudio hasta 1500 con un rival que aprende de ti.
+
+**Sesión de hoy.** Una lista corta de lo que toca hoy, en el orden en que conviene hacerlo:
+1. **Repaso espaciado:** posiciones de tus propios errores que te tocan hoy.
+2. **Táctica de la etapa:** puzzles de Lichess con los temas de tu etapa mezclados y sin decirte cuál es; el tema aparece al terminar, como en una partida real.
+3. **Un final:** primero los pendientes de etapas anteriores; si ya los tienes todos, repasa el que completaste hace más tiempo.
+4. En la versión **Completa** (unos 45 minutos) se suman **una partida lenta contra el maestro** con el modo y ritmo de tu etapa y **la revisión de sus errores**. La **Corta** dura unos 15 minutos.
+
+Cada paso se marca solo al hacerlo. Al completar la sesión suma un día a tu racha. El día de estudio cambia a las 4 de la mañana.
+
+**Ruta a 1500.** Cuatro etapas en el orden del Método Steps y del curso de finales de Silman:
+
+| Etapa | Nivel | Táctica | Finales | Además |
+|---|---|---|---|---|
+| 1. Bases | hasta ~800 | Mate en 1, pieza colgada, mate del pasillo | Mate con dama y con torre | |
+| 2. Táctica básica | 800 a 1100 | Ataque doble, clavada, enfilada, ataque descubierto, mate en 2 | Rey y peón, regla del cuadrado, oposición | Revisión de amenazas |
+| 3. Calcular y defender | 1100 a 1300 | Desviación, atracción, eliminar al defensor, defensa, pieza atrapada, mate en 3 | Casillas clave, mate con dos alfiles | Amenazas; 2 errores o menos por partida |
+| 4. Finales y plan | 1300 a 1500 | Finales de torres y de peones, jugada tranquila, zugzwang, jugada intermedia | Lucena y Philidor | Amenazas; 1 error o menos por partida |
+
+La etapa se elige sola según tu nivel estimado, o la eliges tú. Cada etapa muestra lo que falta para dominarla: 80% al primer intento en sus puzzles (los de cada etapa tienen una dificultad fija), sus finales completados, 80% de amenazas vistas y los errores por partida contra el maestro. Es una guía: nada se bloquea.
+
+**El rival:**
 - **Estima tu nivel** con tus partidas de Chess.com, la escalera, tus puzzles y tus partidas serias contra él, y juega unos 100 puntos por encima. La pestaña muestra lo que sabe de ti: nivel estimado, errores más comunes y aperturas aprendidas.
 - **Te juega tus aperturas:** en la apertura usa las jugadas que más te han puesto tus rivales en Chess.com.
 - **Comenta los momentos clave:** buenas jugadas, la única jugada que salvaba la posición, tácticas encontradas y la entrada al final. Sus explicaciones se ajustan a tu nivel.
 - **Partida guiada:** te avisa antes de un error grave ("Espera. Si juegas Nf6, tu rival tiene mate, empezando con Qxf7#"), señala amenazas y puedes pensar otra vez, pedir pistas o deshacer.
+- **Partida de amenazas:** entrena el hábito que más puntos da por debajo de 1500: revisar jaques, capturas y amenazas del rival antes de mover. Antes de varias de tus jugadas el maestro pregunta qué amenaza tu rival; tocas tu pieza en peligro (o tu rey si hay mate) o pulsas **Nada directo**. A veces pregunta sin que haya nada, para que la pregunta no delate la respuesta. Después te enseña la amenaza con una flecha. Cuenta como amenaza una captura que te gana al menos dos puntos de material o un mate en una; un ataque doble que empieza con jaque todavía no lo reconoce. Sin pistas ni deshacer, y no cuenta para tu rating con el maestro.
 - **Partida seria:** sin ayudas. Los errores se repasan al final y el resultado cuenta para tu rating con el maestro.
 - Los errores de cada partida se guardan en tus puzzles de **Mis errores**.
 
@@ -76,12 +98,13 @@ Las explicaciones detectan bien amenazas previas, piezas sin defensa, ataques do
 - **Lichess:** puzzles por tema (mate en 2, ataque doble, clavada, finales y más) ajustados a tu nivel.
 - **Chess.com:** puzzles diarios de su archivo.
 - **Mis errores:** posiciones de tus propias partidas donde fallaste, tanto de Chess.com como de las que juegas en Casilla. Al terminar cada uno ves qué jugaste en la partida, de dónde vino el error y la idea de la mejor jugada. Si el error es de una partida jugada aquí, **Ver la partida** abre su evaluación en ese momento.
-- **Combinado:** mezcla las tres fuentes.
+- **Repaso:** tus errores con repaso espaciado. Si aciertas al primer intento, la posición vuelve en 1, 3, 7, 14 y 30 días; si fallas, vuelve al día siguiente. Entran hasta 10 errores nuevos por día, los más costosos primero. Cualquier puzzle de Mis errores cuenta para este calendario.
+- **Combinado:** mezcla Lichess, Chess.com y tus errores.
 
 El tema **Recomendado para ti** elige puzzles según tus errores más frecuentes. La app lleva tu rating de puzzles y tu racha; solo cuenta para el rating si lo resuelves al primer intento sin pedir pista.
 
 ### Posiciones
-- **Finales:** ocho finales clásicos contra Stockfish a máxima fuerza, cada uno con un objetivo: dar mate, ganar o entablar. Incluye Lucena, Philidor y el mate de alfil y caballo.
+- **Finales:** diez finales clásicos contra Stockfish a máxima fuerza, cada uno con un objetivo: dar mate, ganar o entablar. Incluye la regla del cuadrado, las casillas clave, Lucena, Philidor y el mate de alfil y caballo. Los que forman parte de la ruta a 1500 indican su etapa.
 - **Aperturas:** doce líneas principales, como la Italiana, la Española, la Siciliana Najdorf, la Caro-Kann y el Gambito de Dama. El rival juega la teoría y tú debes recordar tus jugadas; al terminar puedes seguir la partida contra el motor. También aparecen tus aperturas más jugadas en Chess.com.
 - **De mis partidas:** tus errores más frecuentes agrupados por tipo. Puedes resolverlos como puzzle o volver a jugar desde esa posición.
 - **FEN:** pega cualquier posición para jugarla o analizarla.
@@ -109,7 +132,7 @@ El botón **Apariencia** abre un panel para personalizar la app. Los cambios se 
 El botón **Todo en 8 bits** aplica de un toque el estilo, tema, fuente, tablero y piezas retro.
 
 ### Progreso
-Tus niveles superados, la evolución de tu rating de puzzles, tus errores más comunes con una recomendación de qué entrenar, tus finales y aperturas repasados, la sincronización entre dispositivos y la opción de exportar o importar un respaldo.
+Tus niveles superados, la evolución de tu rating de puzzles, tus errores más comunes con una recomendación de qué entrenar, tus finales y aperturas repasados, tu avance en la ruta a 1500, la sincronización entre dispositivos y la opción de exportar o importar un respaldo.
 
 ## Sincronizar entre computadora y celular
 
@@ -126,7 +149,7 @@ Casilla puede guardar tu progreso en un **gist secreto de tu cuenta de GitHub** 
   - Escalera: se queda el nivel más alto.
   - Partidas y análisis: se suman.
   - Puzzles: el historial se une y el rating toma el más reciente.
-  - Maestro, finales y aperturas: se unen.
+  - Maestro, finales, aperturas, sesiones de la ruta, repaso espaciado y revisión de amenazas: se unen.
 - **Ajustes:** en un dispositivo nuevo se copian tu apariencia y preferencias. Después, cada dispositivo conserva las suyas.
 - **Tamaño:** el progreso se comprime antes de subirse, así que ocupa poco aunque tengas cientos de partidas.
 

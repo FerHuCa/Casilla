@@ -17,14 +17,17 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 
 | Zona | Símbolos clave |
 |---|---|
-| Constantes | `SF_BASE`, `TIERS` (8 niveles de la escalera), `ENDGAMES`, `OPENINGS`, `THEMES`, `CATS` |
+| Constantes | `SF_BASE`, `TIERS` (8 niveles de la escalera), `ENDGAMES`, `OPENINGS`, `THEMES`, `CATS`, `PLAN` (4 etapas de la ruta a 1500), `COACH_MODES` |
 | Utilidades | `winPct`, `fmtEval`, `parsePGN`, `buildGame`, `openingName` |
 | Estado | `KEY` (`casilla.v1` en localStorage), `defaults()`, `S`, `save()` = `saveLocal()` + `Sync.dirty()` |
 | Motor | `workerFromCode`, `handshake`, `Engine` (cola con prioridades: ui 3, coach 2, barra/eval/análisis 1, batch 0; trabajos con tag cancelables) |
 | Tablero | `Board`, `EvalBar` |
 | App y sesiones | `App` (`App.setSession`), `HomeSession`, `PlaySession`, `PuzzleSession`, `OpeningSession`, `AnalysisSession`, `ReviewSession`, `EvalSession` |
 | Reloj | `TIME_CONTROLS`, `GameClock`, `Clocks` |
-| Maestro | `playerModel`, `openingTree`, `threatScan`, `Coach`, `ClaudeAI` (opcional, con la API key del usuario) |
+| Maestro | `playerModel`, `openingTree`, `threatScan`, `Coach` (con `askThreat`/`answerThreat` en modo Amenazas), `ClaudeAI` (opcional, con la API key del usuario) |
+| Revisión de amenazas | `threatsFor`, `kingSquare`, `threatStats`; historial en `S.threats.hist`; `Board.onTap` recibe el toque mientras hay pregunta |
+| Repaso espaciado | `DAY_START` (el día cambia a las 4), `dayKey`, `dueIn`, `srsQueue`, `srsRecord`, `srsStats`; tarjetas en `S.srs[idDelError]` |
+| Ruta a 1500 | `planState`, `planDay`, `planStage`, `planSteps`, `planEndgame`, `planCheck`, `planStreak`, `stageChecks`, `planGo`, `planHTML`; datos en `S.plan` |
 | Explicaciones | `rootCause`, `bestIdea`, `categorize`, `explanationHTML` |
 | Evaluación post partida | `Evaluator` (varios trabajos, el más reciente primero, en pausa mientras se juega), `evalJobFor` (reabre sin recalcular), `buildEvaluation`, `saveEvaluation`, `evalNarrative`, `deepMoment`, `moveComment` (comentario de cada jugada), `evalGraph`, `EvalSession` |
 | Historial de Casilla | `S.played` (partidas jugadas aquí, se guardan al terminar su evaluación), `openPlayed`, `playedHTML`; el análisis con `best` y `pv` vive en `S.analyses[gid]` |
@@ -72,6 +75,7 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | Archivo | Qué cubre |
 |---|---|
 | `coach.py`, `coach2.py` | Maestro: comentarios, adaptación, jugar contra él |
+| `ruta.py` | Ruta a 1500: sesión del día, táctica de la etapa con tema oculto, repaso espaciado, modo Amenazas, finales nuevos, sync y datos viejos |
 | `evalt.py` | Evaluación al final de la partida |
 | `evalnav.py` | Recorrer la evaluación jugada por jugada: orden, comentarios y que nada regrese el tablero solo |
 | `claude.py` | Conexión con Claude: encabezados, pensamiento apagado por modelo, reintento y errores (API simulada) |

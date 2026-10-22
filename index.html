@@ -173,6 +173,11 @@ textarea{min-height:64px;font-size:13px;resize:vertical;font-family:ui-monospace
 .tag{display:inline-block;font-size:12px;color:var(--muted);margin-right:10px}
 .tag + .tag::before{content:'';}
 .tag.done{color:var(--good)}
+.tag.todo{color:var(--warn)}
+.daysteps .item{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.daysteps .item .row{margin-top:0;flex:none}
+.daysteps .item.off .t{color:var(--muted);font-weight:500}
+.checks .item{padding:9px 0}
 .games{list-style:none;padding:0;margin:10px 0;border-top:1px solid var(--line)}
 .game{display:grid;grid-template-columns:10px 1fr auto;gap:12px;align-items:center;padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer}
 .game:hover{background:var(--raise)}
@@ -586,16 +591,22 @@ const ENDGAMES = [
   {id:'kp6', t:'Rey y peón: coronar', lvl:'Básico', goal:'win', moves:30,
    d:'Tu rey está delante del peón en la sexta fila. Corona sin permitir tablas por ahogado.',
    fen:'4k3/8/4K3/4P3/8/8/8/8 w - - 0 1'},
+  {id:'sq', t:'Regla del cuadrado', lvl:'Básico', goal:'draw', moves:15,
+   d:'Juegas con negras. Imagina el cuadrado que va del peón a su casilla de coronación: si tu rey entra en él, lo alcanza. Solo una jugada lo logra.',
+   fen:'8/8/8/8/1P6/6k1/8/7K b - - 0 1'},
   {id:'opp', t:'Oposición defensiva', lvl:'Intermedio', goal:'draw', moves:25,
    d:'Juegas con negras. Mantén la oposición frente al rey blanco y no dejes que el peón corone.',
    fen:'4k3/8/8/4K3/4P3/8/8/8 b - - 0 1'},
+  {id:'kk',  t:'Casillas clave', lvl:'Intermedio', goal:'win', moves:40,
+   d:'Rey y peón contra rey. Toma la oposición para que tu rey llegue a una casilla clave, dos filas delante del peón; desde ahí corona seguro.',
+   fen:'8/8/8/4k3/8/5K2/4P3/8 w - - 0 1'},
   {id:'kbb', t:'Mate con dos alfiles', lvl:'Intermedio', goal:'mate', moves:50,
    d:'Los alfiles juntos forman una barrera diagonal. Lleva al rey a una esquina.',
    fen:'8/8/8/4k3/8/8/8/2B1KB2 w - - 0 1'},
-  {id:'luc', t:'Posición de Lucena', lvl:'Avanzado', goal:'win', moves:40,
+  {id:'luc', t:'Posición de Lucena', lvl:'Intermedio', goal:'win', moves:40,
    d:'Torre y peón contra torre. Construye el puente con tu torre para proteger al rey de los jaques y corona.',
    fen:'1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1'},
-  {id:'phi', t:'Defensa de Philidor', lvl:'Avanzado', goal:'draw', moves:30,
+  {id:'phi', t:'Defensa de Philidor', lvl:'Intermedio', goal:'draw', moves:30,
    d:'Juegas con negras. Torre en tu tercera fila hasta que avance el peón, después jaques desde atrás.',
    fen:'4k3/R7/1r6/4PK2/8/8/8/8 b - - 0 1'},
   {id:'kbn', t:'Mate con alfil y caballo', lvl:'Experto', goal:'mate', moves:50,
@@ -629,6 +640,23 @@ const THEME_EXTRA = {mateIn4:'Mate en 4', mateIn5:'Mate en 5 o más', short:'Cor
 const themeName = t => (THEMES.find(x => x[0] === t) || [0, THEME_EXTRA[t] || t])[1];
 const CAT_THEME = {'Pieza colgada':'hangingPiece','Táctica no vista':'fork','Mate no visto':'mateIn2','Permitió mate':'defensiveMove','Error posicional':'quietMove'};
 const CATS = ['Pieza colgada','Táctica no vista','Mate no visto','Permitió mate','Error posicional'];
+// Ruta a 1500: etapas en el orden del Método Steps y del curso de finales de Silman.
+// diff es la dificultad fija de Lichess para los puzzles de la etapa (la meta es 80% al primer intento).
+const PLAN = [
+  {id:'s1', n:'Bases', range:'hasta ~800', foco:'No regalar piezas y dar los mates básicos.',
+   ideas:['Antes de soltar la pieza, mira qué queda sin defensa.', 'Revisa primero los jaques: de ahí salen casi todos los mates en una.', 'Con dama o torre de más, empuja al rey rival contra el borde.'],
+   themes:['mateIn1','hangingPiece','backRankMate'], diff:'easiest', endgames:['kq','kr'], threat:false, errMax:null, game:{mode:'guiada', clock:'600+5'}},
+  {id:'s2', n:'Táctica básica', range:'800 a 1100', foco:'Ver ataques dobles, clavadas y enfiladas, y revisar las amenazas del rival en cada jugada.',
+   ideas:['Piezas sin defensa o en la misma línea son el blanco de casi toda táctica.', 'Antes de cada jugada: jaques, capturas y amenazas de tu rival.', 'En finales de peones, el rey va delante del peón.'],
+   themes:['fork','pin','skewer','discoveredAttack','mateIn2'], diff:'easier', endgames:['kp6','sq','opp'], threat:true, errMax:null, game:{mode:'amenazas', clock:'600+5'}},
+  {id:'s3', n:'Calcular y defender', range:'1100 a 1300', foco:'Calcular dos o tres jugadas forzadas y defender a tiempo.',
+   ideas:['Desvía o atrae al defensor antes de ir por lo que protege.', 'Si te atacan, busca primero una defensa que también amenace.', 'Con la oposición tu rey llega a las casillas clave.'],
+   themes:['deflection','attraction','capturingDefender','defensiveMove','trappedPiece','mateIn3'], diff:'normal', endgames:['kk','kbb'], threat:true, errMax:2, game:{mode:'amenazas', clock:'900+10'}},
+  {id:'s4', n:'Finales y plan', range:'1300 a 1500', foco:'Convertir ventajas en el final y elegir buenas jugadas tranquilas.',
+   ideas:['Lucena: construye el puente con la torre. Philidor: torre en tu tercera fila.', 'En el final, activa el rey y cuenta tiempos antes de cambiar piezas.', 'Si no hay táctica, mejora tu peor pieza.'],
+   themes:['rookEndgame','pawnEndgame','quietMove','zugzwang','intermezzo'], diff:'normal', endgames:['luc','phi'], threat:true, errMax:1, game:{mode:'seria', clock:'900+10'}},
+];
+const COACH_MODES = [['guiada','Guiada'],['amenazas','Amenazas'],['seria','Seria']];
 
 /* =========================================================
    Utilidades
@@ -698,7 +726,8 @@ const KEY = 'casilla.v1';
 function defaults(){ return {
   username:'', ladder:{unlocked:1, rec:{}},
   puzzles:{rating:1200, hist:[], solved:0, failed:0, streak:0, best:0, seen:{}},
-  games:[], played:[], analyses:{}, endgames:{}, openings:{}, settings:{movetime:400}
+  games:[], played:[], analyses:{}, endgames:{}, openings:{}, settings:{movetime:400},
+  plan:{len:'corta', stage:'auto', days:{}}, srs:{}, threats:{hist:[]}
 }; }
 let S = (() => { try{ const raw = localStorage.getItem(KEY); if(raw){ return Object.assign(defaults(), JSON.parse(raw)); } }catch(e){} return defaults(); })();
 function save(){ saveLocal(); if(typeof Sync !== 'undefined') Sync.dirty(); }
@@ -822,7 +851,7 @@ function setPill(kind, text){ const p=$('#pill'); p.className='pill' + (kind==='
    Tablero
    ========================================================= */
 const Board = {
-  cells:[], orient:'w', movable:null, sel:null, last:null, arrows:[], marks:{}, drag:null, onMove:null,
+  cells:[], orient:'w', movable:null, sel:null, last:null, arrows:[], marks:{}, drag:null, onMove:null, onTap:null,
   init(){
     const root = $('#board');
     for(let i=0;i<64;i++){ const d=document.createElement('div'); d.className='sq'; root.appendChild(d); }
@@ -885,6 +914,8 @@ const Board = {
   _down(e){
     const c = e.target.closest('.sq'); if(!c) return;
     if(e.button !== undefined && e.button !== 0) return;
+    // Pregunta del maestro en curso: el toque elige una casilla en lugar de mover
+    if(this.onTap){ e.preventDefault(); this.onTap(c.dataset.sq); return; }
     const sq = c.dataset.sq, g = App.game;
     if(this.sel && this.sel !== sq && this.isTarget(sq)){ e.preventDefault(); this._try(this.sel, sq); return; }
     const p = g.get(sq);
@@ -986,7 +1017,7 @@ const App = {
     const tip = $('#tip'); if(tip){ tip.hidden = true; tip.textContent = ''; }
     if(isMobile() && window.scrollY > 0) window.scrollTo({top:0});
     this.session = s;
-    Board.onMove = mv => s.onUserMove && s.onUserMove(mv);
+    Board.onMove = mv => s.onUserMove && s.onUserMove(mv); Board.onTap = null;
     Board.sel = null; Board.arrows = []; Board.marks = {}; Board._endDrag();
     s.enter();
   }
@@ -1022,7 +1053,7 @@ async function engineReply(cfg){
 }
 
 /* ---------- Reloj ---------- */
-const TIME_CONTROLS = [['none','Sin reloj'],['180+2','3+2'],['300+0','5+0'],['600+5','10+5'],['900+10','15+10']];
+const TIME_CONTROLS = [['none','Sin reloj'],['180+2','3+2'],['300+0','5+0'],['600+5','10+5'],['900+10','15+10'],['1800+20','30+20']];
 function parseTC(v){ if(!v || v === 'none') return null; const [b,i] = String(v).split('+').map(Number); return {base:b*1000, inc:(i||0)*1000}; }
 function tcLabel(v){ const t = TIME_CONTROLS.find(x => x[0] === v); return t ? t[1] : 'Sin reloj'; }
 function fmtClock(ms){ ms = Math.max(0, ms); if(ms < 10000) return (Math.floor(ms/100)/10).toFixed(1); const s = Math.ceil(ms/1000); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
@@ -1067,7 +1098,7 @@ class PlaySession{
     App.game = new Chess(o.fen || START_FEN);
     this.startFen = App.game.fen();
     this.user = o.userColor; Board.orient = this.user; Board.layout(); Board.movable = this.user; Board.last = null;
-    this.over = false; this.userMoves = 0; this.promoted = false; this.userEval = null; this.hintsUsed = false; this.result = null; this.thinking = false; this.checking = false;
+    this.over = false; this.userMoves = 0; this.promoted = false; this.userEval = null; this.hintsUsed = false; this.result = null; this.thinking = false; this.checking = false; this.pendingQuiz = null;
     Engine.needNew = true; this.evalJob = null;
     this.gid = (o.vsCoach || o.coach ? 'coach:' : 'play:') + Date.now();
     this.barShown = !!(o.helps || o.goal || S.settings.showBar);
@@ -1108,6 +1139,7 @@ class PlaySession{
   get tierName(){ return this.o.oppName ? 'El ' + this.o.oppName.toLowerCase() : (this.o.tier === STRONG ? 'Stockfish al máximo' : TIERS[this.o.tierIdx].n); }
   async onUserMove(mv){
     if(this.over || this.thinking || this.checking) return;
+    if(this.pendingQuiz){ toast('Primero responde: ¿qué amenaza tu rival?'); return; }
     if(this.pendingWarn){ this.pendingWarn = null; if(this.coach){ this.coach.msgs.forEach(x => { if(x.actions) x.done = true; }); this.coach.renderFeed(); } }
     const fenBefore = App.game.fen();
     const m0 = new Chess(fenBefore).move(mv); if(!m0) return;
@@ -1153,6 +1185,7 @@ class PlaySession{
     if(this.checkEnd()) return;
     this.checkGoal();
     if(!this.over && this.coach) this.coach.userTurn();
+    if(!this.over && this.coach && this.coach.quiz) this.coach.askThreat();
   }
   flag(c){
     if(this.over) return;
@@ -1189,6 +1222,7 @@ class PlaySession{
   finish(res, why){
     if(this.over) return;
     this.over = true; Board.movable = null; App.busy = false; this.thinking = false;
+    this.pendingQuiz = null; Board.onTap = null;
     if(this.clk) this.clk.stop();
     const o = this.o;
     if(o.goal){
@@ -1205,7 +1239,7 @@ class PlaySession{
         save();
       }
       if(o.vsCoach){
-        const C = coachState(); const serious = !o.helps && !this.barUsed;
+        const C = coachState(); const serious = !o.helps && !this.barUsed && !o.quiz;
         C.rec[res]++;
         if(serious){
           if(C.rating === null) C.rating = o.playerElo;
@@ -1215,6 +1249,12 @@ class PlaySession{
         }
         save();
       }
+    }
+    if(o.plan){
+      const d = planDay(true);
+      if(o.goal){ if(res || this.userMoves >= 5) d.eg = true; }
+      else if(App.game.history().length >= 8) d.game = this.gid;
+      planCheck(); save();
     }
     if(this.coach) this.coach.finish(this.result);
     this.refreshBar();
@@ -1226,7 +1266,7 @@ class PlaySession{
   }
   openEval(){
     const o = this.o;
-    App.setSession(new EvalSession(this.evalJob, {backLabel:o.backLabel || 'Volver', back:o.back, again:o.vsCoach ? () => startCoachGame() : () => App.setSession(new PlaySession(Object.assign({}, o, o.ladder && o.colorPref === 'r' ? {userColor:Math.random() < .5 ? 'w' : 'b'} : {})))}));
+    App.setSession(new EvalSession(this.evalJob, {backLabel:o.backLabel || 'Volver', back:o.back, again:o.vsCoach ? () => startCoachGame(o.coachOv) : () => App.setSession(new PlaySession(Object.assign({}, o, o.ladder && o.colorPref === 'r' ? {userColor:Math.random() < .5 ? 'w' : 'b'} : {})))}));
   }
   renderEvalBox(){
     const box = $('#evbox'), j = this.evalJob; if(!box || !j) return;
@@ -1270,6 +1310,12 @@ class PlaySession{
     else if(this.pendingWarn) setStatus(this.pendingWarn.text, 'warn');
     else if(!this.checking) setStatus('Tu turno, juegas con ' + colorName(this.user) + (g.in_check() ? '. Estás en jaque.' : ''));
     const helps = this.o.helps, busy = this.over || this.thinking || this.checking;
+    if(this.pendingQuiz && !this.over){
+      setStatus('¿Qué amenaza tu rival? Toca tu pieza en peligro o tu rey si te amenaza mate.', 'warn');
+      setControls([{label:'Nada directo', primary:true, on:()=>this.coach && this.coach.answerThreat(null)}, {label:'Girar tablero', on:()=>Board.flip()}, {label:'Abandonar', on:()=>this.finish('l','Abandono')}]);
+      const mlq = $('#ml'); if(mlq){ mlq.innerHTML = moveListHTML(g.history(), this.startFen, g.history().length); scrollMoves(mlq); }
+      return;
+    }
     if(this.pendingWarn && !this.over){
       const w = this.pendingWarn;
       setControls([{label:'Pensar otra vez', primary:true, on:w.think}, {label:'Jugarla igual', on:w.play}]);
@@ -1298,7 +1344,8 @@ class PlaySession{
         (r.unlocked ? '<br>Desbloqueaste el nivel ' + esc(r.unlocked) + '.' : '') +
         (r.delta !== undefined ? '<br>Tu rating con el maestro: ' + coachState().rating + ' (' + (r.delta >= 0 ? '+' : '') + r.delta + ').' : '') +
         (r.res==='w' && o.ladder && (o.helps || this.hintsUsed || this.barUsed) ? '<br>Usaste ayudas' + (this.barUsed && !o.helps && !this.hintsUsed ? ' (la barra de evaluación)' : '') + ', así que esta victoria no desbloquea niveles.' : '') +
-        (o.vsCoach && !o.helps && this.barUsed ? '<br>Tuviste la barra de evaluación visible, así que no cuenta para tu rating con el maestro.' : '') + '</div>';
+        (o.vsCoach && !o.helps && this.barUsed && !o.quiz ? '<br>Tuviste la barra de evaluación visible, así que no cuenta para tu rating con el maestro.' : '') +
+        (o.vsCoach && o.quiz ? '<br>Las preguntas de amenazas son una ayuda, así que esta partida no cuenta para tu rating con el maestro.' : '') + '</div>';
     }
     const desc = o.desc || ('Contra ' + this.tierName + (o.tier!==STRONG && o.tierIdx !== null ? ' (' + TIERS[o.tierIdx].elo + ')' : '') + '.' + (o.helps ? ' Con ayudas.' : '') + (o.clock && o.clock !== 'none' ? ' Ritmo ' + tcLabel(o.clock) + '.' : ''));
     side().innerHTML =
@@ -1311,7 +1358,7 @@ class PlaySession{
       (this.coach ? '<h3>Maestro</h3><div class="feed" id="feed" aria-live="polite"></div>' : '') +
       '<div id="ml"></div>';
     $('#bk').onclick = () => o.back ? o.back() : switchTab(App.tab);
-    const ag = $('#again'); if(ag) ag.onclick = () => o.vsCoach ? startCoachGame() : App.setSession(new PlaySession(Object.assign({}, o, o.ladder && o.colorPref==='r' ? {userColor: Math.random()<.5?'w':'b'} : {})));
+    const ag = $('#again'); if(ag) ag.onclick = () => o.vsCoach ? startCoachGame(o.coachOv) : App.setSession(new PlaySession(Object.assign({}, o, o.ladder && o.colorPref==='r' ? {userColor: Math.random()<.5?'w':'b'} : {})));
     const nt = $('#nextTier'); if(nt) nt.onclick = () => { App.ladderSel = o.tierIdx + 1; startLadder(o.tierIdx + 1, o.colorPref, o.helps); };
     if(this.coach) this.coach.renderFeed();
     if(this.evalJob) this.renderEvalBox();
@@ -1449,6 +1496,7 @@ class Coach{
     this.msgs = []; this.moveEvals = []; this.pre = null; this.warned = {}; this.pending = Promise.resolve();
     this.said = {}; this.lastThreat = null; this.deferred = [];
     this.tree = this.vs && S.username ? openingTree() : null;
+    this.quiz = !!opts.quiz; this.qa = {real:0, spotted:0, calm:0, calmOk:0};
   }
   get user(){ return this.ses.user; }
   say(kind, text, extra){
@@ -1479,6 +1527,7 @@ class Coach{
     } else {
       this.say('info', this.guide ? 'Te acompaño en esta partida. Comento los momentos clave y te aviso antes de un error grave.' : 'Te acompaño en esta partida. Durante el juego solo señalo lo bueno; tus errores los repasamos al final.');
     }
+    if(this.quiz) this.say('info', 'Partida de amenazas: antes de varias de tus jugadas te preguntaré qué amenaza tu rival. Toca tu pieza en peligro, o tu rey si hay mate. A veces no habrá nada, y decirlo también cuenta. Revisar jaques, capturas y amenazas antes de mover es el hábito que más puntos da por debajo de 1500.', {label:'Cómo funciona'});
   }
   userTurn(){
     const fen = App.game.fen();
@@ -1488,6 +1537,49 @@ class Coach{
     this.pre = pre;
   }
   onUndo(){ this.pre = null; this.lastThreat = null; }
+  // Revisión de amenazas: antes de la jugada del usuario, preguntar qué amenaza el rival
+  askThreat(){
+    const ses = this.ses, g = App.game;
+    if(!this.quiz || ses.over || ses.pendingQuiz || g.game_over() || g.in_check() || g.turn() !== this.user) return false;
+    const T = threatsFor(g.fen(), this.user); if(!T) return false;
+    const real = T.caps.length > 0 || !!T.mate;
+    // Sin amenaza también se pregunta a veces, para que la pregunta no delate que hay algo
+    if(!real && (g.history().length < 6 || Math.random() > .35)) return false;
+    const kingSq = kingSquare(g.fen(), this.user);
+    const targets = new Set(T.caps.map(c => c.sq)), attackers = new Set(T.caps.map(c => c.from));
+    if(T.mate){ targets.add(kingSq); attackers.add(T.mate.from); }
+    ses.pendingQuiz = {T, real, targets, attackers, kingSq, fen:g.fen()};
+    Board.movable = null; Board.sel = null; Board.onTap = sq => this.answerThreat(sq); Board.render();
+    this.say('info', 'Revisa sus jaques, capturas y amenazas. Si no ves nada, pulsa Nada directo.', {label:'Antes de tu jugada'});
+    ses.update(); revealBoard();
+    return true;
+  }
+  threatText(q){
+    const T = q.T, g = new Chess(q.fen);
+    if(T.mate){ const pc = g.get(T.mate.from); return {text:'su ' + PNAME[pc.type] + ' de ' + T.mate.from + ' te da mate con ' + T.mate.san, from:T.mate.from, to:T.mate.to, mark:q.kingSq}; }
+    const c = T.caps[0]; if(!c) return null;
+    return {text:'su ' + PNAME[c.piece] + ' de ' + c.from + ' gana tu ' + PNAME[c.target] + ' de ' + c.sq, from:c.from, to:c.sq, mark:c.sq};
+  }
+  answerThreat(sq){
+    const ses = this.ses, q = ses.pendingQuiz; if(!q || ses.over) return;
+    if(sq !== null && !new Chess(q.fen).get(sq)){ toast('Toca una pieza, o pulsa Nada directo.'); return; }
+    const ok = q.real ? (sq !== null && (q.targets.has(sq) || q.attackers.has(sq))) : sq === null;
+    const main = this.threatText(q), extra = q.T.caps.length > 1 && !q.T.mate ? ' También vigila ' + q.T.caps.slice(1, 3).map(c => 'tu ' + PNAME[c.target] + ' de ' + c.sq).join(' y ') + '.' : '';
+    if(q.real){ this.qa.real++; if(ok) this.qa.spotted++; } else { this.qa.calm++; if(ok) this.qa.calmOk++; }
+    let text;
+    if(q.real && ok) text = 'Bien visto: ' + main.text + '. Elige tu jugada pensando en eso.' + extra;
+    else if(q.real) text = (sq === null ? 'Sí había algo: ' : 'No es eso. La amenaza es: ') + main.text + '.' + extra;
+    else if(ok) text = 'Correcto: no hay amenaza directa. Puedes jugar tu plan.';
+    else text = 'No había amenaza directa sobre esa pieza. Revisa jaques, capturas y amenazas, pero no te defiendas de algo que no existe.';
+    const H = S.threats || (S.threats = {hist:[]}); if(!H.hist) H.hist = [];
+    H.hist.push({t:Date.now(), ok, k:q.T.mate ? 'mate' : q.real ? 'cap' : 'none'}); if(H.hist.length > 300) H.hist = H.hist.slice(-300);
+    save();
+    ses.pendingQuiz = null; Board.onTap = null; Board.movable = this.user;
+    Board.arrows = main ? [{from:main.from, to:main.to, c:'r'}] : []; Board.marks = {};
+    if(main) Board.marks[main.mark] = ok ? 'good' : 'bad'; else if(sq) Board.marks[sq] = 'bad';
+    this.say(ok ? 'good' : 'bad', text, {label:'Revisión de amenazas', facts:{momento:'pregunta del maestro: qué amenaza el rival', acierto:ok, amenaza:main ? main.text : 'ninguna directa'}});
+    ses.update();
+  }
   async getPre(fen){
     if(this.pre && this.pre.fen === fen) return this.pre.r || await this.pre.p;
     this.pre = null; this.userTurn(); return await this.pre.p;
@@ -1623,10 +1715,11 @@ class Coach{
     if(worst) text += 'El que más costó fue ' + moveLabel(worst.fen, worst.san) + ': ' + this.consequence(worst).text + '; la mejor era ' + worst.bestSan + '. ';
     const top = this.prof.top[0];
     if(top) text += cats[top] ? 'Volvió a aparecer tu patrón más común (' + top.toLowerCase() + '). ' : 'Hoy no apareció tu patrón más común (' + top.toLowerCase() + '): buena señal. ';
+    if(this.quiz && (this.qa.real || this.qa.calm)) text += 'Amenazas: viste ' + this.qa.spotted + ' de ' + this.qa.real + (this.qa.calm ? ', y en ' + this.qa.calmOk + ' de ' + this.qa.calm + ' posiciones tranquilas no te asustaste de más' : '') + '. ';
     if(bad.length) text += 'Guardé estas posiciones en tus puzzles para repasarlas.';
     if(!this.guide) this.deferred.forEach(v => { const c = this.consequence(v); this.say('bad', c.text.charAt(0).toUpperCase() + c.text.slice(1) + '. Era mejor ' + v.bestSan + '.', {label:moveLabel(v.fen, v.san), line:this.lineText(v.fen, v.best, v.bestPv)}); });
     this.say('sum', text.trim() || 'Partida corta: no hay suficientes jugadas para un resumen.', {label:'Resumen',
-      facts:{momento:'resumen final de la partida', resultado:result.res || (result.ok ? 'objetivo cumplido' : 'objetivo no cumplido'), motivo:result.why, precision:acc, errores:bad.map(v => ({jugada:moveLabel(v.fen, v.san), mejor:v.bestSan, tipo:v.cat, consecuencia:this.consequence(v).text})), patron_comun_del_jugador:top || null}});
+      facts:{momento:'resumen final de la partida', resultado:result.res || (result.ok ? 'objetivo cumplido' : 'objetivo no cumplido'), motivo:result.why, precision:acc, errores:bad.map(v => ({jugada:moveLabel(v.fen, v.san), mejor:v.bestSan, tipo:v.cat, consecuencia:this.consequence(v).text})), patron_comun_del_jugador:top || null, amenazas:this.quiz ? {vistas:this.qa.spotted, reales:this.qa.real} : null}});
     // Aprender: guardar errores para puzzles y perfil
     const gid = this.ses.gid || ('coach:' + Date.now()), date = Math.floor(Date.now() / 1000), opp = this.ses.oppName;
     if((bad.length || n >= 4) && !(S.analyses[gid] && S.analyses[gid].deep)){
@@ -2442,36 +2535,198 @@ function gameDescFromRec(rec){
   return {gid:rec.id, startFen:b.start, sans:b.moves.map(m => m.san), user, opp:user === 'w' ? rec.black : rec.white, title:'Partida de Chess.com', result:{res, why:''}, date:rec.end, kind:'chesscom', opening:openingName(rec)};
 }
 
+/* ---------- Revisión de amenazas ---------- */
+function kingSquare(fen, color){ const b = new Chess(fen).board(); for(let r = 0; r < 8; r++) for(let f = 0; f < 8; f++){ const p = b[r][f]; if(p && p.type === 'k' && p.color === color) return 'abcdefgh'[f] + (8 - r); } return null; }
+function threatsFor(fen, user){
+  // Lo que el rival haría si le tocara mover: capturas que ganan al menos dos puntos y mate en una
+  const f = asTurn(fen, other(user)); if(!f) return null;
+  const out = {caps:[], mate:null};
+  for(const m of new Chess(f).moves({verbose:true})){
+    const t = new Chess(f); t.move(m);
+    if(t.in_checkmate()){ if(!out.mate) out.mate = {from:m.from, to:m.to, san:m.san}; continue; }
+    if(!m.captured || m.captured === 'p') continue;
+    const defended = t.moves({verbose:true}).some(x => x.to === m.to && x.captured);
+    const gain = defended ? VAL[m.captured] - VAL[m.piece] : VAL[m.captured];
+    if(gain >= 2 && !out.caps.some(c => c.sq === m.to && c.from === m.from)) out.caps.push({gain, piece:m.piece, target:m.captured, sq:m.to, from:m.from, san:m.san});
+  }
+  out.caps.sort((a,b) => b.gain - a.gain);
+  return out;
+}
+function threatStats(n){
+  const h = ((S.threats || {}).hist || []).filter(x => x.k !== 'none').slice(-(n || 20));
+  const ok = h.filter(x => x.ok).length;
+  return {n:h.length, ok, pct:h.length ? Math.round(100 * ok / h.length) : 0};
+}
+
+/* ---------- Repaso espaciado de tus errores ---------- */
+// Cajas de Leitner: cada acierto a tiempo sube de caja y aleja el siguiente repaso; un fallo regresa a la primera.
+const DAY = 864e5, SRS_DAYS = [1, 1, 3, 7, 14, 30], SRS_NEW = 10;
+// El día de estudio cambia a las 4 de la mañana: lo que se repasa a medianoche no vuelve una hora después
+const DAY_START = 4;
+function dayKey(t){ const d = new Date((t || Date.now()) - DAY_START * 36e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function dueIn(n){ const d = new Date(Date.now() - DAY_START * 36e5); d.setHours(DAY_START, 0, 0, 0); d.setDate(d.getDate() + n); return d.getTime(); }
+function srsQueue(){
+  const now = Date.now(), C = S.srs || {}, today = dayKey(now), seen = {}, due = [], fresh = [];
+  for(const m of errorProfile().all){
+    if(!m.best || !m.fen || seen[m.id]) continue; seen[m.id] = 1;
+    const c = C[m.id]; if(!c) fresh.push(m); else if(c.due <= now) due.push(m);
+  }
+  due.sort((a,b) => C[a.id].due - C[b.id].due);
+  fresh.sort((a,b) => (b.drop || 0) - (a.drop || 0));
+  const newToday = Object.values(C).filter(c => c.first && dayKey(c.first) === today).length;
+  return due.concat(fresh.slice(0, Math.max(0, SRS_NEW - newToday)));
+}
+function srsRecord(m, ok){
+  if(!S.srs) S.srs = {};
+  const now = Date.now(), c = S.srs[m.id];
+  if(!c) S.srs[m.id] = ok ? {b:1, due:dueIn(SRS_DAYS[1]), last:now, first:now} : {b:0, due:dueIn(SRS_DAYS[0]), last:now, first:now};
+  else if(!ok) Object.assign(c, {b:0, due:dueIn(SRS_DAYS[0]), last:now});
+  else if(c.due <= now){ c.b = Math.min(5, c.b + 1); c.due = dueIn(SRS_DAYS[c.b]); c.last = now; }
+  else c.last = now;
+}
+function srsStats(){
+  const C = S.srs || {}, ids = new Set(errorProfile().all.map(m => m.id)); let learning = 0, mastered = 0;
+  for(const id in C){ if(!ids.has(id)) continue; if(C[id].b >= 5) mastered++; else learning++; }
+  return {due:srsQueue().length, learning, mastered, total:ids.size};
+}
+
+/* ---------- Ruta a 1500 y sesión del día ---------- */
+function planState(){ if(!S.plan) S.plan = {len:'corta', stage:'auto', days:{}}; if(!S.plan.days) S.plan.days = {}; return S.plan; }
+function planDay(write){
+  const P = planState(), k = dayKey();
+  if(P.days[k]) return P.days[k];
+  const d = {rev:0, pz:0, eg:false, game:null, rv:false, ok:false};
+  if(write){ P.days[k] = d; const ks = Object.keys(P.days).sort(); ks.slice(0, Math.max(0, ks.length - 60)).forEach(x => delete P.days[x]); }
+  return d;
+}
+function stageAuto(elo){ return elo < 800 ? 0 : elo < 1100 ? 1 : elo < 1300 ? 2 : 3; }
+function planStage(p){ const s = planState().stage; return s === 'auto' || s == null ? stageAuto((p || playerModel()).elo) : Math.max(0, Math.min(PLAN.length - 1, +s)); }
+function planTargets(){ return planState().len === 'completa' ? {rev:5, pz:10, game:true} : {rev:3, pz:6, game:false}; }
+function planEndgame(si){
+  // Primero lo pendiente de etapas anteriores (aprendizaje concéntrico); si todo está hecho, repasar el más antiguo
+  for(let k = 0; k <= si; k++) for(const id of PLAN[k].endgames) if(!S.endgames[id]) return {e:ENDGAMES.find(x => x.id === id), why:k < si ? 'Pendiente de la etapa ' + (k + 1) + '.' : 'Parte de tu etapa, aún sin completar.'};
+  const ids = PLAN.slice(0, si + 1).flatMap(x => x.endgames).sort((a,b) => (S.endgames[a].at || 0) - (S.endgames[b].at || 0));
+  const e = ENDGAMES.find(x => x.id === ids[0]), days = Math.floor((Date.now() - (S.endgames[e.id].at || 0)) / DAY);
+  return {e, why:'Repaso: lo completaste ' + (days < 1 ? 'hoy' : days === 1 ? 'ayer' : 'hace ' + days + ' días') + '.'};
+}
+function playedRec(gid){ return (S.played || []).find(g => g.id === gid) || null; }
+function planSteps(p){
+  const d = planDay(), tg = planTargets(), si = planStage(p), st = PLAN[si];
+  const revT = Math.min(tg.rev, d.rev + srsQueue().length);
+  const eg = planEndgame(si);
+  const steps = [
+    {id:'rev', t:'Repaso espaciado', s:revT ? Math.min(d.rev, revT) + ' de ' + revT + ' posiciones de tus errores' : (errorProfile().total ? 'Nada pendiente hoy.' : 'Aún no hay errores guardados: juega o analiza partidas.'), done:d.rev >= revT, tag:revT ? null : 'Sin pendientes', go:revT && d.rev < revT ? 'Repasar' : null},
+    {id:'pz', t:'Táctica de la etapa', s:Math.min(d.pz, tg.pz) + ' de ' + tg.pz + ' puzzles con los temas mezclados', done:d.pz >= tg.pz, go:d.pz < tg.pz ? 'Resolver' : 'Más'},
+    {id:'eg', t:'Final: ' + eg.e.t, s:d.eg ? 'Hecho.' : eg.why, done:d.eg, go:d.eg ? null : 'Entrenar', eg:eg.e}
+  ];
+  if(tg.game){
+    const mode = (COACH_MODES.find(m => m[0] === st.game.mode) || [0, ''])[1];
+    steps.push({id:'game', t:'Partida lenta contra el maestro', s:d.game ? 'Hecho.' : 'Modo ' + mode.toLowerCase() + ', ritmo ' + tcLabel(st.game.clock) + '.', done:!!d.game, go:d.game ? null : 'Jugar'});
+    const busy = d.game && !playedRec(d.game) && Evaluator.jobs.some(j => j.desc.gid === d.game);
+    steps.push({id:'rv', t:'Revisa los errores de esa partida', s:d.rv ? 'Hecho.' : !d.game ? 'Después de la partida.' : busy ? 'Stockfish la está evaluando.' : 'Solo los errores grandes: piezas colgadas y tácticas no vistas.', done:d.rv, go:d.game && !d.rv ? 'Revisar' : null});
+  }
+  return steps;
+}
+function planCheck(){ const d = planDay(); if(!d.ok && planSteps().every(x => x.done)){ planDay(true).ok = true; return true; } return false; }
+function planStreak(){
+  const P = planState(), t = new Date(); t.setHours(12, 0, 0, 0); let n = 0;
+  if(!(P.days[dayKey(t)] || {}).ok) t.setDate(t.getDate() - 1);
+  while((P.days[dayKey(t)] || {}).ok){ n++; t.setDate(t.getDate() - 1); }
+  return n;
+}
+function stageChecks(si){
+  const st = PLAN[si], out = [];
+  const h = (S.puzzles.hist || []).filter(x => x.st === st.id).slice(-20), ok = h.filter(x => x.ok).length, pct = h.length ? Math.round(100 * ok / h.length) : 0;
+  out.push({t:'Táctica de la etapa', s:h.length < 10 ? h.length + ' puzzles de la etapa; hacen falta al menos 10 para medir.' : pct + '% al primer intento en los últimos ' + h.length + '. Meta: 80%.', ok:h.length >= 10 && pct >= 80});
+  const egs = st.endgames.map(id => ENDGAMES.find(e => e.id === id)), n = egs.filter(e => S.endgames[e.id]).length;
+  out.push({t:'Finales', s:egs.map(e => e.t + (S.endgames[e.id] ? ' (hecho)' : '')).join(', ') + '.', ok:n === egs.length});
+  if(st.threat){ const ts = threatStats(); out.push({t:'Revisión de amenazas', s:ts.n < 10 ? ts.n + ' amenazas reales revisadas; hacen falta 10. Juega en modo Amenazas.' : ts.pct + '% vistas en las últimas ' + ts.n + '. Meta: 80%.', ok:ts.n >= 10 && ts.pct >= 80}); }
+  if(st.errMax !== null){
+    const gs = coachState().games.filter(g => g.vs && typeof g.acc === 'number').slice(0, 5), avg = gs.length ? gs.reduce((a,g) => a + (g.errors || 0), 0) / gs.length : 0;
+    out.push({t:'Errores por partida', s:gs.length < 3 ? gs.length + ' partidas contra el maestro; hacen falta 3.' : avg.toFixed(1) + ' errores importantes por partida en tus últimas ' + gs.length + '. Meta: ' + st.errMax + ' o menos.', ok:gs.length >= 3 && avg <= st.errMax});
+  }
+  return out;
+}
+function markTab(tab){ App.tab = tab; $$('.tab').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === tab)); }
+function planGo(id, p){
+  const si = planStage(p), st = PLAN[si], back = () => switchTab('coach');
+  if(id === 'rev' || id === 'pz'){ markTab('puzzles'); App.setSession(new PuzzleSession(null, {plan:{kind:id, stage:si}})); return; }
+  if(id === 'eg'){
+    const e = planEndgame(si).e;
+    Engine.whenReady().then(okE => { if(okE) App.setSession(new PlaySession({fen:e.fen, userColor:e.fen.split(' ')[1], tier:STRONG, tierIdx:null, goal:{type:e.goal, moves:e.moves}, goalId:e.id, title:e.t, desc:e.d, plan:true, backLabel:'Maestro', back})); });
+    return;
+  }
+  if(id === 'game'){ startCoachGame({mode:st.game.mode, clock:st.game.clock, plan:true}); return; }
+  if(id === 'rv'){
+    const d = planDay(true), rec = playedRec(d.game), live = Evaluator.jobs.find(j => j.desc.gid === d.game);
+    const job = live || (rec ? evalJobFor(descFromPlayed(rec)) : null);
+    if(!job){ toast('No encontré la evaluación de esa partida. Juega otra para completar este paso.'); d.game = null; save(); renderCoachHome(); return; }
+    d.rv = true; planCheck(); save();
+    App.setSession(new EvalSession(job, {backLabel:'Maestro', back}));
+  }
+}
+
 /* ---------- Pestaña Maestro ---------- */
-async function startCoachGame(){
+async function startCoachGame(ov){
   if(!Engine.ready){ toast('Esperando a que cargue Stockfish…'); if(!(await Engine.whenReady())) return; }
-  const st = S.settings.coachPrefs || {}, mode = st.mode || 'guiada', colorPref = st.color || 'w';
+  const st = Object.assign({}, S.settings.coachPrefs || {}, ov || {}), mode = st.mode || 'guiada', colorPref = st.color || 'w';
   const color = colorPref === 'r' ? (Math.random() < .5 ? 'w' : 'b') : colorPref;
-  const p = playerModel(), coachElo = Math.round((p.elo + 100) / 10) * 10, guided = mode === 'guiada';
-  App.setSession(new PlaySession({tier:cfgForElo(coachElo), tierIdx:null, ladder:false, vsCoach:true, helps:guided, coach:{mode:guided ? 'guide' : 'comment'},
-    coachElo, playerElo:p.elo, userColor:color, clock:st.clock || 'none', oppName:'Maestro',
-    title:'Contra el maestro', desc:'Juega a unos ' + coachElo + ' puntos. ' + (guided ? 'Partida guiada: te avisa antes de errores graves y puedes deshacer.' : 'Partida seria: solo comenta lo bueno durante el juego y cuenta para tu rating con el maestro.') + (st.clock && st.clock !== 'none' ? ' Ritmo ' + tcLabel(st.clock) + '.' : ''),
+  const p = playerModel(), coachElo = Math.round((p.elo + 100) / 10) * 10, guided = mode === 'guiada', quiz = mode === 'amenazas';
+  const how = guided ? 'Partida guiada: te avisa antes de errores graves y puedes deshacer.' : quiz ? 'Partida de amenazas: antes de varias jugadas te pregunta qué amenaza tu rival. No cuenta para tu rating.' : 'Partida seria: solo comenta lo bueno durante el juego y cuenta para tu rating con el maestro.';
+  App.setSession(new PlaySession({tier:cfgForElo(coachElo), tierIdx:null, ladder:false, vsCoach:true, helps:guided, quiz, coach:{mode:guided ? 'guide' : 'comment', quiz},
+    coachElo, playerElo:p.elo, userColor:color, clock:st.clock || 'none', oppName:'Maestro', plan:!!st.plan, coachOv:ov || null,
+    title:st.plan ? 'Sesión de hoy: partida' : 'Contra el maestro', desc:'Juega a unos ' + coachElo + ' puntos. ' + how + (st.clock && st.clock !== 'none' ? ' Ritmo ' + tcLabel(st.clock) + '.' : ''),
     backLabel:'Maestro', back:()=>switchTab('coach')}));
+}
+function planHTML(p){
+  const P = planState(), si = planStage(p), st = PLAN[si], steps = planSteps(p), streak = planStreak();
+  const firstOpen = steps.find(x => !x.done && x.go);
+  const allDone = steps.every(x => x.done);
+  const checks = stageChecks(si), mastered = checks.every(c => c.ok);
+  const gaps = PLAN.slice(0, si).flatMap(x => x.endgames).filter(id => !S.endgames[id]).map(id => ENDGAMES.find(e => e.id === id).t);
+  return '<h3>Sesión de hoy</h3>' +
+    '<div class="field">' + segHTML('plen', [['corta','Corta, unos 15 min'],['completa','Completa, unos 45 min']], P.len || 'corta') + '</div>' +
+    '<p class="note">' + (streak ? 'Racha: ' + streak + (streak === 1 ? ' día' : ' días') + ' seguidos. ' : '') + (P.len === 'completa' ? 'Repaso, táctica, un final y una partida lenta con su revisión: el reparto que recomiendan los planes para 1000 a 1500, con más juego que estudio y solo los errores grandes en la revisión.' : 'Repaso, táctica y un final. Diez o quince minutos diarios mantienen la vista táctica; la versión completa suma una partida lenta.') + '</p>' +
+    '<ul class="list daysteps">' + steps.map(x => '<li class="item' + (x.done ? ' off' : '') + '"><div><div class="t">' + esc(x.t) + '</div><div class="s">' + esc(x.s) + '</div></div><div class="row">' +
+      (x.done ? '<span class="tag done">' + (x.tag || 'Hecho') + '</span>' : '') + (x.go ? '<button class="btn small' + (x === firstOpen ? ' primary' : '') + '" data-step="' + x.id + '">' + esc(x.go) + '</button>' : '') + '</div></li>').join('') + '</ul>' +
+    (allDone ? '<div class="result good"><strong>Sesión de hoy completa</strong>' + (streak > 1 ? 'Llevas ' + streak + ' días seguidos.' : 'Vuelve mañana para empezar tu racha.') + '</div>' : '') +
+    '<h3>Tu ruta a 1500</h3>' +
+    '<p class="note">Etapas en el orden del Método Steps y del curso de finales de Silman. Es una guía: nada se bloquea.</p>' +
+    '<div class="field"><span class="lbl">Etapa' + (P.stage === 'auto' || P.stage == null ? ' (automática por tu nivel estimado)' : '') + '</span>' + segHTML('pstage', [['auto','Auto']].concat(PLAN.map((x, i) => [String(i), String(i + 1)])), P.stage == null ? 'auto' : String(P.stage)) + '</div>' +
+    '<div class="item"><div class="t">Etapa ' + (si + 1) + ': ' + esc(st.n) + '</div><div class="s">' + esc(st.range) + '. ' + esc(st.foco) + '</div>' +
+      '<div class="row">' + st.themes.map(t => '<span class="tag">' + esc(themeName(t)) + '</span>').join('') + '</div></div>' +
+    '<span class="lbl" style="margin-top:14px">Para dominarla</span><ul class="list checks">' + checks.map(c => '<li class="item"><div class="t">' + esc(c.t) + ' <span class="tag ' + (c.ok ? 'done' : 'todo') + '">' + (c.ok ? 'Lista' : 'Pendiente') + '</span></div><div class="s">' + esc(c.s) + '</div></li>').join('') + '</ul>' +
+    (mastered ? '<div class="result good"><strong>' + (si < PLAN.length - 1 ? 'Etapa dominada' : 'Ruta completa') + '</strong>' + (si < PLAN.length - 1 ? 'Cuando quieras, elige la etapa ' + (si + 2) + ' arriba.' : 'Ya cumples lo que pide 1500. Sigue con partidas serias de 15+10 o 30+20 y revisa cada derrota.') + '</div>' : '') +
+    (gaps.length ? '<p class="note">De etapas anteriores te falta: ' + esc(gaps.join(', ')) + '. La sesión de hoy te los irá proponiendo.</p>' : '') +
+    '<p class="note"><b>Ideas clave.</b> ' + esc(st.ideas.join(' ')) + '</p>';
 }
 function renderCoachHome(){
   const p = playerModel(), C = coachState(), st = S.settings.coachPrefs || (S.settings.coachPrefs = {mode:'guiada', color:'w', clock:'none'});
   const ai = ClaudeAI.cfg(), coachElo = Math.round((p.elo + 100) / 10) * 10;
   const tree = S.username ? openingTree() : {};
   const faced = Object.keys(tree).length;
+  if(planCheck()) save();
+  const ts = threatStats(), rs = srsStats();
+  const modeNote = {guiada:'Te aviso antes de errores graves, señalo amenazas y puedes pedir pistas o deshacer.', amenazas:'Antes de varias de tus jugadas te pregunto qué amenaza tu rival y tocas la pieza en peligro; a veces no hay nada. Sin pistas ni deshacer. No cuenta para tu rating con el maestro.', seria:'Sin ayudas. Durante el juego solo comento lo bueno; los errores los vemos al final. Cuenta para tu rating con el maestro.'};
+  if(!modeNote[st.mode]) st.mode = 'guiada';
   side().innerHTML =
-    '<h2>Maestro</h2><p class="lede">Un rival que se adapta a tu nivel, te juega las aperturas que te ponen tus rivales y comenta los momentos clave de la partida.</p>' +
+    '<h2>Maestro</h2><p class="lede">Tu entrenador: una ruta por etapas hasta 1500, una sesión diaria y un rival que se adapta a tu nivel y te juega las aperturas de tus rivales.</p>' +
+    planHTML(p) +
     '<h3>Lo que sé de ti</h3><div class="stats">' +
       '<div class="stat"><span class="big">~' + p.elo + '</span><span>Nivel estimado (' + BAND_NAME[p.band] + ')</span></div>' +
       '<div class="stat"><span class="big">~' + coachElo + '</span><span>Fuerza del maestro</span></div>' +
       '<div class="stat"><span class="big">' + (p.top.length ? esc(p.top.join(', ')) : 'Sin datos') + '</span><span>Errores más comunes</span></div>' +
+      '<div class="stat"><span class="big">' + (ts.n ? ts.pct + '% de ' + ts.n : 'Sin datos') + '</span><span>Amenazas vistas</span></div>' +
+      '<div class="stat"><span class="big">' + (rs.total ? rs.due + ' hoy, ' + rs.mastered + ' dominadas' : 'Sin datos') + '</span><span>Repaso de tus errores</span></div>' +
       '<div class="stat"><span class="big">' + (faced ? faced + ' posiciones' : 'Sin datos') + '</span><span>Aperturas aprendidas de tus partidas</span></div>' +
       '<div class="stat"><span class="big">' + C.rec.w + ' / ' + C.rec.d + ' / ' + C.rec.l + '</span><span>Ganadas, tablas y perdidas contra mí</span></div>' +
       (C.rating !== null ? '<div class="stat"><span class="big">' + C.rating + '</span><span>Tu rating con el maestro</span></div>' : '') +
     '</div>' +
     '<p class="note" style="margin-top:8px">Calculado a partir de ' + (p.sources.length ? esc(p.sources.join(', ')) : 'nada todavía: empiezo suponiendo 1000 puntos') + '. ' + (S.games.length ? '' : 'Carga tus partidas en Mis partidas para que aprenda de ti.') + '</p>' +
-    '<div class="field"><span class="lbl">Tipo de partida</span>' + segHTML('cmode', [['guiada','Guiada'],['seria','Seria']], st.mode) + '<p class="note" style="margin-top:6px">' + (st.mode === 'guiada' ? 'Te aviso antes de errores graves, señalo amenazas y puedes pedir pistas o deshacer.' : 'Sin ayudas. Durante el juego solo comento lo bueno; los errores los vemos al final. Cuenta para tu rating con el maestro.') + '</p></div>' +
+    '<h3>Partida libre</h3>' +
+    '<div class="field"><span class="lbl">Tipo de partida</span>' + segHTML('cmode', COACH_MODES, st.mode) + '<p class="note" style="margin-top:6px">' + modeNote[st.mode] + '</p></div>' +
     '<div class="field"><span class="lbl">Juegas con</span>' + segHTML('ccolor', [['w','Blancas'],['b','Negras'],['r','Al azar']], st.color) + '</div>' +
-    '<div class="field"><span class="lbl">Ritmo</span>' + segHTML('cclock', TIME_CONTROLS, st.clock || 'none') + '</div>' +
+    '<div class="field"><span class="lbl">Ritmo</span>' + segHTML('cclock', TIME_CONTROLS, st.clock || 'none') + '<p class="note" style="margin-top:6px">Para aprender rinden más las partidas lentas con incremento, de 10+5 en adelante.</p></div>' +
     '<label class="check"><input type="checkbox" id="cbar"' + (S.settings.showBar ? ' checked' : '') + '> <span>Mostrar barra de evaluación a un costado del tablero. En una partida seria, deja de contar para tu rating.</span></label>' +
     '<button class="btn primary wide" id="cgo">Jugar contra el maestro</button>' +
     '<h3>Comentarios con Claude (opcional)</h3>' +
@@ -2483,6 +2738,9 @@ function renderCoachHome(){
   const root = side();
   const prefs = () => S.settings.coachPrefs;
   bindSeg(root, 'cmode', v => { prefs().mode = v; save(); renderCoachHome(); });
+  bindSeg(root, 'plen', v => { planState().len = v; save(); renderCoachHome(); });
+  bindSeg(root, 'pstage', v => { planState().stage = v; save(); renderCoachHome(); });
+  $$('[data-step]', root).forEach(b => b.onclick = () => planGo(b.dataset.step, p));
   bindSeg(root, 'ccolor', v => { prefs().color = v; save(); });
   bindSeg(root, 'cclock', v => { prefs().clock = v; save(); });
   $('#cgo').onclick = () => startCoachGame();
@@ -2536,9 +2794,9 @@ function pickTheme(){
   return CAT_THEME[p.ranked[Math.random() < .7 ? 0 : Math.min(1, p.ranked.length-1)][0]] || 'mix';
 }
 function lichessDifficulty(r){ const d = r - 1500; return d < -450 ? 'easiest' : d < -150 ? 'easier' : d < 150 ? 'normal' : d < 450 ? 'harder' : 'hardest'; }
-async function fetchLichess(){
-  const theme = pickTheme();
-  const url = 'https://lichess.org/api/puzzle/next?' + (theme && theme !== 'mix' ? 'angle=' + encodeURIComponent(theme) + '&' : '') + 'difficulty=' + lichessDifficulty(S.puzzles.rating);
+async function fetchLichess(themeOv, diffOv){
+  const theme = themeOv || pickTheme();
+  const url = 'https://lichess.org/api/puzzle/next?' + (theme && theme !== 'mix' ? 'angle=' + encodeURIComponent(theme) + '&' : '') + 'difficulty=' + (diffOv || lichessDifficulty(S.puzzles.rating));
   let r = await fetch(url, {headers:{Accept:'application/json'}});
   if(!r.ok) r = await fetch('https://lichess.org/api/puzzle/daily', {headers:{Accept:'application/json'}});
   if(!r.ok) throw new Error('Lichess respondió ' + r.status);
@@ -2680,26 +2938,34 @@ function pickMine(){
   return mistakePuzzle(pool[pool.length-1]);
 }
 class PuzzleSession{
-  constructor(preset){ this.preset = preset || null; this.p = null; }
+  // opt.plan = {kind:'rev'|'pz', stage}: paso de la sesión de hoy (repaso espaciado o táctica de la etapa)
+  constructor(preset, opt){ this.preset = preset || null; this.p = null; this.opt = opt || {}; }
   enter(){ EvalBar.hide(); this.renderSide(); this.next(this.preset); }
   async next(preset){
     const tok = App.token;
     this.p = null; Board.movable = null; Board.arrows = []; Board.marks = {}; setControls([]);
     setStatus('Buscando puzzle…'); this.renderInfo();
-    let src = App.puzzleSource;
+    const pl = this.opt.plan;
+    let src = pl ? (pl.kind === 'rev' ? 'repaso' : 'plan') : App.puzzleSource;
     if(src === 'mix'){ const hasMine = errorProfile().total > 0; const x = Math.random(); src = hasMine ? (x < .4 ? 'mine' : x < .8 ? 'lichess' : 'chesscom') : (x < .7 ? 'lichess' : 'chesscom'); }
     let p = preset || null, err = null;
-    const order = {lichess:['lichess','chesscom'], chesscom:['chesscom','lichess'], mine:['mine','lichess']}[src];
+    const order = {lichess:['lichess','chesscom'], chesscom:['chesscom','lichess'], mine:['mine','lichess'], repaso:['repaso'], plan:['plan']}[src];
     for(const s of (p ? [] : order)){
       try{
-        if(s === 'mine'){ p = pickMine(); if(!p){ if(App.puzzleSource==='mine'){ err = 'Aún no hay errores analizados. Ve a Mis partidas, carga tu usuario y analiza algunas partidas.'; break; } continue; } }
+        if(s === 'repaso'){
+          const q = srsQueue();
+          if(!q.length){ err = errorProfile().total ? 'No tienes repasos pendientes por hoy. Cada posición vuelve cuando le toca según tu calendario.' : 'Aún no hay errores guardados. Juega contra el maestro o analiza partidas en Mis partidas.'; break; }
+          p = Object.assign(mistakePuzzle(q[0]), {hide:true});
+        }
+        else if(s === 'plan'){ const st = PLAN[pl.stage]; p = Object.assign(await fetchLichess(st.themes[Math.floor(Math.random() * st.themes.length)], st.diff), {hide:true, st:st.id}); }
+        else if(s === 'mine'){ p = pickMine(); if(!p){ if(App.puzzleSource==='mine'){ err = 'Aún no hay errores analizados. Ve a Mis partidas, carga tu usuario y analiza algunas partidas.'; break; } continue; } }
         else if(s === 'lichess') p = await fetchLichess();
         else p = await fetchChessCom();
         if(p) break;
       }catch(e){ console.warn(e); err = 'No se pudo cargar el puzzle (' + e.message + ').'; }
     }
     if(tok !== App.token) return;
-    if(!p){ setStatus(err || 'No hay puzzles disponibles.', 'bad'); setControls([{label:'Reintentar', primary:true, on:()=>this.next()}]); this.renderInfo(); return; }
+    if(!p){ setStatus(err || 'No hay puzzles disponibles.', 'bad'); setControls([{label:'Reintentar', primary:!pl, on:()=>this.next()}, pl && {label:'Volver al Maestro', primary:true, on:()=>switchTab('coach')}]); this.renderInfo(); return; }
     this.load(p);
   }
   load(p){
@@ -2716,7 +2982,8 @@ class PuzzleSession{
     setControls([
       !p.done && {label:'Pista', on:()=>this.hint()},
       !p.done && {label:'Ver solución', on:()=>this.reveal()},
-      {label:'Siguiente puzzle', primary:p.done, on:()=>this.next()},
+      {label:'Siguiente puzzle', primary:p.done && !this.planReached(), on:()=>this.next()},
+      this.opt.plan && {label:'Volver al Maestro', primary:p.done && this.planReached(), on:()=>switchTab('coach')},
       {label:'Analizar', on:()=>{ const fen=p.fen; App.setSession(new AnalysisSession({fen, title:'Análisis del puzzle', backLabel:'Puzzles', back:()=>switchTab('puzzles')})); }},
     ]);
   }
@@ -2764,8 +3031,10 @@ class PuzzleSession{
     const delta = Math.round(k * ((win?1:0) - exp));
     P.rating = Math.max(400, P.rating + delta); p.delta = delta;
     if(win){ P.solved++; P.streak++; P.best = Math.max(P.best, P.streak); } else { P.failed++; P.streak = 0; }
-    P.hist.push({t:Date.now(), r:P.rating, ok:win, src:p.src}); if(P.hist.length > 300) P.hist.shift();
+    P.hist.push(Object.assign({t:Date.now(), r:P.rating, ok:win, src:p.src}, p.st ? {st:p.st} : {})); if(P.hist.length > 300) P.hist.shift();
     P.seen[p.id] = win ? 1 : 0;
+    if(p.src === 'mine' && p.mistake) srsRecord(p.mistake, win);
+    if(this.opt.plan){ const d = planDay(true); if(this.opt.plan.kind === 'rev') d.rev++; else d.pz++; if(planCheck()) toast('Sesión de hoy completa. Racha: ' + planStreak() + (planStreak() === 1 ? ' día.' : ' días.'), 4500); }
     save();
   }
   fail(soft){ const p = this.p; if(!p.failed){ p.failed = true; this.score(false); this.renderInfo(); } }
@@ -2816,14 +3085,18 @@ class PuzzleSession{
     App.busy = false;
     setStatus('Esta era la solución.', 'warn'); this.renderInfo(); this.controls(); this.explain();
   }
+  planReached(){ const pl = this.opt.plan; if(!pl) return false; const d = planDay(), tg = planTargets(); return pl.kind === 'rev' ? d.rev >= tg.rev || !srsQueue().length : d.pz >= tg.pz; }
   renderInfo(){
     const box = $('#pzinfo'); if(!box) return;
     const p = this.p, P = S.puzzles;
+    const pp = $('#plprog'); if(pp && this.opt.plan){ const d = planDay(), tg = planTargets(), rev = this.opt.plan.kind === 'rev', n = rev ? d.rev : d.pz, t = rev ? tg.rev : tg.pz;
+      pp.textContent = this.planReached() ? 'Paso listo por hoy (' + n + ' hechos). Puedes seguir o volver al Maestro.' : 'Hoy: ' + n + ' de ' + t + '.'; }
     $('#pzr').textContent = P.rating; $('#pzs').textContent = P.streak; $('#pzb').textContent = P.best;
     if(!p){ box.innerHTML = ''; return; }
     const srcName = {lichess:'Lichess', chesscom:'Chess.com', mine:'Tus errores'}[p.src];
     let h = '<div class="item"><div class="t">' + esc(p.title) + '</div><div class="s">' + srcName + (p.src!=='mine' ? ', rating ' + p.rating : '') + '</div>';
-    if(p.themes.length) h += '<div class="row">' + p.themes.slice(0,4).map(t => '<span class="tag">' + esc(themeName(t)) + '</span>').join('') + '</div>';
+    if(p.themes.length && (!p.hide || p.done)) h += '<div class="row">' + p.themes.slice(0,4).map(t => '<span class="tag">' + esc(themeName(t)) + '</span>').join('') + '</div>';
+    else if(p.hide) h += '<p class="note" style="margin:6px 0 0">El tema se muestra al terminar, como en una partida real.</p>';
     if(p.url && p.src !== 'mine') h += '<div class="row"><a href="' + esc(p.url) + '" target="_blank" rel="noopener">Ver en ' + srcName + '</a></div>';
     if(p.src === 'mine' && p.url && /^https?:/.test(p.url)) h += '<div class="row"><a href="' + esc(p.url) + '" target="_blank" rel="noopener">Abrir la partida en Chess.com</a></div>';
     if(p.src === 'mine' && p.mistake && (S.played || []).some(g => g.id === p.mistake.gid)) h += '<div class="row"><button class="btn small" id="pzGame">Ver la partida</button></div>';
@@ -2843,16 +3116,28 @@ class PuzzleSession{
   }
   renderSide(){
     const pr = errorProfile();
+    const stats = '<div class="stats"><div class="stat"><span class="big" id="pzr"></span><span>Tu rating de puzzles</span></div><div class="stat"><span class="big" id="pzs"></span><span>Racha</span></div><div class="stat"><span class="big" id="pzb"></span><span>Mejor racha</span></div></div>';
+    const pl = this.opt.plan;
+    if(pl){
+      const st = PLAN[pl.stage];
+      side().innerHTML = '<button class="back" id="bk">← Maestro</button>' +
+        '<h2>' + (pl.kind === 'rev' ? 'Repaso de tus errores' : 'Táctica: ' + esc(st.n)) + '</h2>' +
+        '<p class="lede">' + (pl.kind === 'rev' ? 'Posiciones de tus partidas que te tocan hoy. Si aciertas, vuelven más tarde (1, 3, 7, 14 y 30 días); si fallas, mañana.' : 'Temas de la etapa ' + (pl.stage + 1) + ' mezclados y sin decirte cuál toca, para que se parezca a una partida. Meta: 80% al primer intento.') + '</p>' +
+        '<p class="note" id="plprog"></p>' + stats + '<div id="pzinfo"></div>';
+      $('#bk').onclick = () => switchTab('coach');
+      this.renderInfo(); return;
+    }
+    const due = srsQueue().length;
     side().innerHTML =
-      '<h2>Puzzles</h2>' +
-      '<div class="stats"><div class="stat"><span class="big" id="pzr"></span><span>Tu rating de puzzles</span></div><div class="stat"><span class="big" id="pzs"></span><span>Racha</span></div><div class="stat"><span class="big" id="pzb"></span><span>Mejor racha</span></div></div>' +
-      '<div class="field"><span class="lbl">Origen</span>' + segHTML('src', [['mix','Combinado'],['lichess','Lichess'],['chesscom','Chess.com'],['mine','Mis errores']], App.puzzleSource) + '</div>' +
+      '<h2>Puzzles</h2>' + stats +
+      '<div class="field"><span class="lbl">Origen</span>' + segHTML('src', [['mix','Combinado'],['repaso','Repaso'],['lichess','Lichess'],['chesscom','Chess.com'],['mine','Mis errores']], App.puzzleSource) +
+        (App.puzzleSource === 'repaso' ? '<p class="note" style="margin-top:6px">Repaso espaciado de tus errores: ' + (due ? due + ' pendiente' + (due > 1 ? 's' : '') + ' hoy.' : 'nada pendiente hoy.') + '</p>' : '') + '</div>' +
       '<div class="field"><span class="lbl">Tema (Lichess)</span><select id="theme">' + THEMES.map(([v,l]) => '<option value="'+v+'"'+(v===App.puzzleTheme?' selected':'')+'>'+l+'</option>').join('') + '</select>' +
       '<p class="note" style="margin-top:6px">' + (pr.total ? 'Recomendado usa tus ' + pr.total + ' errores analizados para elegir temas.' : 'Analiza partidas en Mis partidas para que Recomendado y Mis errores se ajusten a ti.') + '</p></div>' +
       (App.mineFocus ? '<p class="note">Enfocado en: ' + esc(App.mineFocus.join(', ')) + '. <button class="btn small" id="clearFocus">Quitar filtro</button></p>' : '') +
       '<div id="pzinfo"></div>';
     const root = side();
-    bindSeg(root, 'src', v => { App.puzzleSource = v; this.next(); });
+    bindSeg(root, 'src', v => { App.puzzleSource = v; this.renderSide(); this.next(); });
     $('#theme').onchange = e => { App.puzzleTheme = e.target.value; if(this.p && this.p.src === 'lichess' && !this.p.idx) this.next(); };
     const cf = $('#clearFocus'); if(cf) cf.onclick = () => { App.mineFocus = null; this.renderSide(); this.renderInfo(); };
     this.renderInfo();
@@ -3212,7 +3497,7 @@ function renderPositionsHome(){
   if(t === 'finales'){
     body = '<p class="lede">Juegas contra Stockfish a máxima fuerza. Cada final tiene un objetivo concreto.</p><ul class="list">' + ENDGAMES.map(e => {
       const done = S.endgames[e.id]; const goal = {mate:'Da mate', win:'Gana', draw:'Entabla'}[e.goal]; const c = e.fen.split(' ')[1];
-      return '<li class="item"><div class="t">' + esc(e.t) + '</div><div class="row" style="margin-top:4px"><span class="tag">' + e.lvl + '</span><span class="tag">' + goal + ' con ' + colorName(c) + '</span>' + (done ? '<span class="tag done">Completado</span>' : '') + '</div><p class="s" style="margin:8px 0 0">' + esc(e.d) + '</p><div class="row"><button class="btn small primary" data-eg="' + e.id + '">Entrenar</button></div></li>';
+      return '<li class="item"><div class="t">' + esc(e.t) + '</div><div class="row" style="margin-top:4px"><span class="tag">' + e.lvl + '</span><span class="tag">' + goal + ' con ' + colorName(c) + '</span>' + (PLAN.some(x => x.endgames.includes(e.id)) ? '<span class="tag">Ruta: etapa ' + (PLAN.findIndex(x => x.endgames.includes(e.id)) + 1) + '</span>' : '') + (done ? '<span class="tag done">Completado</span>' : '') + '</div><p class="s" style="margin:8px 0 0">' + esc(e.d) + '</p><div class="row"><button class="btn small primary" data-eg="' + e.id + '">Entrenar</button></div></li>';
     }).join('') + '</ul>';
   } else if(t === 'aperturas'){
     body = '<p class="lede">Repasa líneas principales. El rival juega la teoría y tú debes recordar la tuya.</p><ul class="list">' + OPENINGS.map(o => {
@@ -3302,6 +3587,7 @@ function renderProgressHome(){
       '<div class="row"><button class="btn primary" id="trMine">Entrenar mis errores</button><button class="btn" id="trTheme">Puzzles: ' + esc((THEMES.find(t => t[0] === CAT_THEME[top[0]]) || [0,'Mezcla'])[1]) + '</button></div>'
       : '<p class="note">Aún no hay partidas analizadas.</p>') +
     '<h3>Finales y aperturas</h3><p class="note">' + Object.keys(S.endgames).length + ' de ' + ENDGAMES.length + ' finales completados. ' + Object.keys(S.openings).length + ' líneas de apertura repasadas.</p>' +
+    (() => { const si = planStage(), st = PLAN[si], ck = stageChecks(si), ts = threatStats(), rs = srsStats(), k = planStreak(); return '<h3>Ruta a 1500</h3><p class="note">Etapa ' + (si + 1) + ': ' + esc(st.n) + ' (' + esc(st.range) + '). ' + ck.filter(c => c.ok).length + ' de ' + ck.length + ' metas listas. ' + (k ? 'Racha de sesiones: ' + k + (k === 1 ? ' día. ' : ' días. ') : '') + (ts.n ? 'Amenazas vistas: ' + ts.pct + '%. ' : '') + (rs.total ? 'Repaso espaciado: ' + rs.mastered + ' de ' + rs.total + ' errores dominados.' : '') + '</p>'; })() +
     '<h3>Sincronizar entre dispositivos</h3><div id="syncBox"></div>' +
     '<h3>Tus datos</h3><p class="note">Todo se guarda en este navegador' + (Sync.on() ? ' y se sincroniza con tu gist' : '') + '. También puedes exportar un respaldo en archivo.</p>' +
     '<div class="row"><button class="btn" id="exp">Exportar respaldo</button><button class="btn" id="imp">Importar respaldo</button><button class="btn" id="rst">Borrar todo</button><input type="file" id="impf" accept="application/json" hidden></div>';
@@ -3369,7 +3655,8 @@ function syncKey(st){ const c = stripForSync(st); delete c.meta; return canon(c)
 function isFresh(st){
   return !st.username && !(st.games || []).length && !(st.played || []).length && (st.ladder && st.ladder.unlocked || 1) <= 1 &&
     !((st.puzzles && st.puzzles.hist) || []).length && !Object.keys(st.analyses || {}).length &&
-    !((st.coach && st.coach.games) || []).length && !Object.keys(st.endgames || {}).length;
+    !((st.coach && st.coach.games) || []).length && !Object.keys(st.endgames || {}).length &&
+    !Object.keys(st.srs || {}).length && !((st.threats && st.threats.hist) || []).length && !Object.keys((st.plan && st.plan.days) || {}).length;
 }
 function mergeState(L, Rin){
   const R = Object.assign(defaults(), JSON.parse(JSON.stringify(Rin || {})));
@@ -3422,6 +3709,24 @@ function mergeState(L, Rin){
       rec:{w:Math.max(cl.rec.w, cr.rec.w), d:Math.max(cl.rec.d, cr.rec.d), l:Math.max(cl.rec.l, cr.rec.l)},
       serious:Math.max(cl.serious || 0, cr.serious || 0), games};
   }
+  // Ruta a 1500: por día se queda el avance mayor; las preferencias de la ruta siguen la regla de los ajustes
+  const pa = L.plan || {}, pb = R.plan || {}, days = {};
+  for(const k of new Set([...Object.keys(pa.days || {}), ...Object.keys(pb.days || {})])){
+    const a = (pa.days || {})[k] || {}, b = (pb.days || {})[k] || {};
+    days[k] = {rev:Math.max(a.rev || 0, b.rev || 0), pz:Math.max(a.pz || 0, b.pz || 0), eg:!!(a.eg || b.eg), game:a.game || b.game || null, rv:!!(a.rv || b.rv), ok:!!(a.ok || b.ok)};
+  }
+  const pk = Object.keys(days).sort(); pk.slice(0, Math.max(0, pk.length - 60)).forEach(k => delete days[k]);
+  const pref = fresh ? Object.assign({}, pa, pb) : Object.assign({}, pb, pa);
+  out.plan = {len:pref.len || 'corta', stage:pref.stage == null ? 'auto' : pref.stage, days};
+  // Repaso espaciado: por posición gana la tarjeta repasada más recientemente
+  out.srs = {};
+  for(const k of new Set([...Object.keys(L.srs || {}), ...Object.keys(R.srs || {})])){
+    const a = (L.srs || {})[k], b = (R.srs || {})[k];
+    out.srs[k] = JSON.parse(JSON.stringify(a && b ? ((b.last || 0) > (a.last || 0) ? b : a) : (a || b)));
+  }
+  // Revisión de amenazas: historial unido
+  const th = {}; [...((L.threats || {}).hist || []), ...((R.threats || {}).hist || [])].forEach(h => th[h.t + ':' + h.k] = h);
+  out.threats = {hist:Object.values(th).sort((a,b) => a.t - b.t).slice(-300)};
   // Ajustes: en un dispositivo nuevo se copian los del otro; si no, mandan los locales
   const keepSync = L.settings.sync, keepClaude = L.settings.claude;
   out.settings = fresh ? Object.assign({}, L.settings, R.settings) : Object.assign({}, R.settings, L.settings);
