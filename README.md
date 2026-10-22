@@ -16,7 +16,7 @@ Dirección alternativa: https://ferhuca.github.io/Casilla/
 
 ## Cómo abrirla
 
-- **En línea (recomendado):** entra a https://casilla.io/ y espera a que el indicador de arriba a la derecha diga **Stockfish 10 listo**. Tarda unos segundos la primera vez.
+- **En línea (recomendado):** entra a https://casilla.io/ y espera a que el indicador de arriba a la derecha diga **Motor listo**. Tarda unos segundos la primera vez.
 - **Dirección alternativa:** https://ferhuca.github.io/Casilla/ tiene la misma versión. Algunas redes no logran conectarse con GitHub Pages; si una dirección no carga, usa la otra. Cada dirección guarda su propio progreso, así que conviene activar la [sincronización](#sincronizar-entre-computadora-y-celular) en la que uses.
 - **En el celular:** abre el enlace en Safari (iPhone) o Chrome (Android) y usa **Añadir a pantalla de inicio** para tenerla como un ícono de app. La interfaz está adaptada a pantallas desde 360 px:
   - El tablero ocupa todo el ancho y los relojes quedan arriba y abajo de él.
@@ -28,7 +28,7 @@ Para mover una pieza, arrástrala, o toca la pieza y luego la casilla de destino
 
 ## Qué puedes hacer
 
-La app tiene seis pestañas (Escalera, Maestro, Puzzles, Posiciones, Mis partidas y Progreso) y un botón de **Apariencia** arriba a la derecha.
+La app tiene seis pestañas (Escalera, Maestro, Puzzles, Posiciones, Partidas y Progreso) y un botón de **Apariencia** arriba a la derecha.
 
 ### Escalera
 Ocho niveles, desde Peón (~600 ELO) hasta Gran Maestro (2700+). Gana a un nivel sin ayudas para desbloquear el siguiente. Los ELO son aproximados: el motor se debilita limitando su nivel de habilidad y su profundidad de cálculo.
@@ -109,7 +109,7 @@ El tema **Recomendado para ti** elige puzzles según tus errores más frecuentes
 - **De mis partidas:** tus errores más frecuentes agrupados por tipo. Puedes resolverlos como puzzle o volver a jugar desde esa posición.
 - **FEN:** pega cualquier posición para jugarla o analizarla.
 
-### Mis partidas
+### Partidas
 **Jugadas en Casilla:** cada partida de la escalera, contra el maestro o desde una posición entra a esta lista cuando termina su evaluación, con el resultado, tu precisión y tus errores. Tócala para ver otra vez la evaluación completa, al instante y sin volver a calcularla. Sus errores ya están en tus puzzles de **Mis errores**.
 
 **Chess.com:**
@@ -200,7 +200,7 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
 
 ## Créditos
 
-- Motor: [Stockfish](https://stockfishchess.org/) 10, compilado para navegador por [stockfish.js](https://github.com/lichess-org/stockfish.js) (GPLv3).
+- Motor: [Stockfish](https://stockfishchess.org/) 19 (versión lite de un hilo), compilado para navegador por [stockfish.js](https://github.com/nmrugg/stockfish.js) (GPLv3). Si no carga, la app usa Stockfish 10 de [lichess-org/stockfish.js](https://github.com/lichess-org/stockfish.js) (GPLv3).
 - Piezas, tomadas de [Lichess](https://github.com/lichess-org/lila):
   - Clásicas, de Colin M.L. Burnett (GPLv2+).
   - Merida, de Armando Hernández Marroquín (GPLv2+).
@@ -209,6 +209,7 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
   - Chessnut, de [Alexis Luengas](https://github.com/LexLuengas/chessnut-pieces) (Apache 2.0).
   - Pixel, de therealqtpi (AGPLv3+).
   - Retro, de [RhosGFX](https://rhosgfx.itch.io/) (CC0).
+- Fuentes de interfaz: Source Sans 3 y Source Serif 4, de Adobe, incluidas en `fonts/` (SIL Open Font License).
 - Fuentes pixel: Press Start 2P y Pixelify Sans, de Google Fonts (SIL Open Font License).
 - Reglas de ajedrez: [chess.js](https://github.com/jhlywa/chess.js).
 - Puzzles: API pública de [Lichess](https://lichess.org) y de [Chess.com](https://www.chess.com/news/view/published-data-api).

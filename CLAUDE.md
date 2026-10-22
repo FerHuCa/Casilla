@@ -38,8 +38,8 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 | Arranque | `boot()` |
 
 Dependencias externas (por CDN, sin instalar nada):
-- chess.js 0.10.3 y stockfish.js 10.0.2 desde cdnjs. Stockfish corre en un Web Worker creado desde un Blob; el loader WASM se parchea para apuntar al CDN y cae a asm.js si falla.
-- Google Fonts (incluye Press Start 2P y Pixelify Sans para el estilo 8 bits).
+- chess.js 0.10.3 desde cdnjs. Stockfish 19 lite de un hilo (npm `stockfish` 19.0.1) desde jsDelivr, en un Web Worker creado desde un Blob; la ruta del .wasm va en el hash del worker. Si falla, cae a stockfish.js 10.0.2 de cdnjs (WASM y luego asm.js). `?sf=10` fuerza el 10.
+- Fuentes por defecto autoalojadas en `fonts/` (Source Sans 3 y Source Serif 4). Las opcionales (Moderna, Libro, Técnica, Pixel) se piden a Google Fonts solo al elegirlas (`LOOK_FONTS`).
 - APIs: Chess.com PubAPI (con fallback JSONP), Lichess `/api/puzzle/next`, GitHub Gists (sync), Anthropic API (Maestro con Claude, opcional).
 
 ### Apariencia
@@ -79,7 +79,7 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `evalt.py` | Evaluación al final de la partida |
 | `evalnav.py` | Recorrer la evaluación jugada por jugada: orden, comentarios y que nada regrese el tablero solo |
 | `claude.py` | Conexión con Claude: encabezados, pensamiento apagado por modelo, reintento y errores (API simulada) |
-| `historial.py` | Partidas de Casilla en Mis partidas, evaluación en segundo plano, puzzles con sus errores, sync |
+| `historial.py` | Partidas de Casilla en Partidas, evaluación en segundo plano, puzzles con sus errores, sync |
 | `bar.py` | Barra de evaluación |
 | `mobile.py` | Auditoría de móvil (desbordes, tamaños táctiles) |
 | `sync.py` | Sincronización por gist |
