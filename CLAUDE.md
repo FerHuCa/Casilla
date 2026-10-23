@@ -35,7 +35,15 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 | Pantallas de inicio | `renderLadderHome`, `renderCoachHome`, `renderGamesHome`, `renderPositionsHome`, `renderProgressHome`, `HOMES` |
 | Apariencia | `LOOK`, `PRESETS`, `migrateLook`, `lookPref`, `applyLook`, `renderLook` |
 | Sincronización | `SYNC_FILE` (`casilla-progreso.json` en un gist), `canon`, `syncKey`, `mergeState`, `Sync` |
-| Arranque | `boot()` |
+| Arranque | `boot()`, `Offline` (registra `sw.js`) |
+
+### Sin conexión (sw.js)
+
+`sw.js` es el service worker. Solo se registra por http/https (`Offline.start()` en `boot()`), no en file://. En `install` precachea `LOCAL` (sitio, fuentes, logo, favicons, íconos) y `CDN` (chess.js, Stockfish 19 lite .js/.wasm, Stockfish 10 .js/.wasm.js/.wasm). Estrategias: navegación e `index.html` con red primero (sin red, la copia guardada); lo demás del mismo origen y de cdnjs/jsDelivr con caché primero, guardando lo nuevo; APIs (Chess.com, Lichess, Anthropic, GitHub) pasan directo. La clave de caché ignora hash y query (el worker de Stockfish 19 lleva la ruta del .wasm en el hash).
+
+**Al cambiar sw.js o un archivo precacheado, sube `VERSION`** en sw.js: crea `casilla-<VERSION>`, se activa sola con `skipWaiting` + `clients.claim` y `activate` borra las cachés `casilla-*` viejas. El registro usa `updateViaCache:'none'` y al volver la red (`online`) llama `reg.update()`. Si agregas una fuente, un ícono o cambias la versión de un CDN, agrégalo a `LOCAL`/`CDN`.
+
+IA sin red: `ClaudeAI.ready()` exige `navigator.onLine`, así que sin red la IA se comporta como apagada (frases integradas) y vuelve sola. No hay UI nueva para esto todavía (pendiente de mockup). Caché medida: unos 5.2 MB en 28 archivos (`navigator.storage.estimate` reporta unos 7.8 MB en Chromium). Pruebas en `offline.py`.
 
 Dependencias externas (por CDN, sin instalar nada):
 - chess.js 0.10.3 desde cdnjs. Stockfish 19 lite de un hilo (npm `stockfish` 19.0.1) desde jsDelivr, en un Web Worker creado desde un Blob; la ruta del .wasm va en el hash del worker. Si falla, cae a stockfish.js 10.0.2 de cdnjs (WASM y luego asm.js). `?sf=10` fuerza el 10.
@@ -83,6 +91,7 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `bar.py` | Barra de evaluación |
 | `mobile.py` | Auditoría de móvil (desbordes, tamaños táctiles) |
 | `sync.py` | Sincronización por gist |
+| `offline.py` | Service worker por http: precache, modo avión a 390 px (`context.set_offline`), Escalera, Partidas y análisis sin red, respaldo Stockfish 10, IA apagada sin red y de vuelta, versión nueva que reemplaza a la vieja |
 | `look.py`, `relieve.py`, `bits.py`, `migracion.py` | Apariencia por presets, estilo relieve y 8 bits, migración de preferencias |
 | `motor.py` | Stockfish 19 por defecto y `?sf=10` |
 | `exp.py` | Explicaciones de errores |

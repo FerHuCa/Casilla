@@ -11,7 +11,7 @@ Dirección alternativa: https://ferhuca.github.io/Casilla/
 ## Qué necesitas
 
 - Un navegador moderno: Chrome, Edge, Firefox o Safari, en computadora o celular.
-- Conexión a internet. La app descarga el motor Stockfish y la librería de ajedrez al abrirse, y los puzzles y partidas vienen de Lichess y Chess.com.
+- Conexión a internet la primera vez. La app descarga el motor Stockfish y la librería de ajedrez al abrirse, y los puzzles y partidas vienen de Lichess y Chess.com. Después funciona [sin conexión](#sin-conexión).
 - Opcional: una clave de la API de Anthropic, si quieres que Claude escriba los comentarios del maestro.
 
 ## Cómo abrirla
@@ -23,6 +23,10 @@ Dirección alternativa: https://ferhuca.github.io/Casilla/
   - Debajo del tablero aparecen el estado de la partida, el último comentario del maestro y sus avisos con los botones **Pensar otra vez** y **Jugarla igual**. Al terminar aparece **Ver evaluación**.
   - El resto del panel (lista de jugadas, explicaciones, opciones) queda más abajo; desliza para verlo. Los botones que muestran una línea en el tablero te regresan a él.
 - **Sin publicar, en tu computadora:** descarga `index.html` de este repositorio, guárdalo en una carpeta fija y ábrelo con doble clic. En el celular este método no es confiable; usa el enlace.
+
+### Sin conexión
+
+Después de abrir casilla.io (o la dirección de GitHub Pages) una vez con internet, la app queda guardada en tu navegador y abre sin señal, por ejemplo en modo avión. Sin conexión puedes jugar contra el motor en la Escalera, analizar posiciones y revisar y analizar las partidas que ya cargaste en Partidas. Lo que depende de internet no funciona hasta que vuelva la red: cargar partidas nuevas de Chess.com, los puzzles de Lichess y Chess.com, la sincronización y los comentarios de Claude. El maestro sigue comentando con sus frases integradas y Claude vuelve solo al reconectar. Cuando hay red, la app se actualiza sola a la versión más reciente. El modo sin conexión no aplica si abres `index.html` con doble clic.
 
 Para mover una pieza, arrástrala, o toca la pieza y luego la casilla de destino. Al coronar, elige la pieza en el selector que aparece sobre el tablero.
 
@@ -198,7 +202,7 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
 - **La sincronización falla:** en Progreso aparece el motivo. Lo más común es un token vencido o sin permiso **gist**; crea uno nuevo con el enlace de arriba y pégalo en **Nuevo token de GitHub**.
 - **Claude no responde:** en la pestaña Maestro pulsa **Probar conexión**; el mensaje dice el motivo. Lo más común es una clave mal copiada o una cuenta de Anthropic sin saldo. Mientras tanto, el maestro sigue comentando con sus frases integradas.
 - **La evaluación tarda:** es normal en partidas largas o en equipos lentos. Puedes salir y volver; si empiezas otra partida, la evaluación anterior se cancela.
-- **Ves una versión vieja de la app:** recarga forzando con Ctrl+Shift+R, o Cmd+Shift+R en Mac. En el celular, cierra la pestaña o el ícono de la pantalla de inicio y vuelve a abrirlo.
+- **Ves una versión vieja de la app:** con internet la app se actualiza sola al abrirla; si aun así ves la anterior, recarga forzando con Ctrl+Shift+R, o Cmd+Shift+R en Mac. En el celular, cierra la pestaña o el ícono de la pantalla de inicio y vuelve a abrirlo.
 - **En el celular no ves el resultado o la explicación:** están en el panel debajo del tablero; desliza hacia abajo.
 
 ## Créditos

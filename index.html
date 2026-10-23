@@ -1874,7 +1874,9 @@ class Coach{
 const CLAUDE_MODELS = [['claude-haiku-5-5','Claude Haiku 5.5: rápido y económico'],['claude-sonnet-5-5','Claude Sonnet 5.5: explicaciones más finas']];
 const ClaudeAI = {
   cfg(){ return Object.assign({on:false, key:'', model:'claude-haiku-5-5'}, S.settings.claude || {}); },
-  ready(){ const c = this.cfg(); return !!(c.on && c.key); },
+  // Sin conexión la IA se apaga sola (mismo camino que con la IA desactivada) y vuelve al regresar la red
+  online(){ return typeof navigator === 'undefined' || navigator.onLine !== false; },
+  ready(){ const c = this.cfg(); return !!(c.on && c.key && this.online()); },
   // Haiku 5.5 y Sonnet 5.5 piensan por defecto y ese pensamiento cuenta dentro de max_tokens: con los límites
   // cortos de estos comentarios la respuesta podía quedar cortada o vacía. Se apaga el pensamiento previo.
   noThink:{'claude-haiku-5-5':{type:'disabled'}, 'claude-sonnet-5-5':{type:'between_tools'}},
@@ -4151,7 +4153,20 @@ function boot(){
   switchTab('ladder');
   Engine.init();
   Sync.start();
+  Offline.start();
 }
+/* ---------- Sin conexión: service worker ----------
+   Registra sw.js (solo por http/https). Sin UI nueva: la IA se apaga sola con ClaudeAI.ready() y
+   al volver la red se busca una versión nueva del service worker. */
+const Offline = {
+  reg:null,
+  start(){
+    window.addEventListener('online', () => { if(this.reg) this.reg.update().catch(() => {}); });
+    if(!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+    navigator.serviceWorker.register('sw.js', {updateViaCache:'none'})
+      .then(r => { this.reg = r; }).catch(e => console.warn('Service worker', e));
+  }
+};
 boot();
 </script>
 </body>
