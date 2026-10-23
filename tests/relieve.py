@@ -6,7 +6,7 @@ with sync_playwright() as p:
         pg.on('pageerror',lambda e: print('PAGEERROR',e))
         pg.goto(APP); pg.wait_for_function("Engine.ready",timeout=60000)
         for th,bd in [('carbon','madera'),('papel','piedra')]:
-            pg.evaluate(f"S.settings.look={{theme:'{th}',font:'clasica',board:'{bd}',pieces:'cburnett',style:'relieve'}}; saveLocal(); applyLook(); switchTab('ladder')")
+            pg.evaluate(f"S.settings.look={{preset:'relieve',mode:'{'claro' if th=='papel' else 'oscuro'}'}}; saveLocal(); applyLook(); switchTab('ladder')")
             time.sleep(.3); pg.screenshot(path=OUT+f'r_{tag}_{th}_home.png')
         pg.click('[data-seg=clock] button[data-v="300+0"]'); pg.click('#go'); time.sleep(.5)
         pg.evaluate("App.session.onUserMove({from:'e2',to:'e4'})"); pg.wait_for_function("App.game.history().length>=2",timeout=10000); time.sleep(.5)

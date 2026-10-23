@@ -16,7 +16,7 @@ Dirección alternativa: https://ferhuca.github.io/Casilla/
 
 ## Cómo abrirla
 
-- **En línea (recomendado):** entra a https://casilla.io/ y espera a que el indicador de arriba a la derecha diga **Stockfish 10 listo**. Tarda unos segundos la primera vez.
+- **En línea (recomendado):** entra a https://casilla.io/ y espera a que el indicador de arriba a la derecha diga **Motor listo**. Tarda unos segundos la primera vez.
 - **Dirección alternativa:** https://ferhuca.github.io/Casilla/ tiene la misma versión. Algunas redes no logran conectarse con GitHub Pages; si una dirección no carga, usa la otra. Cada dirección guarda su propio progreso, así que conviene activar la [sincronización](#sincronizar-entre-computadora-y-celular) en la que uses.
 - **En el celular:** abre el enlace en Safari (iPhone) o Chrome (Android) y usa **Añadir a pantalla de inicio** para tenerla como un ícono de app. La interfaz está adaptada a pantallas desde 360 px:
   - El tablero ocupa todo el ancho y los relojes quedan arriba y abajo de él.
@@ -28,7 +28,7 @@ Para mover una pieza, arrástrala, o toca la pieza y luego la casilla de destino
 
 ## Qué puedes hacer
 
-La app tiene seis pestañas (Escalera, Maestro, Puzzles, Posiciones, Mis partidas y Progreso) y un botón de **Apariencia** arriba a la derecha.
+La app tiene seis pestañas (Escalera, Maestro, Puzzles, Posiciones, Partidas y Progreso) y un botón de **Apariencia** arriba a la derecha.
 
 ### Escalera
 Ocho niveles, desde Peón (~600 ELO) hasta Gran Maestro (2700+). Gana a un nivel sin ayudas para desbloquear el siguiente. Los ELO son aproximados: el motor se debilita limitando su nivel de habilidad y su profundidad de cálculo.
@@ -109,7 +109,7 @@ El tema **Recomendado para ti** elige puzzles según tus errores más frecuentes
 - **De mis partidas:** tus errores más frecuentes agrupados por tipo. Puedes resolverlos como puzzle o volver a jugar desde esa posición.
 - **FEN:** pega cualquier posición para jugarla o analizarla.
 
-### Mis partidas
+### Partidas
 **Jugadas en Casilla:** cada partida de la escalera, contra el maestro o desde una posición entra a esta lista cuando termina su evaluación, con el resultado, tu precisión y tus errores. Tócala para ver otra vez la evaluación completa, al instante y sin volver a calcularla. Sus errores ya están en tus puzzles de **Mis errores**.
 
 **Chess.com:**
@@ -122,14 +122,17 @@ No pide contraseña: solo lee tus datos públicos. Tus partidas en Chess.com ya 
 Al abrir una partida ves cada jugada marcada como imprecisión, error o error grave, tu precisión aproximada y tus errores clasificados: pieza colgada, táctica no vista, mate no visto, permitió mate o error posicional. El botón **Evaluación a fondo** abre la misma evaluación completa que recibes al terminar una partida en la app.
 
 ### Apariencia
-El botón **Apariencia** abre un panel para personalizar la app. Los cambios se ven al instante:
-- **Estilo:** Plano (el original); Relieve, con botones que se hunden al presionarlos, paneles con profundidad, tablero con marco y piezas con sombra; u 8 bits, con bordes gruesos y sombras sólidas de videojuego retro.
-- **Tema:** Carbón, Papel (claro), Pizarra, Cuero o Arcade.
-- **Fuente:** Clásica, Moderna, Libro, Técnica o Pixel.
-- **Tablero:** Gris piedra, Madera, Nogal, Glaciar, Club o Arcade.
-- **Piezas:** Clásicas, Merida, Celtic, Minimal, Chessnut, Pixel o Retro.
+El botón **Apariencia** abre un panel con 8 estilos completos. Cada uno combina tema, tablero, piezas, letra y estilo de botones, y el cambio se ve al instante:
+- **Clásico** (por defecto): sobrio, tablero gris piedra y piezas clásicas. Tiene modo claro u oscuro.
+- **Madera:** papel claro, tablero de madera, piezas Merida y letra de libro.
+- **Pizarra:** oscuro y frío, tablero glaciar, piezas Minimal y letra moderna.
+- **Cuero:** cálido y oscuro, tablero de nogal y piezas Celtic.
+- **Club:** papel claro, tablero verde de torneo, piezas Chessnut y letra técnica.
+- **Relieve:** botones que se hunden, paneles con profundidad y tablero con marco. Tiene modo claro u oscuro.
+- **8 bits:** todo retro, con colores, letra, piezas y tablero pixel.
+- **Arcade:** colores arcade con piezas Retro, sin letra pixel.
 
-El botón **Todo en 8 bits** aplica de un toque el estilo, tema, fuente, tablero y piezas retro.
+**Volver a Clásico** deja la apariencia por defecto. Si usabas una combinación propia en una versión anterior, la app elige el estilo más parecido la primera vez que abres la nueva versión.
 
 ### Progreso
 Tus niveles superados, la evolución de tu rating de puzzles, tus errores más comunes con una recomendación de qué entrenar, tus finales y aperturas repasados, tu avance en la ruta a 1500, la sincronización entre dispositivos y la opción de exportar o importar un respaldo.
@@ -200,7 +203,7 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
 
 ## Créditos
 
-- Motor: [Stockfish](https://stockfishchess.org/) 10, compilado para navegador por [stockfish.js](https://github.com/lichess-org/stockfish.js) (GPLv3).
+- Motor: [Stockfish](https://stockfishchess.org/) 19 (versión lite de un hilo), compilado para navegador por [stockfish.js](https://github.com/nmrugg/stockfish.js) (GPLv3). Si no carga, la app usa Stockfish 10 de [lichess-org/stockfish.js](https://github.com/lichess-org/stockfish.js) (GPLv3).
 - Piezas, tomadas de [Lichess](https://github.com/lichess-org/lila):
   - Clásicas, de Colin M.L. Burnett (GPLv2+).
   - Merida, de Armando Hernández Marroquín (GPLv2+).
@@ -209,7 +212,8 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
   - Chessnut, de [Alexis Luengas](https://github.com/LexLuengas/chessnut-pieces) (Apache 2.0).
   - Pixel, de therealqtpi (AGPLv3+).
   - Retro, de [RhosGFX](https://rhosgfx.itch.io/) (CC0).
-- Fuentes pixel: Press Start 2P y Pixelify Sans, de Google Fonts (SIL Open Font License).
+- Fuentes: Source Sans 3 y Source Serif 4 (Adobe), Manrope, Literata, IBM Plex Sans y Mono, incluidas en `fonts/` (SIL Open Font License).
+- Fuentes pixel: Press Start 2P y Pixelify Sans, incluidas en `fonts/` (SIL Open Font License).
 - Reglas de ajedrez: [chess.js](https://github.com/jhlywa/chess.js).
 - Puzzles: API pública de [Lichess](https://lichess.org) y de [Chess.com](https://www.chess.com/news/view/published-data-api).
 - Partidas: API pública de Chess.com.

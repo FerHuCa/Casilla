@@ -33,18 +33,18 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 | Historial de Casilla | `S.played` (partidas jugadas aquí, se guardan al terminar su evaluación), `openPlayed`, `playedHTML`; el análisis con `best` y `pv` vive en `S.analyses[gid]` |
 | Chess.com y Lichess | `jsonp`, `Analyzer`, `lichessDifficulty`, `mistakePuzzle` |
 | Pantallas de inicio | `renderLadderHome`, `renderCoachHome`, `renderGamesHome`, `renderPositionsHome`, `renderProgressHome`, `HOMES` |
-| Apariencia | `LOOK`, `LOOK_DEFAULT`, `applyLook`, `renderLook` |
+| Apariencia | `LOOK`, `PRESETS`, `migrateLook`, `lookPref`, `applyLook`, `renderLook` |
 | Sincronización | `SYNC_FILE` (`casilla-progreso.json` en un gist), `canon`, `syncKey`, `mergeState`, `Sync` |
 | Arranque | `boot()` |
 
 Dependencias externas (por CDN, sin instalar nada):
-- chess.js 0.10.3 y stockfish.js 10.0.2 desde cdnjs. Stockfish corre en un Web Worker creado desde un Blob; el loader WASM se parchea para apuntar al CDN y cae a asm.js si falla.
-- Google Fonts (incluye Press Start 2P y Pixelify Sans para el estilo 8 bits).
+- chess.js 0.10.3 desde cdnjs. Stockfish 19 lite de un hilo (npm `stockfish` 19.0.1) desde jsDelivr, en un Web Worker creado desde un Blob; la ruta del .wasm va en el hash del worker. Si falla, cae a stockfish.js 10.0.2 de cdnjs (WASM y luego asm.js). `?sf=10` fuerza el 10.
+- Todas las fuentes van autoalojadas en `fonts/` (OFL). Las de los presets no Clásicos se declaran con @font-face y el navegador solo las baja cuando se usan. Ya no se usa Google Fonts.
 - APIs: Chess.com PubAPI (con fallback JSONP), Lichess `/api/puzzle/next`, GitHub Gists (sync), Anthropic API (Maestro con Claude, opcional).
 
 ### Apariencia
 
-Se controla con atributos en `<html>`: `data-theme`, `data-font`, `data-board`, `data-pieces`, `data-style` (plano, relieve, bits). Cada opción tiene su bloque CSS `html[data-...=valor]` y una entrada en `LOOK`. Para agregar una opción: CSS con variables + entrada en `LOOK` + crédito en el pie y en el README si trae piezas o fuentes de terceros. Las piezas van embebidas como SVG en data URIs.
+El usuario elige uno de 8 presets (`PRESETS`). En `S.settings.look` se guarda solo `{preset, mode}`; `mode` (claro u oscuro) aplica solo a Clásico y Relieve. El formato viejo `{theme, font, board, pieces, style}` pasa por `migrateLook` al cargar, al importar un respaldo y al recibir datos del gist (spec B, sección 11; pruebas en `migracion.py`). `applyLook` traduce el preset a atributos en `<html>`: `data-theme`, `data-font`, `data-board`, `data-pieces`, `data-style` (plano, relieve, bits). Cada opción tiene su bloque CSS `html[data-...=valor]` y una entrada en `LOOK`. Para agregar una opción: CSS con variables + entrada en `LOOK` + crédito en el pie y en el README si trae piezas o fuentes de terceros. Las piezas van embebidas como SVG en data URIs.
 
 ## Reglas que no se rompen
 
@@ -79,14 +79,15 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `evalt.py` | Evaluación al final de la partida |
 | `evalnav.py` | Recorrer la evaluación jugada por jugada: orden, comentarios y que nada regrese el tablero solo |
 | `claude.py` | Conexión con Claude: encabezados, pensamiento apagado por modelo, reintento y errores (API simulada) |
-| `historial.py` | Partidas de Casilla en Mis partidas, evaluación en segundo plano, puzzles con sus errores, sync |
+| `historial.py` | Partidas de Casilla en Partidas, evaluación en segundo plano, puzzles con sus errores, sync |
 | `bar.py` | Barra de evaluación |
 | `mobile.py` | Auditoría de móvil (desbordes, tamaños táctiles) |
 | `sync.py` | Sincronización por gist |
-| `look.py`, `relieve.py`, `bits.py` | Apariencia, estilo relieve y 8 bits |
+| `look.py`, `relieve.py`, `bits.py`, `migracion.py` | Apariencia por presets, estilo relieve y 8 bits, migración de preferencias |
+| `motor.py` | Stockfish 19 por defecto y `?sf=10` |
 | `exp.py` | Explicaciones de errores |
 
-Variables opcionales: `CASILLA_APP` (ruta del HTML, por defecto `../index.html`), `CASILLA_DEPS`, `CASILLA_OUT` (capturas, por defecto `tests/out/`). Revisa las capturas en escritorio y en móvil después de cambios visuales. Un `ERR_FAILED` en la consola por Google Fonts es esperado en el sandbox.
+Variables opcionales: `CASILLA_APP` (ruta del HTML, por defecto `../index.html`), `CASILLA_DEPS`, `CASILLA_OUT` (capturas, por defecto `tests/out/`). Revisa las capturas en escritorio y en móvil después de cambios visuales. 
 
 Chequeo rápido de sintaxis del script:
 ```
