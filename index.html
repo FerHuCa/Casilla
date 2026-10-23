@@ -104,6 +104,8 @@ html[data-board=contraste]{--sqL:#FFFFFF;--sqD:#5E5E5E}
 /* Texturas de lila (los autores de lila y pirouetti, AGPLv3+; ver board/LICENSE.md). El JPG solo se pide con el tablero activo. */
 html[data-board=arce]{--sqL:#E8CFA0;--sqD:#B78A55}
 html[data-board=veteado]{--sqL:#D9B98C;--sqD:#8E6440}
+/* Resaltes más marcados en los tableros nuevos, donde el amarillo de siempre se pierde (medido en tests/apariencia_contraste.py) */
+html[data-board=arena],html[data-board=oliva],html[data-board=tinta],html[data-board=arce],html[data-board=veteado]{--hlLast:rgba(150,170,30,.55);--hlSel:rgba(35,95,55,.6)}
 html[data-board=arce] .board,html[data-board=veteado] .board{background-size:100% 100%;background-color:var(--sqD)}
 html[data-board=arce] .board{background-image:url('board/maple.jpg')}
 html[data-board=veteado] .board{background-image:url('board/wood4.jpg')}
@@ -154,8 +156,8 @@ main{display:grid;grid-template-columns:auto minmax(320px,400px);gap:48px;paddin
 .sq{position:relative}
 .sq.l{background:var(--sqL)} .sq.d{background:var(--sqD)}
 .sq.last::before,.sq.sel::before,.sq.mk-good::before,.sq.mk-bad::before,.sq.mk-hint::before{content:'';position:absolute;inset:0}
-.sq.last::before{background:rgba(205,190,120,.45)}
-.sq.sel::before{background:rgba(110,140,90,.6)}
+.sq.last::before{background:var(--hlLast,rgba(205,190,120,.45))}
+.sq.sel::before{background:var(--hlSel,rgba(110,140,90,.6))}
 .sq.mk-good::before{background:rgba(110,160,95,.6)}
 .sq.mk-bad::before{background:rgba(190,90,70,.6)}
 .sq.mk-hint::before{box-shadow:inset 0 0 0 3px #3F6C9E}
