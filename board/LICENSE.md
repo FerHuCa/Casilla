@@ -1,6 +1,6 @@
 # Texturas de tablero en board/
 
-Copiadas sin cambios de [lichess-org/lila](https://github.com/lichess-org/lila), carpeta `public/images/board/`, commit `02284e0225e6ec646c17eb0feff3e8fc8b0b317d` (23 oct 2026).
+Tomadas de [lichess-org/lila](https://github.com/lichess-org/lila), carpeta `public/images/board/`, commit `02284e0225e6ec646c17eb0feff3e8fc8b0b317d` (23 oct 2026).
 
 | Archivo | Nombre en Casilla | Autores | Licencia | Origen en lila |
 |---|---|---|---|---|
