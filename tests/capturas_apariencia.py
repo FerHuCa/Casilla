@@ -34,4 +34,14 @@ with sync_playwright() as p:
             shot(pg,'tablero-%s-resaltes'%bid)
             pg.evaluate("Board.sel=null; Board.render()")
         ctx.close()
+        # Letra técnica (Club y Arcade) y resaltes reforzados el 23 oct: selección en Club sobre casilla oscura (d2),
+        # última jugada en Madera y Nogal con Re1 (f1 clara, e1 oscura)
+        def game(l, extra=''):
+            ctx,pg=page(h); look(pg,l); pg.evaluate("switchTab('coach')"); pg.wait_for_timeout(600)
+            pg.evaluate("()=>{ %s.concat(%s).forEach(m=>App.game.move(m)); const h=App.game.history({verbose:true}); Board.last=h[h.length-1]; Board.render(); }"%(MOVES,extra or '[]')); pg.wait_for_timeout(500)
+            return ctx,pg
+        ctx,pg=game({'preset':'club'}); pg.evaluate("()=>{ Board.sel='d2'; Board.render(); }"); pg.wait_for_timeout(400); shot(pg,'club-tecnica-seleccion'); ctx.close()
+        ctx,pg=game({'preset':'arcade'}); shot(pg,'arcade-tecnica'); ctx.close()
+        for pid in ('madera','nogal'):
+            ctx,pg=game({'preset':'clasico','mode':'oscuro','board':pid},"['Re1']"); shot(pg,'%s-ultima-jugada'%pid); ctx.close()
     b.close()
