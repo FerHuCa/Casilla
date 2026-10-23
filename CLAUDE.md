@@ -33,7 +33,7 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 | Historial de Casilla | `S.played` (partidas jugadas aquí, se guardan al terminar su evaluación), `openPlayed`, `playedHTML`; el análisis con `best` y `pv` vive en `S.analyses[gid]` |
 | Chess.com y Lichess | `jsonp`, `Analyzer`, `lichessDifficulty`, `mistakePuzzle` |
 | Pantallas de inicio | `renderLadderHome`, `renderCoachHome`, `renderGamesHome`, `renderPositionsHome`, `renderProgressHome`, `HOMES` |
-| Apariencia | `LOOK`, `PRESETS`, `migrateLook`, `lookPref`, `applyLook`, `renderLook` |
+| Apariencia | `LOOK`, `LOOK_GROUPS`, `PRESETS`, `withCustom`, `migrateLook`, `lookPref`, `lookFiles`, `applyLook`, `renderLook` |
 | Sincronización | `SYNC_FILE` (`casilla-progreso.json` en un gist), `canon`, `syncKey`, `mergeState`, `Sync` |
 | Arranque | `boot()`, `Offline` (registra `sw.js`) |
 
@@ -41,7 +41,7 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 
 `sw.js` es el service worker. Solo se registra por http/https (`Offline.start()` en `boot()`), no en file://. En `install` precachea `LOCAL` (sitio, fuentes, logo, favicons, íconos) y `engine/` (Stockfish 19 lite .js/.wasm) y `CDN` (chess.js, Stockfish 10 .js/.wasm.js/.wasm). Estrategias: navegación e `index.html` con red primero (sin red, la copia guardada); lo demás del mismo origen y de cdnjs con caché primero, guardando lo nuevo; APIs (Chess.com, Lichess, Anthropic, GitHub) pasan directo. La clave de caché ignora hash y query (el worker de Stockfish 19 lleva la ruta del .wasm en el hash).
 
-**Al cambiar sw.js o un archivo precacheado, sube `VERSION`** en sw.js: crea `casilla-<VERSION>` y `activate` borra las cachés `casilla-*` viejas. La versión nueva ya no hace `skipWaiting` sola: queda en espera y `Offline.prompt()` muestra el aviso 3 (`#upd`, «Hay una versión nueva.»). **Actualizar** manda `SKIP_WAITING` y recarga en `controllerchange` (`hadCtl` evita recargar en la primera instalación). **Ahora no** guarda `casilla.updLater` en localStorage y la siguiente apertura aplica la espera; el navegador también la activa cuando no quedan pestañas. El pie (`#ver`) pide `GET_VERSION` al SW activo por MessageChannel (respaldo: nombre de la caché `casilla-*`); sin SW dice «Sin modo sin conexión.». El registro usa `updateViaCache:'none'` y al volver la red (`online`) llama `reg.update()`. Si agregas una fuente, un ícono o cambias la versión de un CDN, agrégalo a `LOCAL`/`CDN`.
+**Al cambiar sw.js o un archivo precacheado, sube `VERSION`** en sw.js: crea `casilla-<VERSION>` y `activate` borra las cachés `casilla-*` viejas. La versión nueva ya no hace `skipWaiting` sola: queda en espera y `Offline.prompt()` muestra el aviso 3 (`#upd`, «Hay una versión nueva.»). **Actualizar** manda `SKIP_WAITING` y recarga en `controllerchange` (`hadCtl` evita recargar en la primera instalación). **Ahora no** guarda `casilla.updLater` en localStorage y la siguiente apertura aplica la espera; el navegador también la activa cuando no quedan pestañas. El pie (`#ver`) pide `GET_VERSION` al SW activo por MessageChannel (respaldo: nombre de la caché `casilla-*`); sin SW dice «Sin modo sin conexión.». El registro usa `updateViaCache:'none'` y al volver la red (`online`) llama `reg.update()`. Si agregas una fuente, un ícono o cambias la versión de un CDN, agrégalo a `LOCAL`/`CDN`. `piece/` y `board/` no se precachean (`ON_USE`): se guardan al usarse y en `activate` se copian a la caché nueva antes de borrar la vieja.
 
 Avisos sin red (mockups aprobados 1, 2a, 2b, 3, 5a, 5b, estilo B, solo tokens existentes): objeto `Net` (barra `#offBar`, píldora, notas). No agregues UI sin mockup aprobado.
 
@@ -58,7 +58,9 @@ Dependencias externas (por CDN, sin instalar nada):
 
 ### Apariencia
 
-El usuario elige uno de 8 presets (`PRESETS`). En `S.settings.look` se guarda solo `{preset, mode}`; `mode` (claro u oscuro) aplica solo a Clásico y Relieve. El formato viejo `{theme, font, board, pieces, style}` pasa por `migrateLook` al cargar, al importar un respaldo y al recibir datos del gist (spec B, sección 11; pruebas en `migracion.py`). `applyLook` traduce el preset a atributos en `<html>`: `data-theme`, `data-font`, `data-board`, `data-pieces`, `data-style` (plano, relieve, bits). Cada opción tiene su bloque CSS `html[data-...=valor]` y una entrada en `LOOK`. Para agregar una opción: CSS con variables + entrada en `LOOK` + crédito en el pie y en el README si trae piezas o fuentes de terceros. Las piezas van embebidas como SVG en data URIs.
+El usuario elige uno de 8 presets (`PRESETS`) y, aparte, puede cambiar Tablero y Piezas (`LOOK_GROUPS` arma los grupos del panel). En `S.settings.look` se guarda `{preset, mode, board?, pieces?}`; `board` y `pieces` solo existen si difieren del preset y si el id está en `LOOK` (`withCustom`). `mode` (claro u oscuro) aplica solo a Clásico y Relieve. Elegir otro preset o «Volver a [preset]» descarta la personalización. El formato viejo `{theme, font, board, pieces, style}` pasa por `migrateLook` al cargar, al importar un respaldo y al recibir datos del gist: el preset sale de la regla de la spec B, sección 11 (`migratePreset`), y tablero/piezas distintos quedan como personalización (pruebas en `migracion.py` y `apariencia_migracion.py`).
+
+Las piezas nuevas (Spatial, Fantasy, Shapes, Firi, Pirouetti, Letras) viven en `piece/<set>/{w,b}{K,Q,R,B,N,P}.svg` y las texturas (Arce, Veteado) en `board/`; el CSS las pide solo con `html[data-pieces=...]`/`html[data-board=...]` activos o con las miniaturas `.pz-<set>-xx` del panel. `applyLook` precarga los archivos del set activo y, si alguno falla (sin red y sin caché), usa el del preset sin tocar lo guardado. Licencias en `piece/LICENSE.md`, `board/LICENSE.md` y `docs/licencias/`. Los resaltes usan `--hlLast`/`--hlSel` (por defecto los de siempre; más marcados en los tableros nuevos, medidos en `apariencia_contraste.py`). `applyLook` traduce el preset a atributos en `<html>`: `data-theme`, `data-font`, `data-board`, `data-pieces`, `data-style` (plano, relieve, bits). Cada opción tiene su bloque CSS `html[data-...=valor]` y una entrada en `LOOK`. Para agregar una opción: CSS con variables + entrada en `LOOK` + crédito en el pie y en el README si trae piezas o fuentes de terceros. Las piezas van embebidas como SVG en data URIs.
 
 ## Reglas que no se rompen
 
@@ -104,6 +106,10 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `offline_ui.py` | Avisos sin red 1, 2a, 2b, 5a, 5b, Táctica sin red, versión en el pie, aviso 3 Actualizar / Ahora no, 8 presets; capturas en `CASILLA_SHOTS` |
 | `puzzle_store.py` | Memoria de puzzles en IndexedDB: 200 de Lichess, relleno en serie, 429, resueltos, Chess.com sin guardar, uso sin red y 5a |
 | `e2e_real.py` | Orígenes reales (sin mocks): llena la memoria contra lichess.org y luego modo avión. Usa red real; no correr en bucle (429) |
+| `apariencia_sets.py` | Tablero y piezas por separado: 12 SVG por set, solo se pide el set activo, Personalizado y «Volver a», cambio de estilo; por http, caché al usar, sin red y al actualizar |
+| `apariencia_migracion.py` | `{preset, mode}`, formato nuevo con personalización e ids inexistentes, formato viejo; al abrir, respaldo y gist |
+| `apariencia_contraste.py` | ΔE00 y contraste de última jugada y selección sobre cada tablero (umbral documentado en el archivo) |
+| `capturas_apariencia.py` | Genera `docs/capturas/apariencia/` a 1280 y 390 |
 | `exp.py` | Explicaciones de errores |
 
 Variables opcionales: `CASILLA_APP` (ruta del HTML, por defecto `../index.html`), `CASILLA_DEPS`, `CASILLA_OUT` (capturas, por defecto `tests/out/`). Revisa las capturas en escritorio y en móvil después de cambios visuales. 
