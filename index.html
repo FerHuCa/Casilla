@@ -106,6 +106,9 @@ html[data-board=arce]{--sqL:#E8CFA0;--sqD:#B78A55}
 html[data-board=veteado]{--sqL:#D9B98C;--sqD:#8E6440}
 /* Resaltes más marcados en los tableros nuevos, donde el amarillo de siempre se pierde (medido en tests/apariencia_contraste.py) */
 html[data-board=arena],html[data-board=oliva],html[data-board=tinta],html[data-board=arce],html[data-board=veteado]{--hlLast:rgba(150,170,30,.55);--hlSel:rgba(35,95,55,.6)}
+/* Tableros de antes: solo se refuerza el resalte que no llegaba a ΔE00 8 (ver tests/apariencia_contraste.py) */
+html[data-board=madera],html[data-board=nogal]{--hlLast:rgba(185,165,80,.6)}
+html[data-board=club]{--hlSel:rgba(75,110,60,.6)}
 html[data-board=arce] .board,html[data-board=veteado] .board{background-size:100% 100%;background-color:var(--sqD)}
 html[data-board=arce] .board{background-image:url('board/maple.jpg')}
 html[data-board=veteado] .board{background-image:url('board/wood4.jpg')}

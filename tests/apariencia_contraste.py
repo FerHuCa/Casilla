@@ -4,17 +4,17 @@
 #
 # Métrica: CIEDE2000 (ΔE00) entre los colores medios del centro de la casilla (50 %), en sRGB D65, y razón de
 # contraste WCAG entre ambos colores (luminancia relativa).
-# Umbral para los tableros nuevos (Arena, Oliva, Tinta, Coral, Contraste, Arce, Veteado): ΔE00 >= 8 y contraste >= 1.05.
+# Umbral para TODOS los tableros: ΔE00 >= 8 y contraste >= 1.05.
 #   Referencia: ΔE00 ~2.3 es la diferencia apenas perceptible y a partir de ~5 se nota de un vistazo; 8 deja margen
 #   para pantallas peores y luz ambiente. El contraste >= 1.05 evita resaltes que solo cambian de tono con la misma
 #   luminancia (poco visibles con daltonismo).
-# Tableros aprobados antes de este cambio (Gris piedra, Madera, Nogal, Glaciar, Club, Arcade): no se cambia su diseño;
-#   se exige solo ΔE00 >= 3 como piso contra regresiones. Hoy el más débil es Club, selección en casilla oscura (~3.4),
-#   y Madera y Nogal en última jugada sobre casilla clara (~6); se reportan para decidir aparte.
+# Los tableros de antes (Gris piedra, Madera, Nogal, Glaciar, Club, Arcade) tenían un piso de ΔE00 >= 3; el 23 oct se reforzaron
+#   Club (selección, antes 3.4 en casilla oscura) y Madera y Nogal (última jugada, antes ~6 en casilla clara) y desde entonces
+#   se exige lo mismo a todos.
 import os, io, math
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)),'run.py')).read().split("logs=[]")[0])
 from PIL import Image
-MIN_DE=8.0; MIN_CR=1.05; MIN_DE_OLD=3.0
+MIN_DE=8.0; MIN_CR=1.05
 F=0
 def ck(ok,msg):
     global F; F+=not ok; print('OK   ' if ok else 'FALLA ', msg)
@@ -54,23 +54,21 @@ with sync_playwright() as p:
     pg.on('pageerror',lambda e: print('PAGEERROR',e))
     pg.goto(APP); pg.wait_for_function("typeof Board!=='undefined' && document.querySelectorAll('#board [data-sq]').length===64",timeout=30000)
     boards=pg.evaluate("LOOK.board.map(o=>[o[0],o[1],!!o[4]])")
-    old=['piedra','madera','nogal','glaciar','club','arcade']
-    mins={'aprobados antes':99,'nuevos':99}
+    mn=99
     for bid,name,tex in boards:
         pg.evaluate("id=>{S.settings.look={preset:'clasico',mode:'oscuro',board:id}; applyLook(); Board.last=null; Board.sel=null; Board.render();}", bid)
         if tex: pg.wait_for_function("id=>{const u=getComputedStyle(document.querySelector('#board')).backgroundImage; if(!u.includes('board/')) return false; const im=new Image(); im.src=u.slice(5,-2); return im.complete && im.naturalWidth>0}", arg=bid, timeout=10000)
         pg.wait_for_timeout(150)
         base={sq:mean(pg,sq) for _,sq,_ in CASES}
-        grp='aprobados antes' if bid in old else 'nuevos'
         for label,sq,tone in CASES:
             pg.evaluate(SET[label], sq); pg.wait_for_timeout(80)
-            after=mean(pg,sq); d=de2000(lab(base[sq]),lab(after)); c=cr(base[sq],after); mins[grp]=min(mins[grp],d)
-            ok=(d>=MIN_DE and c>=MIN_CR) if grp=='nuevos' else d>=MIN_DE_OLD
+            after=mean(pg,sq); d=de2000(lab(base[sq]),lab(after)); c=cr(base[sq],after); mn=min(mn,d)
+            ok=d>=MIN_DE and c>=MIN_CR
             ck(ok, '%-11s %-14s %s (%s): ΔE00 %.1f, contraste %.2f'%(name,label,sq,tone,d,c))
             pg.evaluate("()=>{Board.last=null; Board.sel=null; Board.render();}")
         if bid in ('arce','veteado','contraste'):
             pg.evaluate("()=>{Board.last={from:'c3',to:'d3'}; Board.sel='e3'; Board.render();}"); pg.wait_for_timeout(80)
             pg.locator('#board').screenshot(path=OUT+'contraste_%s.png'%bid)
-    print('ΔE00 mínimo por grupo: %s (umbral nuevos %.1f, aprobados antes %.1f)'%({k:round(v,1) for k,v in mins.items()}, MIN_DE, MIN_DE_OLD))
+    print('ΔE00 mínimo: %.1f (umbral %.1f, contraste %.2f)'%(mn, MIN_DE, MIN_CR))
     b.close()
 print('RESULTADO: todo bien' if not F else 'RESULTADO: %d fallas'%F); raise SystemExit(F)
