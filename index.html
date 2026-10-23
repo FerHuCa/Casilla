@@ -874,7 +874,7 @@ function handshake(w, ms){
     w.postMessage('uci');
   });
 }
-const SF19_BASE = 'https://cdn.jsdelivr.net/npm/stockfish@19.0.1/bin/';
+const SF19_BASE = new URL('engine/', location.href).href; // alojado en el repo: jsDelivr da 403 a stockfish@19 (paquete > 150 MB)
 async function createSF19(){
   const wasmUrl = SF19_BASE + 'stockfish-19-lite-single.wasm';
   const u = URL.createObjectURL(new Blob(['importScripts(' + JSON.stringify(SF19_BASE + 'stockfish-19-lite-single.js') + ');'], {type:'text/javascript'}));

@@ -43,9 +43,9 @@ with sync_playwright() as p:
     pg.goto(URL)
     pg.wait_for_function("navigator.serviceWorker.controller && Engine.ready",timeout=90000)
     wait_caches(pg, "k.length>0")
-    need=['index.html','fonts/PressStart2P-latin.woff2','logo-claro.svg','favicon.ico','apple-touch-icon-180.png','chess.min.js','stockfish-19-lite-single.wasm','stockfish-19-lite-single.js','10.0.2/stockfish.wasm','10.0.2/stockfish.js','10.0.2/stockfish.wasm.js']
+    need=['engine/stockfish-19-lite-single.wasm','fonts/PressStart2P-latin.woff2','logo-claro.svg','favicon.ico','apple-touch-icon-180.png','chess.min.js','stockfish-19-lite-single.wasm','stockfish-19-lite-single.js','10.0.2/stockfish.wasm','10.0.2/stockfish.js','10.0.2/stockfish.wasm.js']
     urls=pg.evaluate("async()=>{const c=await caches.open((await caches.keys())[0]);return (await c.keys()).map(r=>r.url)}")
-    miss=[n for n in need if not any(u.endswith(n) for u in urls)]
+    miss=[n for n in need if not any(u.endswith(n) for u in urls)]+([] if URL in urls else ['./ (shell)'])
     check('precache completo', not miss, '%d archivos%s'%(len(urls), (' faltan '+str(miss)) if miss else ''))
     sz=pg.evaluate(SIZE_JS); print('   caché:',sz)
     # Datos de Partidas con red (luego se usan sin red)
