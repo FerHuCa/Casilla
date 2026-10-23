@@ -624,6 +624,27 @@ footer{font-size:var(--fs-xs)}
 .pt b{display:block;font-size:15px;font-weight:600}
 .pt span{display:block;font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:2px}
 .pt .tag{display:inline-block;margin-top:5px;font-size:11px;padding:1px 6px;border-radius:var(--r-round);background:var(--raise);color:var(--muted)}
+/* Sin conexión (mockups 1, 2a, 2b, 3, 5a y 5b de Sam, aprobados). Solo tokens existentes. */
+.off-bar{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-5);background:var(--raise);border-bottom:var(--bd);font-size:var(--fs-sm);color:var(--muted)}
+.off-bar b{color:var(--text);font-weight:var(--fw-semibold)}
+.off-bar .x{margin-left:auto;background:none;border:0;color:var(--muted);font:inherit;cursor:pointer;padding:var(--sp-1) var(--sp-2);border-radius:var(--r-sm)}
+.off-bar .x:hover{color:var(--text)}
+.off-dot{width:7px;height:7px;border-radius:var(--r-round);background:var(--faint);flex:none}
+.pill.off .led{background:var(--faint)} .pill.off{color:var(--muted)}
+.off-note{display:flex;gap:var(--sp-2);align-items:flex-start;padding:var(--sp-2) var(--sp-3);border:var(--bd);border-radius:var(--r-sm);font-size:var(--fs-sm);color:var(--muted);margin:var(--sp-3) 0}
+.off-note .off-dot{margin-top:6px}
+.off-note b{color:var(--text);font-weight:var(--fw-semibold)}
+.tip.off-tip{display:block;background:var(--raise);color:var(--muted);padding:8px 12px;font-size:13px}
+.upd{position:fixed;right:var(--sp-5);bottom:var(--sp-5);display:flex;align-items:center;gap:var(--sp-3);background:var(--raise);border:var(--bd-strong);border-radius:var(--r-md);padding:var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);font-size:var(--fs-sm);color:var(--text);box-shadow:var(--elev-1);z-index:150}
+.upd .x{background:none;border:0;color:var(--muted);font:inherit;cursor:pointer;padding:var(--sp-1) var(--sp-2)}
+.seg button[disabled]{opacity:1;color:var(--faint);cursor:not-allowed;text-decoration:line-through;text-decoration-thickness:1px}
+.btn[disabled]{cursor:not-allowed}
+footer .ver{white-space:nowrap}
+@media (max-width:760px){
+  .upd{left:var(--sp-4);right:var(--sp-4);bottom:var(--sp-4)}
+  .off-bar{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:baseline;padding:var(--sp-2) var(--sp-4)}
+  .off-bar .x{grid-column:2;justify-self:end}
+}
 </style>
 </head>
 <body>
@@ -668,7 +689,7 @@ footer{font-size:var(--fs-xs)}
   </section>
   <aside id="side" class="side"></aside>
 </main>
-<footer>Stockfish 19 (GPLv3). Piezas de Colin M.L. Burnett, Armando Hernández Marroquín, Maurizio Monge, Maxime Chupin, Alexis Luengas, therealqtpi y RhosGFX. Datos públicos de Chess.com y Lichess. Tu progreso se guarda en este navegador.</footer>
+<footer>Stockfish 19 (GPLv3). Piezas de Colin M.L. Burnett, Armando Hernández Marroquín, Maurizio Monge, Maxime Chupin, Alexis Luengas, therealqtpi y RhosGFX. Datos públicos de Chess.com y Lichess. Tu progreso se guarda en este navegador. <span class="ver" id="ver"></span></footer>
 <aside id="look" class="drawer" hidden aria-label="Apariencia"></aside>
 <div id="toast" role="status"></div>
 
@@ -972,7 +993,7 @@ const Engine = {
     }
   }
 };
-function setPill(kind, text){ const p=$('#pill'); p.className='pill' + (kind==='ok'?' ok':kind==='err'?' err':''); $('#pillText').textContent=text; }
+function setPill(kind, text){ Net.pill = [kind, text]; if(!Net.on) return Net.paintPill(); const p=$('#pill'); p.className='pill' + (kind==='ok'?' ok':kind==='err'?' err':''); $('#pillText').textContent=text; }
 
 /* =========================================================
    Tablero
@@ -1141,7 +1162,7 @@ const App = {
   setSession(s){
     if(this.session && this.session.exit) this.session.exit();
     this.token++; Engine.cancel('ui'); Engine.cancel('coach'); Engine.cancel('bar'); this.busy = false; Clocks.hide();
-    const tip = $('#tip'); if(tip){ tip.hidden = true; tip.textContent = ''; }
+    const tip = $('#tip'); if(tip){ tip.hidden = true; tip.textContent = ''; tip.className = 'tip'; }
     if(isMobile() && window.scrollY > 0) window.scrollTo({top:0});
     this.session = s;
     Board.onMove = mv => s.onUserMove && s.onUserMove(mv); Board.onTap = null;
@@ -1643,7 +1664,8 @@ class Coach{
   renderTip(){
     const t = $('#tip'), m = this.msgs[0]; if(!t || App.session !== this.ses) return;
     if(!m || (this.ses.pendingWarn && m.kind === 'warn' && !m.done)){ t.hidden = true; return; }
-    t.hidden = false; t.innerHTML = '<b>' + esc(m.label || 'Maestro') + ':</b> ' + esc(m.text);
+    if(Net.aiPaused() && !(m.actions && !m.done)){ t.hidden = false; t.className = 'tip off-tip'; t.textContent = 'Sin comentario de IA: no hay conexión. La evaluación es del motor, en tu dispositivo.'; return; }
+    t.className = 'tip'; t.hidden = false; t.innerHTML = '<b>' + esc(m.label || 'Maestro') + ':</b> ' + esc(m.text);
   }
   start(){
     const p = this.prof;
@@ -2877,7 +2899,8 @@ function planHTML(p){
     '<div class="field">' + segHTML('plen', [['corta','Corta, unos 15 min'],['completa','Completa, unos 45 min']], P.len || 'corta') + '</div>' +
     '<p class="note">' + (streak ? 'Racha: ' + streak + (streak === 1 ? ' día' : ' días') + ' seguidos. ' : '') + (P.len === 'completa' ? 'Repaso, táctica, un final y una partida lenta con su revisión: el reparto que recomiendan los planes para 1000 a 1500, con más juego que estudio y solo los errores grandes en la revisión.' : 'Repaso, táctica y un final. Diez o quince minutos diarios mantienen la vista táctica; la versión completa suma una partida lenta.') + '</p>' +
     '<ul class="list daysteps">' + steps.map(x => '<li class="item' + (x.done ? ' off' : '') + '"><div><div class="t">' + esc(x.t) + '</div><div class="s">' + esc(x.s) + '</div></div><div class="row">' +
-      (x.done ? '<span class="tag done">' + (x.tag || 'Hecho') + '</span>' : '') + (x.go ? '<button class="btn small' + (x === firstOpen ? ' primary' : '') + '" data-step="' + x.id + '">' + esc(x.go) + '</button>' : '') + '</div></li>').join('') + '</ul>' +
+      (x.done ? '<span class="tag done">' + (x.tag || 'Hecho') + '</span>' : '') + (x.go ? '<button class="btn small' + (x === firstOpen ? ' primary' : '') + '" data-step="' + x.id + '"' + (x.id === 'pz' && !Net.on && !PuzzleStore.has('plan', st.themes) ? ' disabled aria-disabled="true" title="Necesita conexión"' : '') + '>' + esc(x.go) + '</button>' : '') + '</div></li>').join('') + '</ul>' +
+    (!Net.on && !PuzzleStore.has('plan', st.themes) && steps.some(x => x.id === 'pz' && x.go) ? '<p class="note" style="margin-top:6px">Sin conexión: la Táctica de la etapa usa puzzles de Lichess y no está disponible. El repaso y el final usan lo que ya tienes guardado.</p>' : '') +
     (allDone ? '<div class="result good"><strong>Sesión de hoy completa</strong>' + (streak > 1 ? 'Llevas ' + streak + ' días seguidos.' : 'Vuelve mañana para empezar tu racha.') + '</div>' : '') +
     '<h3>Tu ruta a 1500</h3>' +
     '<p class="note">Etapas en el orden del Método Steps y del curso de finales de Silman. Es una guía: nada se bloquea.</p>' +
@@ -2899,6 +2922,7 @@ function renderCoachHome(){
   const modeNote = {guiada:'Te aviso antes de errores graves, señalo amenazas y puedes pedir pistas o deshacer.', amenazas:'Antes de varias de tus jugadas te pregunto qué amenaza tu rival y tocas la pieza en peligro; a veces no hay nada. Sin pistas ni deshacer. No cuenta para tu rating con el maestro.', seria:'Sin ayudas. Durante el juego solo comento lo bueno; los errores los vemos al final. Cuenta para tu rating con el maestro.'};
   if(!modeNote[st.mode]) st.mode = 'guiada';
   side().innerHTML =
+    (Net.aiPaused() ? Net.noteHTML('<b>Comentarios de IA en pausa.</b> No hay conexión. El maestro sigue jugando y el motor sigue evaluando.') : '') +
     '<h2>Maestro</h2><p class="lede">Tu entrenador: una ruta por etapas hasta 1500, una sesión diaria y un rival que se adapta a tu nivel y te juega las aperturas de tus rivales.</p>' +
     planHTML(p) +
     '<h3>Lo que sé de ti</h3><div class="stats">' +
@@ -2989,7 +3013,9 @@ async function fetchLichess(themeOv, diffOv){
   let r = await fetch(url, {headers:{Accept:'application/json'}});
   if(!r.ok) r = await fetch('https://lichess.org/api/puzzle/daily', {headers:{Accept:'application/json'}});
   if(!r.ok) throw new Error('Lichess respondió ' + r.status);
-  const d = await r.json();
+  return parseLichess(await r.json(), theme);
+}
+function parseLichess(d, theme){
   const sol = d.puzzle.solution || [];
   const g = new Chess(); const fens = [g.fen()], hist = [null];
   for(const t of String(d.game.pgn||'').split(/\s+/).filter(Boolean)){ const m = g.move(t, {sloppy:true}); if(!m) break; fens.push(g.fen()); hist.push(m); }
@@ -3001,13 +3027,88 @@ async function fetchLichess(themeOv, diffOv){
           url:'https://lichess.org/training/' + d.puzzle.id, title:'Lichess #' + d.puzzle.id, theme};
 }
 async function fetchChessCom(){
-  const d = await chessComJSON('https://api.chess.com/pub/puzzle/random');
+  return parseChessCom(await chessComJSON('https://api.chess.com/pub/puzzle/random'));
+}
+function parseChessCom(d){
   const {headers, toks} = parsePGN(d.pgn || '');
   const fen = d.fen || headers.FEN; const g = new Chess(fen); const sol = [];
   for(const t of toks){ const m = g.move(t, {sloppy:true}); if(!m) break; sol.push(moveUci(m)); }
   if(!sol.length) throw new Error('Puzzle de Chess.com sin solución legible');
   return {src:'chesscom', id:'cc:' + (d.publish_time || d.url), fen, last:null, solution:sol, rating:1600, themes:[], url:d.url, title:d.title || 'Puzzle diario'};
 }
+/* ---------- Memoria de puzzles sin conexión (IndexedDB, aparte de la caché del SW) ----------
+   Mantiene 200 puzzles de Lichess (50 de ellos con los temas de tu etapa). Los puzzles de Lichess son CC0
+   (database.lichess.org). Chess.com no se guarda: su User Agreement prohíbe copiar o descargar información
+   obtenida de sus servicios salvo la caché temporal del navegador, así que sin red Chess.com queda desactivado.
+   Relleno en segundo plano con red, en serie, sin ráfagas: /api/puzzle/batch, un lote a la vez, 20 s entre
+   peticiones; ante 429 espera 60 s y duplica (máx. 1 h).
+   Los resueltos se borran y se sustituyen; los de más de 14 días se renuevan poco a poco. */
+const PuzzleStore = {
+  DB:'casilla-puzzles', TARGET:{lichess:200}, STAGE:50, MAXAGE:14 * 864e5, SOLVED:'casilla.pzSolved',
+  items:[], db:null, running:false, wait:{lichess:0}, liBack:60000, t:0,
+  req(r){ return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  open(){ const r = indexedDB.open(this.DB, 1); r.onupgradeneeded = () => r.result.createObjectStore('p', {keyPath:'id'}); return this.req(r); },
+  tx(mode){ return this.db.transaction('p', mode).objectStore('p'); },
+  async start(){
+    if(!window.indexedDB) return;
+    try{ this.db = await this.open(); this.items = await this.req(this.tx('readonly').getAll()); }catch(e){ console.warn(e); this.db = null; return; }
+    if(!Net.on) Net.set(false);
+    addEventListener('online', () => this.kick(5000));
+    this.kick(8000);
+  },
+  solvedIds(){ try{ return JSON.parse(localStorage.getItem(this.SOLVED) || '[]'); }catch(e){ return []; } },
+  count(src, themes){ return this.items.filter(x => x.src === src && (!themes || (x.themes || []).some(t => themes.includes(t)))).length; },
+  has(src, themes){ return src === 'mix' ? this.count('lichess') + this.count('chesscom') > 0 : src === 'plan' ? this.count('lichess', themes) > 0 : this.count(src) > 0; },
+  take(src, themes, prefer){
+    let c = this.items.filter(x => x.src === src && (!themes || (x.themes || []).some(t => themes.includes(t))));
+    if(prefer){ const c2 = c.filter(x => (x.themes || []).includes(prefer)); if(c2.length) c = c2; }
+    return c.length ? JSON.parse(JSON.stringify(c[Math.floor(Math.random() * c.length)])) : null;
+  },
+  async put(p){
+    if(!this.db || this.items.some(x => x.id === p.id) || this.solvedIds().includes(p.id)) return false;
+    p = Object.assign({}, p, {at:Date.now()}); delete p.last;
+    await this.req(this.tx('readwrite').put(p)); this.items.push(p); return true;
+  },
+  async remove(id){ this.items = this.items.filter(x => x.id !== id); if(this.db) try{ await this.req(this.tx('readwrite').delete(id)); }catch(e){ console.warn(e); } },
+  done(id){
+    if(!id) return;
+    const l = this.solvedIds().filter(x => x !== id); l.push(id);
+    try{ localStorage.setItem(this.SOLVED, JSON.stringify(l.slice(-500))); }catch(e){}
+    if(this.items.some(x => x.id === id)){ this.remove(id); this.kick(15000); }
+  },
+  kick(ms){ clearTimeout(this.t); this.t = setTimeout(() => this.fill(), ms); },
+  async fill(){
+    if(this.running || !this.db || !Net.on) return;
+    this.running = true;
+    try{
+      const old = this.items.filter(x => Date.now() - x.at > this.MAXAGE).sort((a, b) => a.at - b.at).slice(0, 20);
+      for(const x of old) await this.remove(x.id);
+      while(Net.on){ const d = await this.step(); if(!d) break; await sleep(20000); }
+    }catch(e){ console.warn(e); }
+    this.running = false;
+    if(Net.on && this.db){ const w = this.wait.lichess - Date.now(); this.kick(Math.max(60000, Math.min(w, 600000))); }
+  },
+  async step(){
+    const now = Date.now();
+    if(this.count('lichess') < this.TARGET.lichess && now >= this.wait.lichess){
+      const st = PLAN[planStage()], stageNeed = this.STAGE - this.count('lichess', st.themes);
+      const angle = stageNeed > 0 ? st.themes[Math.floor(Math.random() * st.themes.length)] : 'mix';
+      const diff = stageNeed > 0 ? st.diff : lichessDifficulty(S.puzzles.rating);
+      const nb = Math.min(50, this.TARGET.lichess - this.count('lichess'), stageNeed > 0 ? stageNeed : 50);
+      try{
+        const r = await fetch('https://lichess.org/api/puzzle/batch/' + encodeURIComponent(angle) + '?nb=' + nb + '&difficulty=' + diff, {headers:{Accept:'application/json'}});
+        if(r.status === 429){ this.wait.lichess = Date.now() + this.liBack; this.liBack = Math.min(this.liBack * 2, 3600000); return 'li'; }
+        if(!r.ok) throw new Error('Lichess ' + r.status);
+        this.liBack = 60000;
+        let added = 0;
+        for(const d of ((await r.json()).puzzles || [])){ try{ if(await this.put(parseLichess(d, angle))) added++; }catch(e){} }
+        if(!added) this.wait.lichess = Date.now() + 600000;
+      }catch(e){ console.warn(e); this.wait.lichess = Date.now() + 120000; }
+      return 'li';
+    }
+    return null;
+  }
+};
 /* ---------- Explicación de tus errores ---------- */
 const PNAME = {p:'peón', n:'caballo', b:'alfil', r:'torre', q:'dama', k:'rey'};
 const LESSON = {
@@ -3136,6 +3237,8 @@ class PuzzleSession{
     setStatus('Buscando puzzle…'); this.renderInfo();
     const pl = this.opt.plan;
     let src = pl ? (pl.kind === 'rev' ? 'repaso' : 'plan') : App.puzzleSource;
+    if(!preset && !Net.on && NET_SRC.includes(src)) preset = this.fromStore(src);
+    if(!preset && !Net.on && NET_SRC.includes(src)){ setStatus('Sin conexión. Prueba con Repaso o Mis errores.', 'warn'); setControls(pl ? [{label:'Volver al Maestro', primary:true, on:()=>switchTab('coach')}] : []); this.renderInfo(); return; }
     if(src === 'mix'){ const hasMine = errorProfile().total > 0; const x = Math.random(); src = hasMine ? (x < .4 ? 'mine' : x < .8 ? 'lichess' : 'chesscom') : (x < .7 ? 'lichess' : 'chesscom'); }
     let p = preset || null, err = null;
     const order = {lichess:['lichess','chesscom'], chesscom:['chesscom','lichess'], mine:['mine','lichess'], repaso:['repaso'], plan:['plan']}[src];
@@ -3154,8 +3257,17 @@ class PuzzleSession{
       }catch(e){ console.warn(e); err = 'No se pudo cargar el puzzle (' + e.message + ').'; }
     }
     if(tok !== App.token) return;
+    if(!p && NET_SRC.includes(src) && (p = this.fromStore(pl ? 'plan' : App.puzzleSource))) err = null;
     if(!p){ setStatus(err || 'No hay puzzles disponibles.', 'bad'); setControls([{label:'Reintentar', primary:!pl, on:()=>this.next()}, pl && {label:'Volver al Maestro', primary:true, on:()=>switchTab('coach')}]); this.renderInfo(); return; }
     this.load(p);
+  }
+  fromStore(src){
+    const pl = this.opt.plan, st = src === 'plan' && pl ? PLAN[pl.stage] : null;
+    const srcs = (src === 'mix' ? ['lichess', 'chesscom'] : src === 'plan' ? ['lichess'] : [src]).filter(s => PuzzleStore.count(s, st && st.themes));
+    if(!srcs.length) return null;
+    const s = srcs[Math.floor(Math.random() * srcs.length)];
+    const p = PuzzleStore.take(s, st && st.themes, s === 'lichess' && !st && App.puzzleTheme !== 'auto' && App.puzzleTheme !== 'mix' ? App.puzzleTheme : null);
+    return p && st ? Object.assign(p, {hide:true, st:st.id}) : p;
   }
   load(p){
     this.p = Object.assign({idx:0, done:false, failed:false, counted:false}, p);
@@ -3228,7 +3340,7 @@ class PuzzleSession{
   }
   fail(soft){ const p = this.p; if(!p.failed){ p.failed = true; this.score(false); this.renderInfo(); } }
   solved(){
-    const p = this.p; p.done = true; Board.movable = null;
+    const p = this.p; p.done = true; Board.movable = null; PuzzleStore.done(p.id);
     if(!p.failed) this.score(true);
     setStatus(p.failed ? 'Resuelto, pero no cuenta para tu rating.' : (p.alt ? 'Correcto: tu jugada es tan buena como la del motor.' : 'Correcto.'), 'good');
     this.renderInfo(); this.controls(); this.explain();
@@ -3263,7 +3375,7 @@ class PuzzleSession{
   }
   async reveal(){
     const p = this.p; if(!p || p.done) return;
-    this.fail(true); p.done = true; Board.movable = null; App.busy = true;
+    this.fail(true); p.done = true; Board.movable = null; App.busy = true; PuzzleStore.done(p.id);
     const tok = App.token;
     while(p.idx < p.solution.length){
       const m = App.game.move(uciObj(p.solution[p.idx])); p.idx++;
@@ -3320,12 +3432,14 @@ class PuzzleSession{
     side().innerHTML =
       '<h2>Puzzles</h2>' + stats +
       '<div class="field"><span class="lbl">Origen</span>' + segHTML('src', [['mix','Combinado'],['repaso','Repaso'],['lichess','Lichess'],['chesscom','Chess.com'],['mine','Mis errores']], App.puzzleSource) +
+        (Net.on ? '' : offPzNote()) +
         (App.puzzleSource === 'repaso' ? '<p class="note" style="margin-top:6px">Repaso espaciado de tus errores: ' + (due ? due + ' pendiente' + (due > 1 ? 's' : '') + ' hoy.' : 'nada pendiente hoy.') + '</p>' : '') + '</div>' +
       '<div class="field"><span class="lbl">Tema (Lichess)</span><select id="theme">' + THEMES.map(([v,l]) => '<option value="'+v+'"'+(v===App.puzzleTheme?' selected':'')+'>'+l+'</option>').join('') + '</select>' +
       '<p class="note" style="margin-top:6px">' + (pr.total ? 'Recomendado usa tus ' + pr.total + ' errores analizados para elegir temas.' : 'Analiza partidas en Mis partidas para que Recomendado y Mis errores se ajusten a ti.') + '</p></div>' +
       (App.mineFocus ? '<p class="note">Enfocado en: ' + esc(App.mineFocus.join(', ')) + '. <button class="btn small" id="clearFocus">Quitar filtro</button></p>' : '') +
       '<div id="pzinfo"></div>';
     const root = side();
+    if(!Net.on) $$('[data-seg="src"] button', root).forEach(b => { if(NET_SRC.includes(b.dataset.v) && !PuzzleStore.has(b.dataset.v)){ b.disabled = true; b.setAttribute('aria-disabled','true'); b.title = 'Necesita conexión'; } });
     bindSeg(root, 'src', v => { App.puzzleSource = v; this.renderSide(); this.next(); });
     $('#theme').onchange = e => { App.puzzleTheme = e.target.value; if(this.p && this.p.src === 'lichess' && !this.p.idx) this.next(); };
     const cf = $('#clearFocus'); if(cf) cf.onclick = () => { App.mineFocus = null; this.renderSide(); this.renderInfo(); };
@@ -3635,7 +3749,9 @@ function renderGamesHome(){
     '<h3>Chess.com</h3><p class="note">Lee tus partidas públicas de Chess.com. Solo necesitas tu usuario, sin contraseña.</p>' +
     '<div class="field"><span class="lbl">Usuario de Chess.com</span><div class="row" style="flex-wrap:nowrap"><input type="text" id="user" value="' + esc(S.username) + '" placeholder="tu_usuario" autocomplete="off" spellcheck="false">' +
     '<select id="months" style="width:auto"><option value="1">1 mes</option><option value="3" selected>3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>' +
-    '<button class="btn primary wide" id="load">' + (hasUser && S.games.length ? 'Actualizar partidas' : 'Cargar partidas') + '</button><p class="note" id="loadst" style="margin-top:8px"></p></div>' +
+    '<button class="btn primary wide" id="load"' + (Net.on ? '' : ' disabled aria-disabled="true"') + '>' + (hasUser && S.games.length ? 'Actualizar partidas' : 'Cargar partidas') + '</button>' +
+    (Net.on ? '' : '<p class="note" style="margin-top:6px">Traer partidas nuevas de Chess.com necesita conexión. Las que ya tienes y su análisis siguen aquí.</p>') +
+    '<p class="note" id="loadst" style="margin-top:8px"></p></div>' +
     (S.games.length ?
       '<h3>Análisis con el motor</h3><p class="note">' + (S.games.length - pending.length) + ' de ' + S.games.length + ' partidas analizadas. El análisis detecta tus errores y alimenta los puzzles personalizados.</p>' +
       '<div class="row"><select id="bn" style="width:auto"><option value="10">Próximas 10</option><option value="25">Próximas 25</option><option value="50">Próximas 50</option><option value="9999">Todas</option></select>' +
@@ -3650,7 +3766,7 @@ function renderGamesHome(){
       }).join('') + '</ul>' + (list.length > 120 ? '<p class="note">Mostrando las 120 más recientes.</p>' : '')
       : '');
   const root = side();
-  $('#user').onkeydown = e => { if(e.key === 'Enter') $('#load').click(); };
+  $('#user').onkeydown = e => { if(e.key === 'Enter' && Net.on) $('#load').click(); };
   $('#load').onclick = async () => {
     const u = $('#user').value.trim(); if(!u){ toast('Escribe tu usuario de Chess.com.'); return; }
     const btn = $('#load'); btn.disabled = true; const st = t => { const e = $('#loadst'); if(e) e.textContent = t; };
@@ -4153,19 +4269,112 @@ function boot(){
   switchTab('ladder');
   Engine.init();
   Sync.start();
+  Net.start();
+  PuzzleStore.start();
   Offline.start();
 }
-/* ---------- Sin conexión: service worker ----------
-   Registra sw.js (solo por http/https). Sin UI nueva: la IA se apaga sola con ClaudeAI.ready() y
-   al volver la red se busca una versión nueva del service worker. */
+/* ---------- Sin conexión: avisos (mockups aprobados 1, 2a, 2b, 5a, 5b) ----------
+   Net.on sigue a navigator.onLine y a los eventos online/offline. Al cambiar, repinta la píldora,
+   el aviso 1 (barra bajo el encabezado) y la pantalla actual (2a en Maestro, 2b en el tip, 5a, 5b). */
+const NET_SRC = ['mix', 'lichess', 'chesscom', 'plan']; // orígenes de puzzles que necesitan red (sin red se usan los guardados en PuzzleStore)
+function offPzNote(){
+  const miss = [['lichess', 'Lichess'], ['chesscom', 'Chess.com']].filter(([k]) => !PuzzleStore.has(k)).map(x => x[1]);
+  if(!miss.length) return '';
+  return '<p class="note" style="margin-top:6px">Sin conexión: ' + (miss.length === 2 ? 'Lichess y Chess.com no están disponibles' : miss[0] + ' no está disponible') + '. Repaso y Mis errores usan tus partidas guardadas.</p>';
+}
+const Net = {
+  on: typeof navigator === 'undefined' || navigator.onLine !== false,
+  pill: null, closed: false,
+  aiPaused(){ const c = ClaudeAI.cfg(); return !this.on && !!(c.on && c.key); },
+  noteHTML(html){ return '<div class="off-note" role="status"><span class="off-dot"></span><span>' + html + '</span></div>'; },
+  paintPill(){
+    const p = $('#pill'); if(!p) return;
+    if(!this.on){ p.className = 'pill off'; $('#pillText').textContent = 'Sin conexión'; return; }
+    if(this.pill){ const [k, t] = this.pill; this.pill = null; setPill(k, t); }
+  },
+  paintBar(){
+    let b = $('#offBar');
+    if(this.on || this.closed){ if(b) b.remove(); return; }
+    if(b) return;
+    b = document.createElement('div'); b.className = 'off-bar'; b.id = 'offBar'; b.setAttribute('role', 'status');
+    b.innerHTML = '<span class="off-dot"></span><span><b>Sin conexión.</b> Siguen funcionando el motor, el análisis, la Escalera y Partidas.</span><button class="x" aria-label="Cerrar aviso">Cerrar</button>';
+    b.querySelector('.x').onclick = () => { this.closed = true; b.remove(); };
+    $('header.top').after(b);
+  },
+  set(v){
+    if(v === this.on) return;
+    if(!v){ const p = $('#pill'); if(p && !p.classList.contains('off')) this.pill = [p.classList.contains('ok') ? 'ok' : p.classList.contains('err') ? 'err' : '', $('#pillText').textContent]; }
+    this.on = v; if(v) this.closed = false;
+    this.paintPill(); this.paintBar();
+    const ses = App.session;
+    if(ses instanceof HomeSession && (ses.tab === 'coach' || ses.tab === 'games')) HOMES[ses.tab]();
+    else if(ses instanceof PuzzleSession){ ses.renderSide(); if(!ses.p) ses.next(); }
+    else if(ses && ses.coach && ses.coach.renderTip) ses.coach.renderTip();
+  },
+  start(){
+    window.addEventListener('online', () => this.set(true));
+    window.addEventListener('offline', () => this.set(false));
+    if(!this.on){ this.on = true; this.set(false); }
+  }
+};
+/* ---------- Sin conexión: service worker, aviso 3 y versión en el pie ----------
+   Registra sw.js (solo por http/https). Una versión nueva de sw.js se instala y queda en espera (waiting):
+   - Aviso 3 «Hay una versión nueva.»: Actualizar manda SKIP_WAITING, el SW llama skipWaiting() y la página
+     recarga en controllerchange.
+   - «Ahora no» guarda casilla.updLater en localStorage. En la siguiente apertura, si sigue habiendo un SW en
+     espera y está esa marca, se activa antes de seguir (SKIP_WAITING + recarga). Además el navegador la activa
+     solo cuando ya no queda ninguna pestaña con la versión vieja. Así nunca se queda pegada una versión vieja.
+   El pie muestra la VERSION del SW que controla la página (GET_VERSION por MessageChannel); si no responde,
+   usa el nombre de la caché casilla-<VERSION> cuando solo hay una; sin SW dice «sin modo sin conexión». */
+const UPD_LATER = 'casilla.updLater';
 const Offline = {
-  reg:null,
+  reg:null, reloading:false, applying:false,
   start(){
     window.addEventListener('online', () => { if(this.reg) this.reg.update().catch(() => {}); });
-    if(!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
-    navigator.serviceWorker.register('sw.js', {updateViaCache:'none'})
-      .then(r => { this.reg = r; }).catch(e => console.warn('Service worker', e));
-  }
+    if(!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)){ this.showVer(null); return; }
+    const hadCtl = !!navigator.serviceWorker.controller; // en la primera instalación clients.claim no debe recargar
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(!hadCtl && !this.applying){ this.readVer(); return; } // tras Actualizar siempre recarga
+      if(this.reloading) return; this.reloading = true; location.reload();
+    });
+    navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(r => {
+      this.reg = r;
+      if(r.waiting && navigator.serviceWorker.controller){
+        if(localStorage.getItem(UPD_LATER)){ this.apply(r.waiting); return; }
+        this.prompt(r.waiting);
+      } else localStorage.removeItem(UPD_LATER); // ya se aplicó (por ejemplo al cerrar todas las pestañas)
+      r.addEventListener('updatefound', () => {
+        const w = r.installing; if(!w) return;
+        w.addEventListener('statechange', () => {
+          if(w.state === 'installed' && navigator.serviceWorker.controller) this.prompt(w);
+          if(w.state === 'activated') this.readVer();
+        });
+      });
+      this.readVer();
+    }).catch(e => { console.warn('Service worker', e); this.showVer(null); });
+  },
+  apply(w){ this.applying = true; localStorage.removeItem(UPD_LATER); w.postMessage({type:'SKIP_WAITING'}); },
+  prompt(w){
+    if($('#upd')) return;
+    const u = document.createElement('div'); u.className = 'upd'; u.id = 'upd'; u.setAttribute('role', 'status');
+    u.innerHTML = '<span>Hay una versión nueva.</span><button class="btn small primary" id="updGo">Actualizar</button><button class="x" id="updLater" aria-label="Ahora no">Ahora no</button>';
+    document.body.append(u);
+    $('#updGo').onclick = () => { $('#updGo').disabled = true; this.apply((this.reg && this.reg.waiting) || w); setTimeout(() => { if(!this.reloading){ this.reloading = true; location.reload(); } }, 4000); }; // respaldo si no llega controllerchange
+    $('#updLater').onclick = () => { localStorage.setItem(UPD_LATER, '1'); u.remove(); };
+  },
+  async readVer(){
+    const c = navigator.serviceWorker.controller || (this.reg && this.reg.active);
+    if(!c){ this.showVer('instalando'); return; }
+    const v = await new Promise(res => {
+      const ch = new MessageChannel(); const t = setTimeout(() => res(null), 1500);
+      ch.port1.onmessage = e => { clearTimeout(t); res(e.data && e.data.version || null); };
+      try{ c.postMessage({type:'GET_VERSION'}, [ch.port2]); }catch(e){ clearTimeout(t); res(null); }
+    });
+    if(v) return this.showVer('v' + v);
+    const keys = (await caches.keys()).filter(k => k.startsWith('casilla-'));
+    this.showVer(keys.length === 1 ? 'v' + keys[0].slice(8) : 'versión sin identificar');
+  },
+  showVer(t){ const e = $('#ver'); if(e) e.textContent = t === null ? 'Sin modo sin conexión.' : t === 'instalando' ? 'Preparando modo sin conexión.' : t; }
 };
 boot();
 </script>

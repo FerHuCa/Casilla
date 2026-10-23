@@ -41,7 +41,11 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 
 `sw.js` es el service worker. Solo se registra por http/https (`Offline.start()` en `boot()`), no en file://. En `install` precachea `LOCAL` (sitio, fuentes, logo, favicons, íconos) y `engine/` (Stockfish 19 lite .js/.wasm) y `CDN` (chess.js, Stockfish 10 .js/.wasm.js/.wasm). Estrategias: navegación e `index.html` con red primero (sin red, la copia guardada); lo demás del mismo origen y de cdnjs con caché primero, guardando lo nuevo; APIs (Chess.com, Lichess, Anthropic, GitHub) pasan directo. La clave de caché ignora hash y query (el worker de Stockfish 19 lleva la ruta del .wasm en el hash).
 
-**Al cambiar sw.js o un archivo precacheado, sube `VERSION`** en sw.js: crea `casilla-<VERSION>`, se activa sola con `skipWaiting` + `clients.claim` y `activate` borra las cachés `casilla-*` viejas. El registro usa `updateViaCache:'none'` y al volver la red (`online`) llama `reg.update()`. Si agregas una fuente, un ícono o cambias la versión de un CDN, agrégalo a `LOCAL`/`CDN`.
+**Al cambiar sw.js o un archivo precacheado, sube `VERSION`** en sw.js: crea `casilla-<VERSION>` y `activate` borra las cachés `casilla-*` viejas. La versión nueva ya no hace `skipWaiting` sola: queda en espera y `Offline.prompt()` muestra el aviso 3 (`#upd`, «Hay una versión nueva.»). **Actualizar** manda `SKIP_WAITING` y recarga en `controllerchange` (`hadCtl` evita recargar en la primera instalación). **Ahora no** guarda `casilla.updLater` en localStorage y la siguiente apertura aplica la espera; el navegador también la activa cuando no quedan pestañas. El pie (`#ver`) pide `GET_VERSION` al SW activo por MessageChannel (respaldo: nombre de la caché `casilla-*`); sin SW dice «Sin modo sin conexión.». El registro usa `updateViaCache:'none'` y al volver la red (`online`) llama `reg.update()`. Si agregas una fuente, un ícono o cambias la versión de un CDN, agrégalo a `LOCAL`/`CDN`.
+
+Avisos sin red (mockups aprobados 1, 2a, 2b, 3, 5a, 5b, estilo B, solo tokens existentes): objeto `Net` (barra `#offBar`, píldora, notas). No agregues UI sin mockup aprobado.
+
+Memoria de puzzles (`PuzzleStore`): IndexedDB `casilla-puzzles`, aparte de la caché del SW. Objetivo 200 de Lichess (`/api/puzzle/batch/{angle}`, 50 con temas de la etapa; puzzles CC0 según database.lichess.org). Chess.com no se guarda: su User Agreement (chess.com/legal/user-agreement, sección 4.C) prohíbe descargar o copiar información salvo la caché temporal del navegador. Relleno en serie con red, 20 s entre peticiones, 429 de Lichess espera 60 s y duplica (máx. 1 h). `done(id)` borra el resuelto y lo anota en `casilla.pzSolved` (últimos 500) para no volver a guardarlo. Más de 14 días se renuevan (20 por pasada). Sin red, `PuzzleSession.fromStore()` sirve guardados y el 5a (`offPzNote`) solo desactiva fuentes sin guardados.
 
 IA sin red: `ClaudeAI.ready()` exige `navigator.onLine`, así que sin red la IA se comporta como apagada (frases integradas) y vuelve sola. No hay UI nueva para esto todavía (pendiente de mockup). Caché medida: unos 4.7 MB en 27 archivos (`navigator.storage.estimate` reporta unos 7.4 MB en Chromium). Pruebas en `offline.py` y `cfredirect.py`.
 
@@ -97,6 +101,9 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `look.py`, `relieve.py`, `bits.py`, `migracion.py` | Apariencia por presets, estilo relieve y 8 bits, migración de preferencias |
 | `motor.py` | Stockfish 19 por defecto y `?sf=10` (por http local) |
 | `cfredirect.py` | Servidor que imita a Cloudflare (307 en `.html`) y jsDelivr con 403: instalación del SW y navegación sin red a `/`, `/index.html` y `/?x` |
+| `offline_ui.py` | Avisos sin red 1, 2a, 2b, 5a, 5b, Táctica sin red, versión en el pie, aviso 3 Actualizar / Ahora no, 8 presets; capturas en `CASILLA_SHOTS` |
+| `puzzle_store.py` | Memoria de puzzles en IndexedDB: 200 de Lichess, relleno en serie, 429, resueltos, Chess.com sin guardar, uso sin red y 5a |
+| `e2e_real.py` | Orígenes reales (sin mocks): llena la memoria contra lichess.org y luego modo avión. Usa red real; no correr en bucle (429) |
 | `exp.py` | Explicaciones de errores |
 
 Variables opcionales: `CASILLA_APP` (ruta del HTML, por defecto `../index.html`), `CASILLA_DEPS`, `CASILLA_OUT` (capturas, por defecto `tests/out/`). Revisa las capturas en escritorio y en móvil después de cambios visuales. 

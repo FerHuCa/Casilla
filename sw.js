@@ -4,9 +4,13 @@
    - No usar jsDelivr para stockfish@19: responde 403 (paquete > 150 MB) y abortaba toda la instalación.
    - index.html (y la navegación) va con red primero: con internet siempre se sirve la versión nueva; sin red, la guardada.
    - El resto va con caché primero y se guarda lo que se baje después.
-   - Al cambiar VERSION se crea una caché nueva, se activa sola (skipWaiting + clients.claim) y se borran las viejas.
+   - Al cambiar VERSION se crea una caché nueva y el SW nuevo queda en espera (waiting), sin skipWaiting automático.
+     La página muestra el aviso «Hay una versión nueva.»: Actualizar manda SKIP_WAITING y aquí se llama skipWaiting().
+     Con «Ahora no» se activa en la siguiente apertura (index.html) o cuando ya no quedan pestañas abiertas.
+     Al activarse: clients.claim y se borran las cachés viejas.
+   - GET_VERSION responde la VERSION por el puerto del MessageChannel (la usa el pie).
    Sube VERSION en cada cambio de sw.js o de los archivos precacheados. */
-const VERSION = '2026-10-22.2';
+const VERSION = '2026-10-22.3';
 const CACHE = 'casilla-' + VERSION;
 const SF10 = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/';
 const LOCAL = [
@@ -29,7 +33,7 @@ self.addEventListener('install', e => {
     const c = await caches.open(CACHE);
     await c.addAll(LOCAL.map(u => new Request(u, {cache:'reload'})));
     await c.addAll(CDN.map(u => new Request(u, {mode:'cors', credentials:'omit'})));
-    await self.skipWaiting();
+    // Sin skipWaiting: la primera instalación se activa sola (no hay SW previo); una actualización espera al aviso 3.
   })());
 });
 
@@ -39,6 +43,15 @@ self.addEventListener('activate', e => {
     await Promise.all(keys.filter(k => k.startsWith('casilla-') && k !== CACHE).map(k => caches.delete(k)));
     await self.clients.claim();
   })());
+});
+
+self.addEventListener('message', e => {
+  const t = e.data && e.data.type;
+  if(t === 'SKIP_WAITING') self.skipWaiting();
+  else if(t === 'GET_VERSION'){
+    const msg = {type:'VERSION', version:VERSION};
+    if(e.ports && e.ports[0]) e.ports[0].postMessage(msg); else if(e.source) e.source.postMessage(msg);
+  }
 });
 
 function isIndex(req, url){
