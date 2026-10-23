@@ -90,9 +90,15 @@ with sync_playwright() as p:
     sw=open(os.path.join(SITE,'sw.js')).read(); sw=re.sub(r"const VERSION = '[^']+'","const VERSION = 'prueba-nueva'",sw); open(os.path.join(SITE,'sw.js'),'w').write(sw)
     ih=open(os.path.join(SITE,'index.html')).read().replace('</body>','<meta name="casilla-prueba" content="v2"></body>',1); open(os.path.join(SITE,'index.html'),'w').write(ih)
     pg.evaluate("Offline.reg.update()")
+    pg.wait_for_selector('#upd', timeout=60000)  # aviso 3: ya no se activa sola
+    check('versión nueva queda en espera', pg.evaluate("!!Offline.reg.waiting"))
+    with pg.expect_navigation(timeout=30000): pg.click('#updGo')
     ok=wait_caches(pg, "k.length===1&&k[0]==='casilla-prueba-nueva'")
     check('caché nueva activa y viejas borradas', ok, '%s -> %s'%(old, pg.evaluate("caches.keys()")))
-    pg.reload(); pg.wait_for_function("Engine.ready",timeout=60000)
+    pg.wait_for_load_state('load'); pg.wait_for_timeout(1500)  # deja terminar la recarga de controllerchange
+    try: pg.reload()
+    except Exception: pg.wait_for_load_state('load')
+    pg.wait_for_function("Engine.ready",timeout=60000)
     check('index.html nuevo con red (red primero)', pg.evaluate("!!document.querySelector('meta[name=casilla-prueba]')"))
     offline(ctx, True); pg.reload(); pg.wait_for_function("Engine.ready",timeout=60000)
     check('sin red se sirve la versión nueva', pg.evaluate("!!document.querySelector('meta[name=casilla-prueba]')"))
