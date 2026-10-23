@@ -102,7 +102,8 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `motor.py` | Stockfish 19 por defecto y `?sf=10` (por http local) |
 | `cfredirect.py` | Servidor que imita a Cloudflare (307 en `.html`) y jsDelivr con 403: instalación del SW y navegación sin red a `/`, `/index.html` y `/?x` |
 | `offline_ui.py` | Avisos sin red 1, 2a, 2b, 5a, 5b, Táctica sin red, versión en el pie, aviso 3 Actualizar / Ahora no, 8 presets; capturas en `CASILLA_SHOTS` |
-| `puzzle_store.py` | Memoria de puzzles en IndexedDB: relleno en serie, 429, límites, resueltos, uso sin red y 5a parcial |
+| `puzzle_store.py` | Memoria de puzzles en IndexedDB: 200 de Lichess, relleno en serie, 429, resueltos, Chess.com sin guardar, uso sin red y 5a |
+| `e2e_real.py` | Orígenes reales (sin mocks): llena la memoria contra lichess.org y luego modo avión. Usa red real; no correr en bucle (429) |
 | `exp.py` | Explicaciones de errores |
 
 Variables opcionales: `CASILLA_APP` (ruta del HTML, por defecto `../index.html`), `CASILLA_DEPS`, `CASILLA_OUT` (capturas, por defecto `tests/out/`). Revisa las capturas en escritorio y en móvil después de cambios visuales. 
