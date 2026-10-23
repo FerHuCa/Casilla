@@ -95,6 +95,19 @@ html[data-board=madera]{--sqL:#EED8B5;--sqD:#B08660}
 html[data-board=nogal]{--sqL:#D6B48E;--sqD:#86593B}
 html[data-board=glaciar]{--sqL:#DCE3E8;--sqD:#7E99AC}
 html[data-board=club]{--sqL:#E7E9D6;--sqD:#7D9971}
+/* Tableros que se eligen por separado (colores propios de Casilla) */
+html[data-board=arena]{--sqL:#ECDAB9;--sqD:#AE8A68}
+html[data-board=oliva]{--sqL:#E4E2C8;--sqD:#8F9965}
+html[data-board=tinta]{--sqL:#D9DEE6;--sqD:#6F7F99}
+html[data-board=coral]{--sqL:#EBDACF;--sqD:#B0806E}
+html[data-board=contraste]{--sqL:#FFFFFF;--sqD:#5E5E5E}
+/* Texturas de lila (los autores de lila y pirouetti, AGPLv3+; ver board/LICENSE.md). El JPG solo se pide con el tablero activo. */
+html[data-board=arce]{--sqL:#E8CFA0;--sqD:#B78A55}
+html[data-board=veteado]{--sqL:#D9B98C;--sqD:#8E6440}
+html[data-board=arce] .board,html[data-board=veteado] .board{background-size:100% 100%;background-color:var(--sqD)}
+html[data-board=arce] .board{background-image:url('board/maple.jpg')}
+html[data-board=veteado] .board{background-image:url('board/wood4.jpg')}
+html[data-board=arce] .sq.l,html[data-board=arce] .sq.d,html[data-board=veteado] .sq.l,html[data-board=veteado] .sq.d{background-color:transparent}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--text);font:15px/1.55 var(--fBody);min-height:100vh;font-variant-numeric:tabular-nums}
@@ -558,6 +571,79 @@ html[data-pieces=rhosgfx] .pbr,.pz-rhosgfx-br{background-image:url('data:image/s
 html[data-pieces=rhosgfx] .pbb,.pz-rhosgfx-bb{background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHN0eWxlPSJjb2xvci1zY2hlbWU6bGlnaHQgb25seSIgaWQ9IkxheWVyXzIiIGRhdGEtbmFtZT0iTGF5ZXIgMiIgdmlld0JveD0iMCAwIDcyIDcyIj48ZGVmcz48c3R5bGU+LmNscy0ze2ZpbGw6I2QxNzc0Yn08L3N0eWxlPjwvZGVmcz48ZyBpZD0iTGljaGVzcyI+PHBhdGggZD0ibTU2LjU3IDU0LjktMS45MS0xLjgzYy0uNDItLjQtLjg3LS43Ni0xLjM1LTEuMDYgMS45NC0zLjE2IDMuMDEtNi44MiAzLjAxLTEwLjYgMC01LjI2LTMuODYtMTIuODctMTEuNDctMjIuNjJhOS44NzMgOS44NzMgMCAwIDAgMS4wMy00LjM5YzAtNS40NS00LjQzLTkuODktOS44OC05Ljg5cy05Ljg5IDQuNDMtOS44OSA5Ljg5YzAgMS41NC4zNiAzLjA0IDEuMDMgNC4zOS03LjYxIDkuNzYtMTEuNDcgMTcuMzYtMTEuNDcgMjIuNjIgMCAzLjc4IDEuMDcgNy40NSAzLjAxIDEwLjYtLjQ4LjMxLS45My42Ni0xLjM1IDEuMDdsLTEuODggMS44MWMtLjMuMjgtLjU3LjYtLjgyLjk1YTYuMzA3IDYuMzA3IDAgMCAwLTEuMTYgMy42NXYyLjg1YzAgMi44NSAyLjMyIDUuMTcgNS4xNyA1LjE3aDM0LjcxYzIuODUgMCA1LjE3LTIuMzIgNS4xNy01LjE3di0yLjg1YzAtMS4zMS0uNC0yLjU3LTEuMTctMy42Ny0uMjQtLjM0LS41LS42NC0uNzgtLjkxWiIgc3R5bGU9ImZpbGw6IzFhMWExYSIvPjxwYXRoIGQ9Ik0zOS44MSAxOC44N2E1Ljg1MSA1Ljg1MSAwIDAgMCAyLjA3LTQuNDhjMC0zLjI1LTIuNjMtNS44OS01Ljg5LTUuODlzLTUuODkgMi42My01Ljg5IDUuODljMCAxLjguODEgMy40IDIuMDcgNC40OC00LjgyIDUuOTMtMTIuNTEgMTYuMzUtMTIuNTEgMjIuNTMgMCA5LjAxIDcuMzEgMTYuMzIgMTYuMzIgMTYuMzJTNTIuMyA1MC40MSA1Mi4zIDQxLjRjMC02LjE5LTcuNjktMTYuNjEtMTIuNTEtMjIuNTNaIiBjbGFzcz0iY2xzLTMiLz48cGF0aCBkPSJNNTEuODEgMzguMjdDNTAuMzQgNDUuMjEgNDMuODIgNTAuNDQgMzYgNTAuNDRzLTE0LjM0LTUuMjMtMTUuODEtMTIuMTdjLS4zMyAxLjEyLS41MiAyLjE4LS41MiAzLjEzIDAgOS4wMSA3LjMxIDE2LjMyIDE2LjMyIDE2LjMyczE2LjMyLTcuMzEgMTYuMzItMTYuMzJjMC0uOTUtLjE5LTIuMDEtLjUyLTMuMTNaIiBzdHlsZT0iZmlsbDojYmI1OTM4Ii8+PHBhdGggZD0iTTU0LjEgNTguMTNjLS4wOS0uMTItLjE4LS4yNC0uMjktLjM0bC0xLjkxLTEuODNhNC42ODYgNC42ODYgMCAwIDAtMy4yNS0xLjMxaC0yNS4zYy0xLjIxIDAtMi4zOC40Ny0zLjI1IDEuMzFsLTEuOTEgMS44M2MtLjExLjExLS4yMS4yMi0uMjkuMzQtLjI4LjM5LS40My44Ni0uNDMgMS4zNXYyLjg1YzAgLjY1LjUzIDEuMTcgMS4xNyAxLjE3aDM0LjcxYy42NSAwIDEuMTctLjUzIDEuMTctMS4xN3YtMi44NWMwLS40OS0uMTUtLjk2LS40My0xLjM1WiIgY2xhc3M9ImNscy0zIi8+PHBhdGggZD0iTTM2IDM0Ljk0YzMuODggMCA3LjQ4IDEuMzIgMTAuNDkgMy42LjkuNjggMi4xMS0uMzQgMS42MS0xLjM1LTIuOTctNi4wMy03LjI5LTkuODMtMTIuMS05Ljgzcy05LjEzIDMuOC0xMi4xIDkuODNjLS41IDEuMDEuNzEgMi4wMyAxLjYxIDEuMzUgMy4wMS0yLjI3IDYuNjEtMy42IDEwLjQ5LTMuNk0xNy40NyA2Mi4zM2MwIC42NS41MyAxLjE3IDEuMTcgMS4xN2gzNC43MWMuNjUgMCAxLjE3LS41MyAxLjE3LTEuMTd2LTIuODVjMC0uNDktLjE1LS45Ni0uNDMtMS4zNUgxNy45Yy0uMjguMzktLjQzLjg2LS40MyAxLjM1eiIgc3R5bGU9ImZpbGw6IzljM2QyOSIvPjwvZz48L3N2Zz4=')}
 html[data-pieces=rhosgfx] .pbn,.pz-rhosgfx-bn{background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHN0eWxlPSJjb2xvci1zY2hlbWU6bGlnaHQgb25seSIgaWQ9IkxheWVyXzIiIGRhdGEtbmFtZT0iTGF5ZXIgMiIgdmlld0JveD0iMCAwIDcyIDcyIj48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6IzljM2QyOX08L3N0eWxlPjwvZGVmcz48ZyBpZD0iTGljaGVzcyI+PHBhdGggZD0ibTU4IDU0Ljc0LTEuNTUtMS40OWM1Ljc2LTIyLjIyLS42MS0zMy40MS03LjEzLTM4LjkxLTMuMDMtMi41Ni02Ljg4LTMuOTgtMTEuMTgtNC4xNWwtMi4yOC0zLjJhNS41NzggNS41NzggMCAwIDAtNC41My0yLjMzYy0xLjU3IDAtMy4wNy42Ny00LjEyIDEuODMtMi4wMyAyLjI0LTMuMDIgNS4wMS0yLjkgNy44OS0zIDIuNDQtMy45OCA1LjYzLTQuMjMgNi42NGwtMS4yOCA0LjE1Yy0uMTQuNDUtLjM4Ljg2LS43MSAxLjE5bC0zLjg0IDMuOTNjLTEuNjUgMS42OS0yLjQzIDQtMi4xNCA2LjM0YTcuNjc5IDcuNjc5IDAgMCAwIDMuNzkgNS43M2wuNzcuNDJjMS4zMy43MyAyLjg0IDEuMTIgNC4zNyAxLjEyLjk5IDAgMS45Ny0uMTYgMi45LS40OC0zLjM2IDMuMzQtNC40OCA2Ljk4LTQuODUgOS4xNWwtMi4yMyAyLjE0Yy0uMTYuMTUtLjMuMzEtLjQ0LjQ4YTYuMzEgNi4zMSAwIDAgMC0xLjUxIDQuMXYyLjg1YzAgMi44NSAyLjMyIDUuMTcgNS4xNyA1LjE3aDM0LjdjMi44NSAwIDUuMTctMi4zMiA1LjE3LTUuMTd2LTIuODVjMC0xLjQ5LS41NC0yLjk0LTEuNTEtNC4wOS0uMTQtLjE3LS4yOC0uMzMtLjQ0LS40OFoiIHN0eWxlPSJmaWxsOiMxYTFhMWEiLz48cGF0aCBkPSJNNTUuMzcgNTcuNzhjLS4wNS0uMDUtLjA4LS4xMS0uMTMtLjE2bC0zLjI3LTMuMTRjNi4xLTIxLjE5IDEuMDUtMzEuOC01LjIzLTM3LjA5LTIuOTktMi41My02Ljg3LTMuNDMtMTAuNjQtMy4xOGwtMy40OS00LjljLS41OC0uODEtMS43Ni0uODktMi40My0uMTQtMS4yMSAxLjM0LTIuNTggMy43NC0xLjQ5IDcuMTMtLjQuMjEtLjc4LjQzLTEuMTUuNjctMi45NyAxLjkzLTMuNTkgNS4wOS0zLjU5IDUuMDlsLTEuMzIgNC4yOWMtLjMzIDEuMDYtLjkgMi4wMi0xLjY3IDIuODFsLTMuODUgMy45M2EzLjcyIDMuNzIgMCAwIDAgLjcxIDUuNzdsLjc4LjQyYzEuNTYuODYgMy40Ni44MyA1LS4wNi44MS0uNTUgMS44Mi0uNjcgMi43Ni0uMzkgNS4yNyAxLjU2IDkuNTItMi42NyA5LjUyLTIuNjctLjQ1IDQuNzYtMi45NCA2LjA1LTQuODMgNy4wNC04LjI5IDQuMzItOC4xNSAxMS4yOS04LjE1IDExLjI5bC0zLjI3IDMuMTQtLjEzLjE2Yy0uMzcuNDMtLjU5Ljk3LS41OSAxLjU0djIuODVjMCAuNjUuNTMgMS4xNyAxLjE3IDEuMTdoMzQuN2MuNjUgMCAxLjE3LS41MyAxLjE3LTEuMTd2LTIuODVjMC0uNTctLjIyLTEuMTEtLjU5LTEuNTRaIiBzdHlsZT0iZmlsbDojZDE3NzRiIi8+PHBhdGggZD0iTTMzLjc0IDIzLjk4Yy0uMDQtLjUzLS40Ny0uOTYtMS0xLTEuMDQtLjA5LTIuMTUuMjktMi45OSAxLjEzcy0xLjIyIDEuOTQtMS4xMyAyLjk5Yy4wNC41My40Ny45NiAxIDEgMS4wNC4wOSAyLjE1LS4yOSAyLjk5LTEuMTNzMS4yMi0xLjk0IDEuMTMtMi45OSIgY2xhc3M9ImNscy0xIi8+PHBhdGggZD0iTTM3LjQzIDUwLjgxYy00LjM3IDAtOC40Ni0xLjExLTExLjk3LTMuMDQtMi42MyAzLjQ1LTIuNTcgNi43Mi0yLjU3IDYuNzJoMjkuMDdjMS4wNy0zLjcyIDEuNzktNy4xMiAyLjIzLTEwLjIxLTQuMjcgNC4wMy0xMC4yIDYuNTQtMTYuNzcgNi41NFoiIHN0eWxlPSJmaWxsOiNiYjU5MzgiLz48cGF0aCBkPSJNMTguOSA2Mi4xN2MwIC42NS41MyAxLjE3IDEuMTcgMS4xN2gzNC43MWMuNjUgMCAxLjE3LS41MyAxLjE3LTEuMTd2LTIuODVjMC0uNTctLjIyLTEuMTEtLjU5LTEuNTRIMTkuNDljLS4zNy40My0uNTkuOTctLjU5IDEuNTR6IiBjbGFzcz0iY2xzLTEiLz48L2c+PC9zdmc+')}
 html[data-pieces=rhosgfx] .pbp,.pz-rhosgfx-bp{background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHN0eWxlPSJjb2xvci1zY2hlbWU6bGlnaHQgb25seSIgaWQ9IkxheWVyXzIiIGRhdGEtbmFtZT0iTGF5ZXIgMiIgdmlld0JveD0iMCAwIDcyIDcyIj48ZGVmcz48c3R5bGU+LmNscy0ze2ZpbGw6I2QxNzc0Yn08L3N0eWxlPjwvZGVmcz48ZyBpZD0iTGljaGVzcyI+PHBhdGggZD0iTTU0LjM4IDU5LjE3Yy0uMDgtLjk3LS4zMS0xLjkyLS43LTIuODItLjE5LS40My0uMzgtLjgxLS42MS0xLjE3bC00LjgzLTcuNjJjLjUyLS44OS44MS0xLjkyLjgxLTMuMDJ2LTIuMDVjMC0uOTktLjI0LTEuOTItLjY2LTIuNzQgMS4zMy0yLjIxIDIuMDUtNC43NiAyLjA1LTcuNDIgMC03Ljk2LTYuNDgtMTQuNDQtMTQuNDQtMTQuNDRzLTE0LjQ0IDYuNDgtMTQuNDQgMTQuNDRjMCAyLjY2LjcyIDUuMjEgMi4wNSA3LjQyYTUuOTkgNS45OSAwIDAgMC0uNjYgMi43NHYyLjA1YzAgMS4xLjMgMi4xMy44MiAzLjAybC00LjgzIDcuNjNjLS4yMi4zNS0uNDIuNzMtLjYgMS4xNS0uMzkuOS0uNjMgMS44NS0uNzEgMi44Ni0uMDIuMjEtLjAzLjQyLS4wMy42NHYyLjQ5YzAgMi44NSAyLjMyIDUuMTcgNS4xNyA1LjE3aDI2LjQ4YzIuODUgMCA1LjE3LTIuMzIgNS4xNy01LjE3di0yLjQ5YzAtLjIxLS4wMS0uNDEtLjA0LS42NyIgc3R5bGU9ImZpbGw6IzFhMWExYSIvPjxwYXRoIGQ9Ik01MC4zOSA1OS40OGMtLjA0LS41My0uMTctMS4wNS0uMzgtMS41NC0uMDktLjIxLS4xOS0uNDItLjMyLS42MWwtOS4xMy0xNC40MmgtOS4xMWwtOS4xMyAxNC40MmMtLjEyLjItLjIzLjQtLjMyLjYxLS4yMS40OS0uMzQgMS4wMS0uMzggMS41NCAwIC4xMi0uMDMuMjQtLjAzLjM2djIuNDljMCAuNjUuNTMgMS4xNyAxLjE3IDEuMTdoMjYuNDhjLjY1IDAgMS4xNy0uNTMgMS4xNy0xLjE3di0yLjQ5YzAtLjEyLS4wMi0uMjQtLjAzLS4zNloiIGNsYXNzPSJjbHMtMyIvPjxjaXJjbGUgY3g9IjM2IiBjeT0iMzIuMzQiIHI9IjEwLjQ0IiBjbGFzcz0iY2xzLTMiLz48cmVjdCB3aWR0aD0iMTguMTEiIGhlaWdodD0iNi4wNSIgeD0iMjYuOTUiIHk9IjQwLjUiIHJ4PSIyIiByeT0iMiIgc3R5bGU9ImZpbGw6I2JiNTkzOCIvPjxwYXRoIGQ9Ik0yMS41OCA1OS44NHYyLjQ5YzAgLjY1LjUzIDEuMTcgMS4xNyAxLjE3aDI2LjQ4Yy42NSAwIDEuMTctLjUzIDEuMTctMS4xN3YtMi40OWMwLS4xMi0uMDItLjI0LS4wMy0uMzYtLjA0LS41My0uMTctMS4wNS0uMzgtMS41NGgtMjhjLS4yMS40OS0uMzQgMS4wMS0uMzggMS41NCAwIC4xMi0uMDMuMjQtLjAzLjM2IiBzdHlsZT0iZmlsbDojOWMzZDI5Ii8+PC9nPjwvc3ZnPg==')}
+/* Piezas que se eligen por separado, como archivos en piece/ (solo se piden las del set activo o al abrir Apariencia): Spatial y Fantasy (Maurizio Monge, MIT), Shapes (flugsio, CC BY-SA 4.0), Firi (James Faure, CC BY 4.0), Pirouetti (pirouetti, AGPLv3+), Letras (usolando, AGPLv3+). Ver piece/LICENSE.md */
+html[data-pieces=spatial] .pwk,.pz-spatial-wk{background-image:url('piece/spatial/wK.svg')}
+html[data-pieces=spatial] .pwq,.pz-spatial-wq{background-image:url('piece/spatial/wQ.svg')}
+html[data-pieces=spatial] .pwr,.pz-spatial-wr{background-image:url('piece/spatial/wR.svg')}
+html[data-pieces=spatial] .pwb,.pz-spatial-wb{background-image:url('piece/spatial/wB.svg')}
+html[data-pieces=spatial] .pwn,.pz-spatial-wn{background-image:url('piece/spatial/wN.svg')}
+html[data-pieces=spatial] .pwp,.pz-spatial-wp{background-image:url('piece/spatial/wP.svg')}
+html[data-pieces=spatial] .pbk,.pz-spatial-bk{background-image:url('piece/spatial/bK.svg')}
+html[data-pieces=spatial] .pbq,.pz-spatial-bq{background-image:url('piece/spatial/bQ.svg')}
+html[data-pieces=spatial] .pbr,.pz-spatial-br{background-image:url('piece/spatial/bR.svg')}
+html[data-pieces=spatial] .pbb,.pz-spatial-bb{background-image:url('piece/spatial/bB.svg')}
+html[data-pieces=spatial] .pbn,.pz-spatial-bn{background-image:url('piece/spatial/bN.svg')}
+html[data-pieces=spatial] .pbp,.pz-spatial-bp{background-image:url('piece/spatial/bP.svg')}
+html[data-pieces=fantasy] .pwk,.pz-fantasy-wk{background-image:url('piece/fantasy/wK.svg')}
+html[data-pieces=fantasy] .pwq,.pz-fantasy-wq{background-image:url('piece/fantasy/wQ.svg')}
+html[data-pieces=fantasy] .pwr,.pz-fantasy-wr{background-image:url('piece/fantasy/wR.svg')}
+html[data-pieces=fantasy] .pwb,.pz-fantasy-wb{background-image:url('piece/fantasy/wB.svg')}
+html[data-pieces=fantasy] .pwn,.pz-fantasy-wn{background-image:url('piece/fantasy/wN.svg')}
+html[data-pieces=fantasy] .pwp,.pz-fantasy-wp{background-image:url('piece/fantasy/wP.svg')}
+html[data-pieces=fantasy] .pbk,.pz-fantasy-bk{background-image:url('piece/fantasy/bK.svg')}
+html[data-pieces=fantasy] .pbq,.pz-fantasy-bq{background-image:url('piece/fantasy/bQ.svg')}
+html[data-pieces=fantasy] .pbr,.pz-fantasy-br{background-image:url('piece/fantasy/bR.svg')}
+html[data-pieces=fantasy] .pbb,.pz-fantasy-bb{background-image:url('piece/fantasy/bB.svg')}
+html[data-pieces=fantasy] .pbn,.pz-fantasy-bn{background-image:url('piece/fantasy/bN.svg')}
+html[data-pieces=fantasy] .pbp,.pz-fantasy-bp{background-image:url('piece/fantasy/bP.svg')}
+html[data-pieces=shapes] .pwk,.pz-shapes-wk{background-image:url('piece/shapes/wK.svg')}
+html[data-pieces=shapes] .pwq,.pz-shapes-wq{background-image:url('piece/shapes/wQ.svg')}
+html[data-pieces=shapes] .pwr,.pz-shapes-wr{background-image:url('piece/shapes/wR.svg')}
+html[data-pieces=shapes] .pwb,.pz-shapes-wb{background-image:url('piece/shapes/wB.svg')}
+html[data-pieces=shapes] .pwn,.pz-shapes-wn{background-image:url('piece/shapes/wN.svg')}
+html[data-pieces=shapes] .pwp,.pz-shapes-wp{background-image:url('piece/shapes/wP.svg')}
+html[data-pieces=shapes] .pbk,.pz-shapes-bk{background-image:url('piece/shapes/bK.svg')}
+html[data-pieces=shapes] .pbq,.pz-shapes-bq{background-image:url('piece/shapes/bQ.svg')}
+html[data-pieces=shapes] .pbr,.pz-shapes-br{background-image:url('piece/shapes/bR.svg')}
+html[data-pieces=shapes] .pbb,.pz-shapes-bb{background-image:url('piece/shapes/bB.svg')}
+html[data-pieces=shapes] .pbn,.pz-shapes-bn{background-image:url('piece/shapes/bN.svg')}
+html[data-pieces=shapes] .pbp,.pz-shapes-bp{background-image:url('piece/shapes/bP.svg')}
+html[data-pieces=firi] .pwk,.pz-firi-wk{background-image:url('piece/firi/wK.svg')}
+html[data-pieces=firi] .pwq,.pz-firi-wq{background-image:url('piece/firi/wQ.svg')}
+html[data-pieces=firi] .pwr,.pz-firi-wr{background-image:url('piece/firi/wR.svg')}
+html[data-pieces=firi] .pwb,.pz-firi-wb{background-image:url('piece/firi/wB.svg')}
+html[data-pieces=firi] .pwn,.pz-firi-wn{background-image:url('piece/firi/wN.svg')}
+html[data-pieces=firi] .pwp,.pz-firi-wp{background-image:url('piece/firi/wP.svg')}
+html[data-pieces=firi] .pbk,.pz-firi-bk{background-image:url('piece/firi/bK.svg')}
+html[data-pieces=firi] .pbq,.pz-firi-bq{background-image:url('piece/firi/bQ.svg')}
+html[data-pieces=firi] .pbr,.pz-firi-br{background-image:url('piece/firi/bR.svg')}
+html[data-pieces=firi] .pbb,.pz-firi-bb{background-image:url('piece/firi/bB.svg')}
+html[data-pieces=firi] .pbn,.pz-firi-bn{background-image:url('piece/firi/bN.svg')}
+html[data-pieces=firi] .pbp,.pz-firi-bp{background-image:url('piece/firi/bP.svg')}
+html[data-pieces=pirouetti] .pwk,.pz-pirouetti-wk{background-image:url('piece/pirouetti/wK.svg')}
+html[data-pieces=pirouetti] .pwq,.pz-pirouetti-wq{background-image:url('piece/pirouetti/wQ.svg')}
+html[data-pieces=pirouetti] .pwr,.pz-pirouetti-wr{background-image:url('piece/pirouetti/wR.svg')}
+html[data-pieces=pirouetti] .pwb,.pz-pirouetti-wb{background-image:url('piece/pirouetti/wB.svg')}
+html[data-pieces=pirouetti] .pwn,.pz-pirouetti-wn{background-image:url('piece/pirouetti/wN.svg')}
+html[data-pieces=pirouetti] .pwp,.pz-pirouetti-wp{background-image:url('piece/pirouetti/wP.svg')}
+html[data-pieces=pirouetti] .pbk,.pz-pirouetti-bk{background-image:url('piece/pirouetti/bK.svg')}
+html[data-pieces=pirouetti] .pbq,.pz-pirouetti-bq{background-image:url('piece/pirouetti/bQ.svg')}
+html[data-pieces=pirouetti] .pbr,.pz-pirouetti-br{background-image:url('piece/pirouetti/bR.svg')}
+html[data-pieces=pirouetti] .pbb,.pz-pirouetti-bb{background-image:url('piece/pirouetti/bB.svg')}
+html[data-pieces=pirouetti] .pbn,.pz-pirouetti-bn{background-image:url('piece/pirouetti/bN.svg')}
+html[data-pieces=pirouetti] .pbp,.pz-pirouetti-bp{background-image:url('piece/pirouetti/bP.svg')}
+html[data-pieces=letter] .pwk,.pz-letter-wk{background-image:url('piece/letter/wK.svg')}
+html[data-pieces=letter] .pwq,.pz-letter-wq{background-image:url('piece/letter/wQ.svg')}
+html[data-pieces=letter] .pwr,.pz-letter-wr{background-image:url('piece/letter/wR.svg')}
+html[data-pieces=letter] .pwb,.pz-letter-wb{background-image:url('piece/letter/wB.svg')}
+html[data-pieces=letter] .pwn,.pz-letter-wn{background-image:url('piece/letter/wN.svg')}
+html[data-pieces=letter] .pwp,.pz-letter-wp{background-image:url('piece/letter/wP.svg')}
+html[data-pieces=letter] .pbk,.pz-letter-bk{background-image:url('piece/letter/bK.svg')}
+html[data-pieces=letter] .pbq,.pz-letter-bq{background-image:url('piece/letter/bQ.svg')}
+html[data-pieces=letter] .pbr,.pz-letter-br{background-image:url('piece/letter/bR.svg')}
+html[data-pieces=letter] .pbb,.pz-letter-bb{background-image:url('piece/letter/bB.svg')}
+html[data-pieces=letter] .pbn,.pz-letter-bn{background-image:url('piece/letter/bN.svg')}
+html[data-pieces=letter] .pbp,.pz-letter-bp{background-image:url('piece/letter/bP.svg')}
 html[data-pieces=pixel] .pc,html[data-pieces=rhosgfx] .pc,[class*=pz-pixel-],[class*=pz-rhosgfx-]{image-rendering:pixelated}
 
 /* ---- Opción B: tokens aplicados a componentes ---- */
@@ -614,16 +700,35 @@ footer{font-size:var(--fs-xs)}
 @font-face{font-family:'IBM Plex Mono';src:url('fonts/IBMPlexMono-600-latin.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
 @font-face{font-family:'Press Start 2P';src:url('fonts/PressStart2P-latin.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:'Pixelify Sans';src:url('fonts/PixelifySans-latin.woff2') format('woff2');font-weight:400 600;font-style:normal;font-display:swap}
-.presets{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
-.preset{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:center;text-align:left;border:1px solid var(--line2);border-radius:var(--r-sm);padding:10px;background:none;cursor:pointer;color:var(--text);font:inherit}
-.preset:hover{background:var(--raise)}
-.preset[aria-checked=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.pv{width:92px;height:62px;border-radius:var(--r-sm);overflow:hidden;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);box-shadow:inset 0 0 0 1px rgba(127,127,127,.35)}
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.preset{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;text-align:left;border:1px solid var(--line2);border-radius:var(--r-sm);padding:6px 8px;background:none;cursor:pointer;color:var(--text);font:inherit}
+.preset:hover,.lk-opt:hover{background:var(--raise)}
+.preset[aria-checked=true],.lk-opt[aria-checked=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.pv{width:44px;height:30px;border-radius:var(--r-sm);overflow:hidden;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);box-shadow:inset 0 0 0 1px rgba(127,127,127,.35)}
 .pv i{display:block;background-size:88%;background-position:center;background-repeat:no-repeat}
-.pv .aa{font-style:normal;font-weight:600;font-size:13px;line-height:31px;text-align:center}
-.pt b{display:block;font-size:15px;font-weight:600}
-.pt span{display:block;font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:2px}
-.pt .tag{display:inline-block;margin-top:5px;font-size:11px;padding:1px 6px;border-radius:var(--r-round);background:var(--raise);color:var(--muted)}
+.pt b{display:block;font-size:14px;font-weight:600}
+.pt .tag{display:block;font-size:11px;color:var(--accentText);margin-top:1px}
+/* Apariencia: tablero y piezas por separado (mockups de Sam, 23 oct 2026) */
+@media (min-width:1001px){ .drawer#look{width:min(440px,100vw)} }
+.lk-sec{margin-top:22px}
+.lk-sec h3{margin:0 0 4px;font-size:15px}
+.lk-sub{font-size:12px;color:var(--faint);margin:10px 0 6px;letter-spacing:.02em}
+.lk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.lk-opt{display:flex;flex-direction:column;gap:5px;align-items:stretch;background:none;border:1px solid var(--line2);border-radius:var(--r-sm);padding:6px;cursor:pointer;color:var(--text);font:inherit;font-size:12px;text-align:left}
+.lk-opt .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lk-opt .d{color:var(--faint);font-size:11px;margin-top:-3px}
+.mb{display:grid;grid-template-columns:1fr 1fr;aspect-ratio:1;border-radius:3px;overflow:hidden;background-size:100% 100%}
+.mb i{display:block;background-size:86%;background-position:center;background-repeat:no-repeat}
+.mp{display:grid;grid-template-columns:repeat(3,1fr);aspect-ratio:3/2;border-radius:3px;overflow:hidden}
+.mp i{display:block;background-size:88%;background-position:center;background-repeat:no-repeat}
+.lk-custom{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line2);border-left:3px solid var(--accent);border-radius:var(--r-sm);padding:10px 12px;margin-top:14px;font-size:13px;color:var(--muted)}
+.lk-custom b{color:var(--text);font-weight:600;display:block;font-size:14px}
+.lk-custom .btn{white-space:nowrap}
+@media (max-width:760px){
+  .drawer#look{height:auto;top:0;width:100%}
+  .lk-grid{gap:6px}
+  .lk-opt{padding:4px}
+}
 /* Sin conexión (mockups 1, 2a, 2b, 3, 5a y 5b de Sam, aprobados). Solo tokens existentes. */
 .off-bar{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-5);background:var(--raise);border-bottom:var(--bd);font-size:var(--fs-sm);color:var(--muted)}
 .off-bar b{color:var(--text);font-weight:var(--fw-semibold)}
@@ -640,6 +745,7 @@ footer{font-size:var(--fs-xs)}
 .seg button[disabled]{opacity:1;color:var(--faint);cursor:not-allowed;text-decoration:line-through;text-decoration-thickness:1px}
 .btn[disabled]{cursor:not-allowed}
 footer .ver{white-space:nowrap}
+footer a{color:inherit}
 @media (max-width:760px){
   .upd{left:var(--sp-4);right:var(--sp-4);bottom:var(--sp-4)}
   .off-bar{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:baseline;padding:var(--sp-2) var(--sp-4)}
@@ -689,7 +795,7 @@ footer .ver{white-space:nowrap}
   </section>
   <aside id="side" class="side"></aside>
 </main>
-<footer>Stockfish 19 (GPLv3). Piezas de Colin M.L. Burnett, Armando Hernández Marroquín, Maurizio Monge, Maxime Chupin, Alexis Luengas, therealqtpi y RhosGFX. Datos públicos de Chess.com y Lichess. Tu progreso se guarda en este navegador. <span class="ver" id="ver"></span></footer>
+<footer>Stockfish 19 (GPLv3). Piezas de Colin M.L. Burnett, Armando Hernández Marroquín, Maurizio Monge (Celtic, Spatial y Fantasy, MIT), Maxime Chupin, Alexis Luengas, therealqtpi, RhosGFX, flugsio (Shapes, CC BY-SA 4.0), James Faure (Firi, CC BY 4.0), pirouetti (Pirouetti, AGPLv3+) y usolando (Letras, AGPLv3+). Texturas Arce y Veteado de los autores de lila y pirouetti (AGPLv3+). Datos públicos de Chess.com y Lichess. Tu progreso se guarda en este navegador. <a href="https://github.com/FerHuCa/Casilla" rel="noopener">Código fuente</a> (GPLv3). <span class="ver" id="ver"></span></footer>
 <aside id="look" class="drawer" hidden aria-label="Apariencia"></aside>
 <div id="toast" role="status"></div>
 
@@ -3909,11 +4015,21 @@ function renderProgressHome(){
 const LOOK = {
   theme:[['carbon','Carbón','#242322','#E7E3DC'],['papel','Papel','#F3F3F0','#1E1E1C'],['pizarra','Pizarra','#1F252B','#E2E7EB'],['cuero','Cuero','#28211B','#EEE5D8'],['arcade','Arcade','#1a1c2c','#ffcd75']],
   font:[['clasica','Clásica',"'Source Serif 4',Georgia,serif","'Source Sans 3',sans-serif"],['moderna','Moderna',"'Manrope',sans-serif","'Manrope',sans-serif"],['libro','Libro',"'Literata',Georgia,serif","'Literata',Georgia,serif"],['tecnica','Técnica',"'IBM Plex Mono',monospace","'IBM Plex Sans',sans-serif"],['pixel','Pixel',"'Press Start 2P',monospace","'Pixelify Sans',sans-serif"]],
-  board:[['piedra','Gris piedra','#D3D0C9','#8F8B83'],['madera','Madera','#EED8B5','#B08660'],['nogal','Nogal','#D6B48E','#86593B'],['glaciar','Glaciar','#DCE3E8','#7E99AC'],['club','Club','#E7E9D6','#7D9971'],['arcade','Arcade','#f4f4f4','#3b5dc9']],
-  pieces:[['cburnett','Clásicas'],['merida','Merida'],['celtic','Celtic'],['mpchess','Minimal'],['chessnut','Chessnut'],['pixel','Pixel'],['rhosgfx','Retro']],
+  // Tableros: [id, nombre, casilla clara, casilla oscura, textura en board/ si la hay]
+  board:[['piedra','Gris piedra','#D3D0C9','#8F8B83'],['madera','Madera','#EED8B5','#B08660'],['nogal','Nogal','#D6B48E','#86593B'],['glaciar','Glaciar','#DCE3E8','#7E99AC'],['club','Club','#E7E9D6','#7D9971'],
+    ['arena','Arena','#ECDAB9','#AE8A68'],['oliva','Oliva','#E4E2C8','#8F9965'],['tinta','Tinta','#D9DEE6','#6F7F99'],['coral','Coral','#EBDACF','#B0806E'],['contraste','Contraste','#FFFFFF','#5E5E5E'],
+    ['arce','Arce','#E8CFA0','#B78A55','board/maple.jpg'],['veteado','Veteado','#D9B98C','#8E6440','board/wood4.jpg'],['arcade','Arcade','#f4f4f4','#3b5dc9']],
+  // Piezas: [id, nombre, carpeta en piece/ si no van embebidas]
+  pieces:[['cburnett','Clásicas'],['merida','Merida'],['celtic','Celtic'],['mpchess','Minimal'],['chessnut','Chessnut'],['pixel','Pixel'],['rhosgfx','Retro'],
+    ['spatial','Spatial','piece/spatial/'],['fantasy','Fantasy','piece/fantasy/'],['shapes','Shapes','piece/shapes/'],['firi','Firi','piece/firi/'],['pirouetti','Pirouetti','piece/pirouetti/'],['letter','Letras','piece/letter/']],
   style:[['plano','Plano'],['relieve','Relieve'],['bits','8 bits']]
 };
 const LOOK_DEFAULT = {theme:'carbon', font:'clasica', board:'piedra', pieces:'cburnett', style:'plano'};
+const LOOK_GROUPS = {
+  board:[['Colores',['piedra','madera','nogal','glaciar','club','arena','oliva','tinta','coral','contraste']],['Texturas',['arce','veteado']],['Retro',['arcade']]],
+  pieces:[['Clásicas',['cburnett','merida','celtic','spatial','fantasy']],['Modernas',['mpchess','chessnut','shapes','firi','pirouetti','letter']],['Retro',['pixel','rhosgfx']]]
+};
+const lookOpt = (kind, id) => LOOK[kind].find(o => o[0] === id);
 const PRESETS = [
   {id:'clasico', n:'Clásico', d:'El de siempre: sobrio, para jugar muchas horas.', modes:{oscuro:'carbon', claro:'papel'}, font:'clasica', board:'piedra', pieces:'cburnett', style:'plano'},
   {id:'madera', n:'Madera', d:'Tablero de club en papel claro, letra de libro.', theme:'papel', font:'libro', board:'madera', pieces:'merida', style:'plano'},
@@ -3927,9 +4043,18 @@ const PRESETS = [
 const PREF_DEFAULT = {preset:'clasico', mode:'oscuro'};
 function presetById(id){ return PRESETS.find(p => p.id === id); }
 function presetLook(p, mode){ return {theme: p.modes ? (p.modes[mode] || p.modes.oscuro) : p.theme, font:p.font, board:p.board, pieces:p.pieces, style:p.style}; }
-/* Migración del formato viejo {theme, font, board, pieces, style} a {preset, mode} (spec B, sección 11). */
+/* Personalización: tablero y piezas se guardan solo si existen y difieren de los del estilo. */
+function withCustom(p, pref, src){
+  for(const k of ['board', 'pieces']){ const v = src && src[k]; if(typeof v === 'string' && v !== p[k] && lookOpt(k, v)) pref[k] = v; }
+  return pref;
+}
+/* Migración del formato viejo {theme, font, board, pieces, style} a {preset, mode} (spec B, sección 11).
+   Si el tablero o las piezas no coinciden con el estilo elegido, se conservan como personalización. */
 function migrateLook(old){
-  const l = Object.assign({}, LOOK_DEFAULT, old || {});
+  const l = Object.assign({}, LOOK_DEFAULT, old || {}), r = migratePreset(l);
+  return withCustom(presetById(r.preset), r, l);
+}
+function migratePreset(l){
   const pref = (preset, mode) => ({preset, mode: mode || 'oscuro'});
   const modeOf = () => l.theme === 'papel' ? 'claro' : 'oscuro';
   for(const p of PRESETS) for(const m of (p.modes ? Object.keys(p.modes) : [null])){ const pl = presetLook(p, m); if(Object.keys(pl).every(k => pl[k] === l[k])) return pref(p.id, m); }
@@ -3945,28 +4070,51 @@ function migrateLook(old){
 }
 function lookPref(raw){
   raw = raw === undefined ? S.settings.look : raw;
-  if(raw && typeof raw === 'object' && 'preset' in raw){ const p = presetById(raw.preset); if(!p) return Object.assign({}, PREF_DEFAULT); return {preset:p.id, mode: raw.mode === 'claro' ? 'claro' : 'oscuro'}; }
+  if(raw && typeof raw === 'object' && 'preset' in raw){ const p = presetById(raw.preset); if(!p) return Object.assign({}, PREF_DEFAULT); return withCustom(p, {preset:p.id, mode: raw.mode === 'claro' ? 'claro' : 'oscuro'}, raw); }
   if(raw && typeof raw === 'object') return migrateLook(raw);
   return Object.assign({}, PREF_DEFAULT);
 }
 function migrateStoredLook(){ if(S && S.settings) S.settings.look = lookPref(S.settings.look); }
-function look(){ const r = lookPref(); return presetLook(presetById(r.preset), r.mode); }
-function applyLook(){ const l = look(), d = document.documentElement; d.dataset.theme = l.theme; d.dataset.font = l.font; d.dataset.board = l.board; d.dataset.pieces = l.pieces; d.dataset.style = l.style; }
-function setPref(pref){ S.settings.look = pref; save(); applyLook(); renderLook(); }
+function look(){ const r = lookPref(); return Object.assign(presetLook(presetById(r.preset), r.mode), r.board ? {board:r.board} : {}, r.pieces ? {pieces:r.pieces} : {}); }
+/* Archivos que pide el tablero o el set activo (los embebidos no piden nada). */
+function lookFiles(kind, id){
+  const o = lookOpt(kind, id); if(!o) return [];
+  if(kind === 'board') return o[4] ? [o[4]] : [];
+  return o[2] ? ['wK','wQ','wR','wB','wN','wP','bK','bQ','bR','bB','bN','bP'].map(n => o[2] + n + '.svg') : [];
+}
+let lookSeq = 0;
+function applyLook(){
+  const l = look(), d = document.documentElement, seq = ++lookSeq;
+  d.dataset.theme = l.theme; d.dataset.font = l.font; d.dataset.board = l.board; d.dataset.pieces = l.pieces; d.dataset.style = l.style;
+  // Si un archivo del tablero o del set no se puede cargar (por ejemplo, sin red y sin caché), se usa el del estilo sin tocar lo guardado.
+  const p = presetById(lookPref().preset);
+  ['board', 'pieces'].forEach(k => { const f = lookFiles(k, l[k]); if(!f.length) return;
+    Promise.all(f.map(u => new Promise((ok, ko) => { const im = new Image(); im.onload = ok; im.onerror = ko; im.src = u; })))
+      .catch(() => { if(seq === lookSeq && d.dataset[k] === l[k]) d.dataset[k] = p[k]; }); });
+}
+function setPref(pref){ S.settings.look = lookPref(pref); save(); applyLook(); renderLook(); }
 function renderLook(){
-  const cur = lookPref(), cp = presetById(cur.preset), box = $('#look');
-  const th = id => LOOK.theme.find(o => o[0] === id), bd = id => LOOK.board.find(o => o[0] === id), fo = id => LOOK.font.find(o => o[0] === id);
-  const pv = p => { const t = th(presetLook(p, p === cp ? cur.mode : 'oscuro').theme), b = bd(p.board);
+  const cur = lookPref(), cp = presetById(cur.preset), l = look(), box = $('#look');
+  const custom = !!(cur.board || cur.pieces), bd = id => lookOpt('board', id);
+  const pv = p => { const b = bd(p.board);
     return '<span class="pv" aria-hidden="true">' + [0,1,2,3,4,5,6,7].map(i => { const sq = ((i % 4) + Math.floor(i / 4)) % 2 ? b[3] : b[2];
-      if(i === 3) return '<i class="aa" style="background:' + t[2] + ';color:' + t[3] + ';font-family:' + fo(p.font)[2] + '">Aa</i>';
       const pc = i === 1 ? ' class="pz-' + p.pieces + '-wn"' : i === 6 ? ' class="pz-' + p.pieces + '-bq"' : '';
       return '<i' + pc + ' style="background-color:' + sq + '"></i>'; }).join('') + '</span>'; };
+  const bsw = o => '<span class="mb"' + (o[4] ? ' style="background-image:url(' + o[4] + ')"' : '') + '>' + [0,1,2,3].map(i =>
+    '<i' + (i === 0 ? ' class="pz-cburnett-bn"' : i === 3 ? ' class="pz-cburnett-wb"' : '') + (o[4] ? '' : ' style="background-color:' + (i === 1 || i === 2 ? o[3] : o[2]) + '"') + '></i>').join('') + '</span>';
+  const psw = o => '<span class="mp">' + ['wk','bq','wn','bn','wp','bk'].map((k, i) => '<i class="pz-' + o[0] + '-' + k + '" style="background-color:' + (i % 2 ? '#B5AFA4' : '#E4E0D8') + '"></i>').join('') + '</span>';
+  const grp = (kind, sw) => LOOK_GROUPS[kind].map(([g, ids]) => '<div class="lk-sub">' + g + '</div><div class="lk-grid" role="radiogroup" aria-label="' + g + '">' + ids.map(id => { const o = lookOpt(kind, id), on = l[kind] === id;
+    return '<button class="lk-opt" role="radio" aria-checked="' + on + '" tabindex="' + (on ? 0 : -1) + '" data-k="' + kind + '" data-v="' + id + '">' + sw(o) + '<span class="n">' + o[1] + '</span>' + (cp[kind] === id ? '<span class="d">Del estilo</span>' : '') + '</button>'; }).join('') + '</div>').join('');
+  const summary = [cur.board ? 'Tablero ' + bd(cur.board)[1] : '', cur.pieces ? (cur.board ? 'piezas ' : 'Piezas ') + lookOpt('pieces', cur.pieces)[1] : ''].filter(Boolean).join(' y ') + '.';
   box.innerHTML = '<div class="head"><h2>Apariencia</h2><button class="btn small" id="lookClose">Listo</button></div>' +
-    '<p class="note">Elige un estilo completo: tablero, piezas, letra y colores ya vienen combinados.</p>' +
-    '<div class="presets" role="radiogroup" aria-label="Estilo">' + PRESETS.map(p => '<button class="preset" role="radio" aria-checked="' + (p === cp) + '" tabindex="' + (p === cp ? 0 : -1) + '" data-p="' + p.id + '">' + pv(p) +
-      '<span class="pt"><b>' + p.n + '</b><span>' + p.d + '</span>' + (p.modes ? '<span class="tag">Claro u oscuro</span>' : '') + '</span></button>').join('') + '</div>' +
-    (cp.modes ? '<h3>Modo</h3><div class="seg" role="group" aria-label="Modo">' + ['claro','oscuro'].map(m => '<button data-m="' + m + '" aria-pressed="' + (cur.mode === m) + '">' + (m === 'claro' ? 'Claro' : 'Oscuro') + '</button>').join('') + '</div>' : '') +
-    '<div class="row" style="margin-top:20px"><button class="btn small" id="lookReset">Volver a Clásico</button></div>';
+    '<p class="note">Elige un estilo y, si quieres, cambia el tablero o las piezas por separado.</p>' +
+    '<div class="lk-sec"><h3>Estilo</h3><div class="presets" role="radiogroup" aria-label="Estilo">' + PRESETS.map(p => '<button class="preset" role="radio" aria-checked="' + (p === cp) + '" tabindex="' + (p === cp ? 0 : -1) + '" data-p="' + p.id + '">' + pv(p) +
+      '<span class="pt"><b>' + p.n + '</b>' + (p === cp && custom ? '<span class="tag">Personalizado</span>' : '') + '</span></button>').join('') + '</div>' +
+    (custom ? '<div class="lk-custom"><span><b>' + cp.n + ', personalizado</b>' + summary + '</span><button class="btn small" id="lookUndo">Volver a ' + cp.n + '</button></div>' : '') +
+    (cp.modes ? '<div class="lk-sub" style="margin-top:14px">Modo</div><div class="seg" role="group" aria-label="Modo">' + ['claro','oscuro'].map(m => '<button data-m="' + m + '" aria-pressed="' + (cur.mode === m) + '">' + (m === 'claro' ? 'Claro' : 'Oscuro') + '</button>').join('') + '</div>' : '') + '</div>' +
+    '<div class="lk-sec"><h3>Tablero</h3>' + grp('board', bsw) + '</div>' +
+    '<div class="lk-sec"><h3>Piezas</h3>' + grp('pieces', psw) + '</div>' +
+    '<div class="row" style="margin-top:22px"><button class="btn small" id="lookReset">Volver a Clásico</button></div>';
   const pick = id => { setPref({preset:id, mode:cur.mode}); const nb = $('.preset[data-p="' + id + '"]'); if(nb) nb.focus(); };
   $$('.preset', box).forEach(b => {
     b.onclick = () => pick(b.dataset.p);
@@ -3974,8 +4122,17 @@ function renderLook(){
       if(k === 'ArrowDown' || k === 'ArrowRight') j = (i + 1) % PRESETS.length; else if(k === 'ArrowUp' || k === 'ArrowLeft') j = (i - 1 + PRESETS.length) % PRESETS.length; else if(k === 'Home') j = 0; else if(k === 'End') j = PRESETS.length - 1;
       if(j >= 0){ e.preventDefault(); pick(PRESETS[j].id); } };
   });
-  $$('[data-m]', box).forEach(b => b.onclick = () => { setPref({preset:cp.id, mode:b.dataset.m}); const nb = $('[data-m="' + b.dataset.m + '"]', box); if(nb) nb.focus(); });
+  // Tablero y piezas: elegir la opción del estilo quita esa personalización.
+  const choose = (kind, id) => { setPref(Object.assign({}, cur, {[kind]: id})); const nb = $('.lk-opt[data-k="' + kind + '"][data-v="' + id + '"]', box); if(nb) nb.focus(); };
+  $$('.lk-opt', box).forEach(b => {
+    b.onclick = () => choose(b.dataset.k, b.dataset.v);
+    b.onkeydown = e => { const k = e.key, ids = LOOK_GROUPS[b.dataset.k].flatMap(g => g[1]), i = ids.indexOf(b.dataset.v); let j = -1;
+      if(k === 'ArrowDown' || k === 'ArrowRight') j = (i + 1) % ids.length; else if(k === 'ArrowUp' || k === 'ArrowLeft') j = (i - 1 + ids.length) % ids.length; else if(k === 'Home') j = 0; else if(k === 'End') j = ids.length - 1;
+      if(j >= 0){ e.preventDefault(); choose(b.dataset.k, ids[j]); } };
+  });
+  $$('[data-m]', box).forEach(b => b.onclick = () => { setPref(Object.assign({}, cur, {mode:b.dataset.m})); const nb = $('[data-m="' + b.dataset.m + '"]', box); if(nb) nb.focus(); });
   $('#lookClose').onclick = () => toggleLook(false);
+  if(custom) $('#lookUndo').onclick = () => { setPref({preset:cp.id, mode:cur.mode}); const nb = $('.preset[data-p="' + cp.id + '"]', box); if(nb) nb.focus(); };
   $('#lookReset').onclick = () => { setPref({preset:'clasico', mode:cur.mode}); const nb = $('#lookReset'); if(nb) nb.focus(); };
 }
 function toggleLook(open){
