@@ -136,7 +136,13 @@ El botón **Apariencia** abre un panel con 8 estilos completos. Cada uno combina
 - **8 bits:** todo retro, con colores, letra, piezas y tablero pixel.
 - **Arcade:** colores arcade con piezas Retro, sin letra pixel.
 
-**Volver a Clásico** deja la apariencia por defecto. Si usabas una combinación propia en una versión anterior, la app elige el estilo más parecido la primera vez que abres la nueva versión.
+Debajo de los estilos puedes cambiar por separado el **Tablero** y las **Piezas**. La opción que trae el estilo lleva la marca «Del estilo».
+- Tableros de color: Gris piedra, Madera, Nogal, Glaciar, Club, Arena, Oliva, Tinta, Coral y Contraste (pensado para quien ve poco contraste). Texturas: Arce y Veteado. Retro: Arcade.
+- Piezas clásicas: Clásicas, Merida, Celtic, Spatial y Fantasy. Modernas: Minimal, Chessnut, Shapes, Firi, Pirouetti y Letras. Retro: Pixel y Retro.
+
+Si cambias el tablero o las piezas, el estilo queda marcado como «Personalizado» y aparece **Volver a [estilo]**, que quita solo esos cambios. La letra, los colores y el modo siguen viniendo del estilo. Elegir otro estilo descarta la personalización. Solo se descargan las piezas y la textura que usas (y las miniaturas al abrir el panel); quedan guardadas para usarlas sin conexión.
+
+**Volver a Clásico** deja la apariencia por defecto. Si usabas una combinación propia en una versión anterior, la app elige el estilo más parecido y conserva tu tablero y tus piezas como personalización.
 
 ### Progreso
 Tus niveles superados, la evolución de tu rating de puzzles, tus errores más comunes con una recomendación de qué entrenar, tus finales y aperturas repasados, tu avance en la ruta a 1500, la sincronización entre dispositivos y la opción de exportar o importar un respaldo.
@@ -216,6 +222,13 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
   - Chessnut, de [Alexis Luengas](https://github.com/LexLuengas/chessnut-pieces) (Apache 2.0).
   - Pixel, de therealqtpi (AGPLv3+).
   - Retro, de [RhosGFX](https://rhosgfx.itch.io/) (CC0).
+  - Spatial y Fantasy, de [Maurizio Monge](https://github.com/maurimo/chess-art) (MIT).
+  - Shapes, de [flugsio](https://github.com/flugsio/chess_shapes) ([CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)).
+  - Firi, de [James Faure](https://github.com/jfaure/Firi-pieceset) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
+  - Pirouetti, de [pirouetti](https://lichess.org/@/pirouetti) (AGPLv3+).
+  - Letras, de [usolando](https://lichess.org/@/usolando) (AGPLv3+).
+  - Detalle de origen y licencias en [piece/LICENSE.md](piece/LICENSE.md).
+- Texturas de tablero Arce y Veteado, de los autores de lila y [pirouetti](https://lichess.org/@/pirouetti) (AGPLv3+), tomadas de Lichess. Detalle en [board/LICENSE.md](board/LICENSE.md).
 - Fuentes: Source Sans 3 y Source Serif 4 (Adobe), Manrope, Literata, IBM Plex Sans y Mono, incluidas en `fonts/` (SIL Open Font License).
 - Fuentes pixel: Press Start 2P y Pixelify Sans, incluidas en `fonts/` (SIL Open Font License).
 - Reglas de ajedrez: [chess.js](https://github.com/jhlywa/chess.js).
@@ -229,3 +242,8 @@ Casilla no está afiliada a Chess.com, Lichess, Anthropic ni GitHub.
 ## Licencia
 
 Casilla se distribuye bajo la licencia [GPL-3.0](LICENSE). Puedes usarla, estudiarla, modificarla y compartirla, siempre que tus versiones también se publiquen bajo GPL-3.0 y conserven los créditos. Los sets de piezas y el motor Stockfish mantienen sus propias licencias, indicadas en la sección de créditos.
+
+Algunos archivos de terceros tienen otra licencia y la conservan:
+- Piezas Pixel, Pirouetti y Letras, y las texturas Arce y Veteado, están bajo **AGPL-3.0 o posterior** ([texto](docs/licencias/AGPL-3.0.txt)). La GPL-3.0 (sección 13) permite combinarlas con Casilla; esos archivos mantienen la obligación de ofrecer el código fuente a quien use la app por red. El código fuente completo está en https://github.com/FerHuCa/Casilla, enlazado desde el pie de la app.
+- Shapes (CC BY-SA 4.0) y Firi (CC BY 4.0) piden atribución, que va en el pie de la app y en esta página.
+- Copia de `COPYING.md` de lila (commit 02284e0), de donde salen autores y licencias: [docs/licencias/COPYING-lila.md](docs/licencias/COPYING-lila.md).

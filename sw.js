@@ -9,8 +9,12 @@
      Con «Ahora no» se activa en la siguiente apertura (index.html) o cuando ya no quedan pestañas abiertas.
      Al activarse: clients.claim y se borran las cachés viejas.
    - GET_VERSION responde la VERSION por el puerto del MessageChannel (la usa el pie).
+   - Piezas (piece/) y texturas (board/) no se precachean: se guardan al usarlas (caché primero, como el resto).
+     El set y el tablero por defecto van embebidos o son colores, así que no hay archivo que precachear.
+     Al activarse una versión nueva, lo ya guardado de piece/ y board/ pasa a la caché nueva antes de borrar la vieja,
+     para que el set activo siga sin red tras actualizar.
    Sube VERSION en cada cambio de sw.js o de los archivos precacheados. */
-const VERSION = '2026-10-22.3';
+const VERSION = '2026-10-23.2';
 const CACHE = 'casilla-' + VERSION;
 const SF10 = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/';
 const LOCAL = [
@@ -27,6 +31,7 @@ const CDN = [
   SF10 + 'stockfish.js', SF10 + 'stockfish.wasm.js', SF10 + 'stockfish.wasm'
 ];
 const CDN_HOSTS = ['cdnjs.cloudflare.com'];
+const ON_USE = ['piece/', 'board/']; // se guardan al usarlos y se conservan entre versiones
 
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
@@ -39,8 +44,16 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k.startsWith('casilla-') && k !== CACHE).map(k => caches.delete(k)));
+    const keys = await caches.keys(), old = keys.filter(k => k.startsWith('casilla-') && k !== CACHE);
+    const c = await caches.open(CACHE), base = self.registration.scope;
+    for(const k of old){
+      const o = await caches.open(k);
+      for(const req of await o.keys()){
+        if(!ON_USE.some(d => req.url.startsWith(base + d)) || await c.match(req)) continue;
+        const r = await o.match(req); if(r) await c.put(req, r);
+      }
+    }
+    await Promise.all(old.map(k => caches.delete(k)));
     await self.clients.claim();
   })());
 });

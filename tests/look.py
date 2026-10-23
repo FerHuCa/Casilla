@@ -26,7 +26,10 @@ with sync_playwright() as p:
     pg.keyboard.press('ArrowDown'); ck(pg.evaluate("[document.activeElement.dataset.p, S.settings.look.preset]")==['club','club'], 'flecha abajo elige el siguiente')
     pg.keyboard.press('ArrowUp'); pg.keyboard.press('ArrowUp'); ck(pg.evaluate("S.settings.look.preset")=='pizarra', 'flecha arriba elige el anterior')
     pg.keyboard.press('End'); ck(pg.evaluate("S.settings.look.preset")=='arcade', 'Fin va al último')
-    time.sleep(.4); ck(any('IBMPlex' in u for u in REQ) and not [u for u in REQ if 'fonts.g' in u], 'fuente de Arcade desde fonts/ del repo')
+    # Cuero (Literata) ya se aplicó y Arcade usa la letra «tecnica» (IBM Plex), que ahora tiene su regla html[data-font=tecnica].
+    time.sleep(.4); fr=[u for u in REQ if u.endswith('.woff2')]
+    ck(any('Literata' in u for u in fr) and any('IBMPlex' in u for u in fr) and all('/fonts/' in u for u in fr) and not [u for u in REQ if 'fonts.g' in u], 'fuentes de los estilos desde fonts/ del repo '+str([u.split('/')[-1] for u in fr]))
+    ck('IBM Plex Sans' in pg.evaluate("getComputedStyle(document.body).fontFamily") and 'IBM Plex Mono' in pg.evaluate("getComputedStyle(document.querySelector('h2')||document.body).getPropertyValue('--fHead')"), 'Arcade aplica la letra técnica a la interfaz')
     pg.click('#lookReset'); ck(pg.evaluate("S.settings.look.preset")=='clasico', 'Volver a Clásico')
     pg.click('.preset[data-p=relieve]'); pg.reload(); pg.wait_for_function("Engine.ready",timeout=60000)
     ck(pg.evaluate("[document.documentElement.dataset.style,document.documentElement.dataset.theme]")==['relieve','papel'], 'se conserva tras recargar (Relieve claro)')

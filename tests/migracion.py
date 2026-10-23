@@ -31,16 +31,18 @@ with sync_playwright() as p:
     for name,old,exp in CASES:
         if old is None: continue
         r=pg.evaluate("o=>migrateLook(o)", old)
-        ok=r['preset']==exp[0] and (exp[1] is None or r['mode']==exp[1]) and set(r)=={'preset','mode'}
+        # El estilo sale de la regla de la sección 11; tablero y piezas quedan como personalización solo si difieren del estilo
+        pb=pg.evaluate("([id,o])=>{const p=presetById(id), l=Object.assign({},LOOK_DEFAULT,o); const c={}; for(const k of ['board','pieces']) if(l[k]!==p[k] && lookOpt(k,l[k])) c[k]=l[k]; return c;}", [exp[0], old])
+        ok=r['preset']==exp[0] and (exp[1] is None or r['mode']==exp[1]) and {k:v for k,v in r.items() if k not in ('preset','mode')}==pb
         F+=not ok; print('OK   ' if ok else 'FALLA ', name, '->', r)
     # migración al cargar desde casilla.v1 y reemplazo del formato viejo al guardar
     pg.evaluate("""()=>{ const st=JSON.parse(localStorage.getItem('casilla.v1')||'{}'); st.settings=st.settings||{}; st.settings.look={theme:'papel',font:'clasica',board:'nogal',pieces:'merida',style:'plano'}; localStorage.setItem('casilla.v1',JSON.stringify(st)); }""")
     pg.reload(); pg.wait_for_function("typeof S!=='undefined' && S.settings")
     time.sleep(.5)
     r=pg.evaluate("[document.documentElement.dataset.theme, document.documentElement.dataset.board, JSON.stringify(S.settings.look)]")
-    ok=r==['papel','madera','{"preset":"madera","mode":"oscuro"}']; F+=not ok; print('OK   ' if ok else 'FALLA ','migra al cargar', r)
+    ok=r==['papel','nogal','{"preset":"madera","mode":"oscuro","board":"nogal"}']; F+=not ok; print('OK   ' if ok else 'FALLA ','migra al cargar (conserva el tablero Nogal como personalización)', r)
     pg.evaluate("save()"); saved=pg.evaluate("JSON.parse(localStorage.getItem('casilla.v1')).settings.look")
-    ok=saved=={'preset':'madera','mode':'oscuro'}; F+=not ok; print('OK   ' if ok else 'FALLA ','el formato viejo se reemplaza al guardar', saved)
+    ok=saved=={'preset':'madera','mode':'oscuro','board':'nogal'}; F+=not ok; print('OK   ' if ok else 'FALLA ','el formato viejo se reemplaza al guardar', saved)
     # respaldo importado pasa por la misma función
     import tempfile, json as J
     fn=tempfile.mktemp(suffix='.json'); open(fn,'w').write(J.dumps({'settings':{'look':{'theme':'arcade','font':'pixel','board':'arcade','pieces':'pixel','style':'bits'}}}))
