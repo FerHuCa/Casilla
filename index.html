@@ -4359,7 +4359,7 @@ const Offline = {
     const u = document.createElement('div'); u.className = 'upd'; u.id = 'upd'; u.setAttribute('role', 'status');
     u.innerHTML = '<span>Hay una versión nueva.</span><button class="btn small primary" id="updGo">Actualizar</button><button class="x" id="updLater" aria-label="Ahora no">Ahora no</button>';
     document.body.append(u);
-    $('#updGo').onclick = () => { $('#updGo').disabled = true; this.apply(w); };
+    $('#updGo').onclick = () => { $('#updGo').disabled = true; this.apply((this.reg && this.reg.waiting) || w); setTimeout(() => { if(!this.reloading){ this.reloading = true; location.reload(); } }, 4000); }; // respaldo si no llega controllerchange
     $('#updLater').onclick = () => { localStorage.setItem(UPD_LATER, '1'); u.remove(); };
   },
   async readVer(){
