@@ -89,6 +89,8 @@ Abre cualquier posición o partida y pídele al Maestro que te la explique. Se l
 **Traer una posición (Posiciones > Importar):**
 - **Desde una captura:** sube una captura de pantalla del tablero (de Chess.com, Lichess o un libro) o, en la computadora, pégala con Ctrl+V. La IA reconoce las piezas, qué bando está abajo y, si se ve, a quién le toca (por el texto de la pantalla o por la última jugada resaltada). Después se abre el editor con tu captura al lado. Necesita la IA activada.
 - **Pegar FEN, PGN o link:** en Chess.com usa **Compartir** (en la app: **Opciones > Compartir partida**) y copia el link de la partida o descarga su PGN. Con un PGN o un link recorres toda la partida. La API pública de Chess.com no permite pedir una partida por su link, así que la app la busca en el archivo mensual de un jugador: si es tuya y ya cargaste tus partidas, se abre al instante; si no, te pide el usuario de uno de los dos jugadores.
+- **Lichess:** pega el link de una partida (si termina en `/black`, el tablero se gira) o del tablero de análisis. Si Lichess no responde, la app te pide pegar el PGN.
+- **Subir archivo PGN:** el que descargas en Compartir. Si el archivo trae varias partidas, se usa la primera.
 - **Tus partidas recientes:** las últimas jugadas en Casilla o cargadas de Chess.com. Si ya están evaluadas, se abren justo después de tu primer error.
 - **Armar a mano** o **Editar:** abre el editor de posición.
 
@@ -132,7 +134,7 @@ El tema **Recomendado para ti** elige puzzles según tus errores más frecuentes
 - **Finales:** diez finales clásicos contra Stockfish a máxima fuerza, cada uno con un objetivo: dar mate, ganar o entablar. Incluye la regla del cuadrado, las casillas clave, Lucena, Philidor y el mate de alfil y caballo. Los que forman parte de la ruta a 1500 indican su etapa.
 - **Aperturas:** doce líneas principales, como la Italiana, la Española, la Siciliana Najdorf, la Caro-Kann y el Gambito de Dama. El rival juega la teoría y tú debes recordar tus jugadas; al terminar puedes seguir la partida contra el motor. También aparecen tus aperturas más jugadas en Chess.com.
 - **De mis partidas:** tus errores más frecuentes agrupados por tipo. Puedes resolverlos como puzzle o volver a jugar desde esa posición.
-- **Importar:** trae una posición o partida desde una captura, una FEN, un PGN, un link de Chess.com o tus partidas recientes para analizarla con el Maestro o jugarla contra el motor. Ver [Análisis con el Maestro](#análisis-con-el-maestro).
+- **Importar:** trae una posición o partida desde una captura, una FEN, un PGN (pegado o en archivo), un link de Chess.com o Lichess, o tus partidas recientes para analizarla con el Maestro o jugarla contra el motor. Ver [Análisis con el Maestro](#análisis-con-el-maestro).
 
 ### Partidas
 **Jugadas en Casilla:** cada partida de la escalera, contra el maestro o desde una posición entra a esta lista cuando termina su evaluación, con el resultado, tu precisión y tus errores. Tócala para ver otra vez la evaluación completa, al instante y sin volver a calcularla. Sus errores ya están en tus puzzles de **Mis errores**.
@@ -213,7 +215,7 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
 ## Privacidad
 
 - **Chess.com:** la app solo lee la API pública con tu nombre de usuario. No pide contraseña ni puede modificar nada en tu cuenta.
-- **Lichess:** se piden puzzles de forma anónima.
+- **Lichess:** se piden puzzles de forma anónima y, si pegas el link de una partida, su PGN.
 - **GitHub:** solo si activas la sincronización. Tu progreso se guarda en un gist secreto de tu cuenta.
 - **Anthropic:** solo si activas Claude. Se envían las posiciones y los datos de Stockfish de cada comentario o análisis, tus preguntas al Maestro, las capturas que subes para leer y tu nivel estimado con tus errores más comunes. Las capturas no se guardan en la app ni en los respaldos. La clave va directo de tu navegador a Anthropic.
 - Nada más sale de tu navegador. Cada persona que abre la app empieza de cero y nadie ve el progreso de otros.

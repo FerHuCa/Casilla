@@ -20,8 +20,14 @@ def anth(route):
             return ok([{"type":"text","text":CFG['answer']}])
         return ok([{"type":"thinking","thinking":"","signature":"sig"},{"type":"tool_use","id":"tu_1","name":"evaluar_jugadas","input":{"jugadas":CFG['tool_moves']}}], 'tool_use')
     return ok([{"type":"text","text":"listo"}])
+LI_PGN='[Event "Rated blitz game"]\n[Site "https://lichess.org/abcdEFGH"]\n[White "blanco_li"]\n[Black "negro_li"]\n[Result "1-0"]\n\n1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0\n'
 def handle4(route):
-    if 'api.anthropic.com' in route.request.url: return anth(route)
+    url=route.request.url
+    if 'api.anthropic.com' in url: return anth(route)
+    if 'lichess.org/game/export/' in url:
+        if '/abcdEFGH' in url: return route.fulfill(status=200,headers={"Access-Control-Allow-Origin":"*"},content_type='application/x-chess-pgn',body=LI_PGN)
+        if '/noexiste' in url: return route.fulfill(status=404,headers={"Access-Control-Allow-Origin":"*"},body='')
+        return route.abort()
     return handle(route)
 fails=[]
 def check(name, cond):
@@ -221,6 +227,22 @@ with sync_playwright() as p:
     pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
     pg.fill('#fenin', 'https://www.chess.com/analysis?fen=' + FEN_IT.replace(' ','%20')); pg.click('#fenAna'); time.sleep(.5)
     check('link de análisis con FEN', pg.evaluate("App.game.fen()")==FEN_IT)
+    # Links de Lichess: partida, desde el lado de negras, que no existe, sin respuesta y tablero de análisis
+    pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+    pg.fill('#fenin', 'https://lichess.org/abcdEFGH/black'); pg.click('#fenAna')
+    pg.wait_for_function("App.session instanceof AnalysisSession", timeout=10000); time.sleep(.3)
+    check('link de Lichess: abre la partida desde el lado de negras', pg.evaluate("App.session.main.length")==7 and pg.evaluate("Board.orient")=='b' and 'blanco_li vs negro_li' in pg.inner_text('#side h2'))
+    for link, msg, name in [('lichess.org/noexisteXXXX','No encontré esa partida en Lichess','link de Lichess que no existe'),
+                            ('https://lichess.org/zzzzzzzz','pega aquí su PGN','Lichess sin respuesta: pide pegar el PGN'),
+                            ('https://lichess.org/training/12345','no es de una partida','link de Lichess que no es partida')]:
+        pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+        pg.fill('#fenin', link); pg.click('#fenAna')
+        pg.wait_for_function("document.querySelector('#fenerr') && document.querySelector('#fenerr').textContent.length > 0 && !document.querySelector('#fenerr').textContent.includes('Trayendo')", timeout=10000)
+        check(name, msg in pg.inner_text('#fenerr'))
+    pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+    pg.fill('#fenin', 'https://lichess.org/analysis/standard/' + FEN_IT.replace(' ','_')); pg.click('#fenAna'); time.sleep(.5)
+    check('tablero de análisis de Lichess con FEN', pg.evaluate("App.game.fen()")==FEN_IT)
+
     # Partidas recientes
     pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
     check('partidas recientes listadas', len(pg.query_selector_all('[data-rg]'))==3)

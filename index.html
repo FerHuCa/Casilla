@@ -4253,11 +4253,31 @@ function chessComLink(t){
 }
 // De un PGN con varias partidas, la primera (cada una empieza con su encabezado Event)
 function firstGame(txt){ const t = String(txt || '').replace(/^\uFEFF/, ''), at = [...t.matchAll(/^\s*\[Event\s+"/gm)].map(m => m.index); return at.length > 1 ? t.slice(0, at[1]).trim() : t.trim(); }
+// Links de Lichess: partida (lichess.org/abcdEFGH, con o sin /white o /black) o tablero de análisis con la FEN en la ruta
+function lichessLink(t){
+  const raw = (/(?:https?:\/\/)?(?:[\w-]+\.)?lichess\.org\/\S*/i.exec(t) || [])[0]; if(!raw) return null;
+  let u; try{ u = new URL(/^https?:/i.test(raw) ? raw : 'https://' + raw); }catch(e){ return {err:'Ese link no parece válido.'}; }
+  const a = /^\/analysis\/(?:standard\/|fromPosition\/)?(.+)$/.exec(u.pathname);
+  if(a){ const p = decodeURIComponent(a[1]).replace(/_/g, ' ').trim().split(' '), d = ['', 'w', '-', '-', '0', '1']; for(let k = 0; k < 6; k++) if(!p[k]) p[k] = d[k]; const fen = p.slice(0, 6).join(' '), v = new Chess().validate_fen(fen); return v.valid ? {kind:'fen', fen} : {err:'La FEN del link no es válida: ' + v.error}; }
+  const m = /^\/(?:game\/export\/)?([a-zA-Z0-9]{8})(?:[a-zA-Z0-9]{4})?(?:\/(white|black))?\/?$/.exec(u.pathname);
+  if(!m || /^(training|analysis|practice|streamer|insights|tutorial)$/i.test(m[1])) return {err:'Ese link de Lichess no es de una partida.'};
+  return {kind:'lichess', id:m[1], side:m[2] === 'black' ? 'b' : m[2] === 'white' ? 'w' : null};
+}
+// Partida de Lichess en PGN (exportar una partida); sin red o si Lichess no responde, se explica cómo pegar el PGN
+async function lichessGame(id){
+  let r;
+  try{ r = await fetch('https://lichess.org/game/export/' + encodeURIComponent(id) + '?clocks=false&evals=false&literate=false', {headers:{Accept:'application/x-chess-pgn'}}); }
+  catch(e){ throw new Error('No pude traer la partida desde Lichess. Ábrela allá, usa Compartir y pega aquí su PGN.'); }
+  if(r.status === 404) throw new Error('No encontré esa partida en Lichess.');
+  if(r.status === 429) throw new Error('Lichess pide esperar un minuto antes de otra consulta.');
+  if(!r.ok) throw new Error('Lichess respondió con un error (' + r.status + ').');
+  return r.text();
+}
 function parseImport(txt){
   const t = firstGame(txt); if(!t) return {err:'Pega una FEN, un PGN o un link.'};
   // Un PGN de Chess.com trae links en sus encabezados (Link, ECOUrl): si hay encabezados o jugadas numeradas, es PGN
   const looksPgn = /^\s*\[\w+\s+"/m.test(t) || /(^|\s)1\.\s*[a-hKQRBNO]/.test(t);
-  const link = looksPgn ? null : chessComLink(t); if(link) return link;
+  const link = looksPgn ? null : (chessComLink(t) || lichessLink(t)); if(link) return link;
   const one = t.replace(/\s+/g, ' ');
   if(/^[1-8prnbqkPRNBQK]+(\/[1-8prnbqkPRNBQK]+){7}( |$)/.test(one)){
     const p = one.split(' '), d = ['', 'w', '-', '-', '0', '1']; for(let k = 0; k < 6; k++) if(!p[k]) p[k] = d[k];
@@ -4268,7 +4288,7 @@ function parseImport(txt){
   if(hdr.FEN && !new Chess().validate_fen(hdr.FEN).valid) return {err:'La FEN del PGN no es válida.'};
   const b = buildGame(t);
   if(b.moves.length || hdr.FEN) return {kind:'pgn', start:b.start, sans:b.moves.map(m => m.san), headers:b.headers};
-  return {err:'No reconozco ese texto. Pega una FEN, un PGN o el link de una partida de Chess.com.'};
+  return {err:'No reconozco ese texto. Pega una FEN, un PGN o el link de una partida de Chess.com o Lichess.'};
 }
 const monthLabel = url => { const m = /(\d{4})\/(\d{2})\/?$/.exec(url || ''); return m ? new Date(+m[1], +m[2] - 1, 1).toLocaleDateString('es-MX', {month:'long', year:'numeric'}) : ''; };
 // La API pública de Chess.com no da partidas por su número: se busca en el archivo mensual de un jugador
@@ -4297,6 +4317,15 @@ async function resolveImport(){
   say('');
   if(p.kind === 'fen') return {start:p.fen, sans:[], orient:p.fen.split(' ')[1], title:'Posición importada'};
   if(p.kind === 'pgn'){ const h = p.headers; return {start:p.start, sans:p.sans, orient:colorOf(h.White, h.Black, S.username) || 'w', title:h.White && h.Black ? h.White + ' vs ' + h.Black : 'Partida importada'}; }
+  if(p.kind === 'lichess'){
+    if(!Net.on) return fail('Traer una partida de Lichess necesita conexión. Mientras, pega su PGN.');
+    say('Trayendo la partida de Lichess…');
+    try{
+      const b = buildGame(await lichessGame(p.id)); if(!b.moves.length && !b.headers.FEN) return fail('Lichess no devolvió jugadas para esa partida.');
+      say(''); const h = b.headers;
+      return {start:b.start, sans:b.moves.map(m => m.san), orient:p.side || 'w', title:h.White && h.Black ? h.White + ' vs ' + h.Black : 'Partida de Lichess'};
+    }catch(e){ return fail(e.message); }
+  }
   const known = S.games.find(g => g.pgn && idOfUrl(g.id) === p.id && (!p.type || g.id.includes('/' + p.type + '/')));
   if(known){ const b = buildGame(known.pgn); return {start:b.start, sans:b.moves.map(m => m.san), orient:colorOf(known.white, known.black, S.username) || 'w', title:known.white + ' vs ' + known.black}; }
   if(!Net.on) return fail('Buscar una partida por su link necesita conexión. Mientras, pega su PGN.');
@@ -4602,7 +4631,7 @@ function renderPositionsHome(){
       '<div class="row"><label class="btn filebtn' + (ai ? ' primary' : ' off') + '">Subir captura<input type="file" id="shotin" accept="image/*"' + (ai ? '' : ' disabled') + '></label><button class="btn" id="byHand">Armar a mano</button></div>' +
       '<p class="note" id="shotst" aria-live="polite" style="margin-top:8px"></p>' +
       '<h3>Pegar FEN, PGN o link</h3>' +
-      '<div class="field"><textarea id="fenin" placeholder="FEN, PGN o link de una partida de Chess.com" spellcheck="false" aria-label="FEN, PGN o link"></textarea><p class="note" style="margin-top:6px">En Chess.com, usa Compartir y copia el link de la partida o descarga su PGN y súbelo aquí.</p><label class="btn small filebtn">Subir archivo PGN<input type="file" id="pgnin" accept=".pgn,.txt,text/plain,application/x-chess-pgn,application/vnd.chess-pgn"></label><p class="note" id="fenerr" aria-live="polite" style="margin-top:6px"></p></div>' +
+      '<div class="field"><textarea id="fenin" placeholder="FEN, PGN o link de una partida de Chess.com o Lichess" spellcheck="false" aria-label="FEN, PGN o link"></textarea><p class="note" style="margin-top:6px">En Chess.com, usa Compartir y copia el link de la partida o descarga su PGN y súbelo aquí.</p><label class="btn small filebtn">Subir archivo PGN<input type="file" id="pgnin" accept=".pgn,.txt,text/plain,application/x-chess-pgn,application/vnd.chess-pgn"></label><p class="note" id="fenerr" aria-live="polite" style="margin-top:6px"></p></div>' +
       '<div class="field" id="linkUserBox" hidden><span class="lbl">Usuario de Chess.com de uno de los dos jugadores</span><input type="text" id="linkUser" autocomplete="off" spellcheck="false" placeholder="usuario"></div>' +
       '<div class="row"><button class="btn primary" id="fenAna">Analizar con el Maestro</button><button class="btn" id="fenEdit">Editar</button></div>' +
       '<div class="field"><span class="lbl">Rival para jugarla</span>' + tierSelectHTML('fenTier') + '</div>' +
