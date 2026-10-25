@@ -20,8 +20,14 @@ def anth(route):
             return ok([{"type":"text","text":CFG['answer']}])
         return ok([{"type":"thinking","thinking":"","signature":"sig"},{"type":"tool_use","id":"tu_1","name":"evaluar_jugadas","input":{"jugadas":CFG['tool_moves']}}], 'tool_use')
     return ok([{"type":"text","text":"listo"}])
+LI_PGN='[Event "Rated blitz game"]\n[Site "https://lichess.org/abcdEFGH"]\n[White "blanco_li"]\n[Black "negro_li"]\n[Result "1-0"]\n\n1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0\n'
 def handle4(route):
-    if 'api.anthropic.com' in route.request.url: return anth(route)
+    url=route.request.url
+    if 'api.anthropic.com' in url: return anth(route)
+    if 'lichess.org/game/export/' in url:
+        if '/abcdEFGH' in url: return route.fulfill(status=200,headers={"Access-Control-Allow-Origin":"*"},content_type='application/x-chess-pgn',body=LI_PGN)
+        if '/noexiste' in url: return route.fulfill(status=404,headers={"Access-Control-Allow-Origin":"*"},body='')
+        return route.abort()
     return handle(route)
 fails=[]
 def check(name, cond):
@@ -82,6 +88,27 @@ with sync_playwright() as p:
     check('mensajes previos ofrecen volver a su posición', pg.query_selector('#mafeed [data-show]') is not None)
     pg.click('#mafeed [data-show]'); time.sleep(.4)
     no_brand(pg,'análisis')
+    # Posiciones decididas (de la prueba con capturas reales): mates en la segunda línea, defensa y signo de la evaluación
+    F2='8/ppp3p1/5k1p/1q5P/nP6/1KP2p2/8/4R3 w - - 0 1'
+    check('segunda línea con mate en contra: avisa en lugar de "también sirve"', 'Cuidado con c4' in pg.evaluate(f"altText('{F2}', {{v:-1400, pv:['e1e3']}}, {{v:-1468, pv:['c3c4']}})"))
+    check('con dos jugadas que ganan: "también gana"', pg.evaluate(f"altText('{F2}', {{v:900, pv:['e1e3']}}, {{v:700, pv:['c3c4']}})").startswith(' También gana c4'))
+    F3='2k4r/p4qp1/2b1p1p1/p2p4/3P1P2/P5KP/2PB4/1R2R3 b - - 0 1'
+    t2=pg.evaluate(f"bestIdea(synthE('{F2}', [{{v:-1400, pv:['e1e2']}}]), 0, ideaCtx(true, '{F2}'))")
+    t3=pg.evaluate(f"bestIdea(synthE('{F3}', [{{v:-1160, pv:['g6g5']}}]), 0, ideaCtx(false, '{F3}'))")
+    print('  ', t2, '|', t3)
+    check('final sin ideas de apertura ni evaluación desde quien mueve', 'centro' not in t2 + t3 and '(+' not in t2 + t3 and ('resiste' in t2 or 'ataca' in t2))
+    check('perdido: "la mejor defensa"', 'la mejor defensa es' in pg.evaluate(f"localExplain({{kind:'pos', fen:'{F2}', lines:[{{v:-1400, pv:['e1e2'], depth:20}}]}}).text"))
+
+    # --- Con IA: elegir modelo la primera vez ---
+    pg.evaluate("S.settings.claude = {on:true, key:'sk-ant-prueba', model:'claude-haiku-5-5'}; App.session.renderSide(); App.session.update()"); time.sleep(.3)
+    check('sin modelo elegido aparece la tarjeta con tres opciones y costos', len(pg.query_selector_all('[data-amodel]'))==3 and 'centavo' in pg.inner_text('.mpick'))
+    no_brand(pg,'tarjeta de modelos')
+    n=len(SENT); pg.click('#maPos'); wait_msg(pg, 60000)
+    check('mientras no elija, usa el modelo de comentarios', SENT[n]['model']=='claude-haiku-5-5' and SENT[n].get('thinking')=={'type':'disabled'})
+    pg.click('[data-amodel="claude-sonnet-5-5"]'); time.sleep(.3)
+    check('elegir guarda el modelo y quita la tarjeta', pg.evaluate("S.settings.claude.anaModel")=='claude-sonnet-5-5' and pg.query_selector('.mpick') is None and pg.is_visible('#maQ'))
+    n=len(SENT); pg.click('#maPos'); wait_msg(pg, 60000)
+    check('Sonnet con herramientas: between_tools', SENT[n]['model']=='claude-sonnet-5-5' and SENT[n].get('thinking')=={'type':'between_tools'})
 
     # --- Con IA: herramientas del motor ---
     ai_on(pg); pg.evaluate("App.session.renderSide(); App.session.update()"); time.sleep(.3)
@@ -109,6 +136,31 @@ with sync_playwright() as p:
     res=json.loads(tr.get('content','{}'))
     check('jugada ilegal: error con jugadas legales', tr.get('is_error') and 'no es legal' in res.get('error','') and 'Nf6' in res.get('jugadas_legales',[]))
     CFG['tool_moves']=['Nf6']
+    # Jugadas con número desde la IA ("3... Nf6") se aceptan; fase sin número de jugada en posiciones sueltas
+    CFG['tool_moves']=['3... Nf6']; n=len(SENT); pg.click('#maPos'); wait_msg(pg, 60000)
+    tr=json.loads(SENT[n+1]['messages'][2]['content'][0]['content']) if len(SENT)>n+1 else {}
+    check('la herramienta acepta jugadas con número', 'evaluacion' in tr and 'error' not in tr)
+    u=SENT[n]['messages'][0]['content']
+    check('FEN con número de jugada real: fase de la partida', '"fase":"Apertura"' in u and '"jugada_numero":3' in u)
+    fx=pg.evaluate("(()=>{ const F='2k4r/p4qp1/2b1p1p1/p2p4/3P1P2/P5KP/2PB4/1R2R3 b - - 0 1'; return AnalysisSession.prototype.factsFor.call({main:[], start:F}, {kind:'pos', fen:F, hist:[], lines:[{v:-1160, pv:['g6g5'], depth:20}]}, {text:''}).posicion; })()")
+    check('posición suelta (0 1): fase por material y sin número de jugada', fx.get('fase')=='Medio juego' and 'jugada_numero' not in fx)
+    CFG['tool_moves']=['Nf6']
+    # Texto de la IA sin Markdown ni guiones largos
+    CFG['answer']='Idea **clave** \u2014 ataque al rey.'; pg.click('#maPos'); m=wait_msg(pg, 60000); CFG['answer']='Explicación IA de prueba.'
+    check('la respuesta se limpia de Markdown y guiones largos', m['text']=='Idea clave, ataque al rey.')
+    # Comparación con la mejor: mates y diferencias a favor por calcular con menos tiempo
+    cmp=lambda a,b,mv: pg.evaluate(f"compareToBest('{FEN_IT}', {{v:{a}, pv:['g8f6']}}, {{from:'f8',to:'c5'}}, {b})")
+    check('comparación: diferencia a favor se toma como igual', 'prácticamente igual' in cmp(0, -40, 'f8c5'))
+    check('comparación: permite mate', 'permite que el rival dé mate en 3' in cmp(0, 1497, 'f8c5'))
+    check('comparación: deja escapar un mate', 'deja escapar un mate en 2' in cmp(-1498, -500, 'f8c5'))
+    # Al salir mientras la IA consulta al motor, no hay más llamadas ni mensajes en la pantalla nueva
+    pg.evaluate("App.session.cache = {}"); n=len(SENT); pg.click('#maPos')
+    pg.wait_for_function(f"window.__n === undefined", timeout=1000) if False else None
+    t0=time.time()
+    while len(SENT)<=n and time.time()-t0<30: time.sleep(.05)
+    pg.click('#bk'); time.sleep(.3); pg.fill('#fenin', FEN_IT); pg.click('#fenAna'); time.sleep(5)
+    check('al salir se dejan de hacer consultas', len(SENT)==n+1)
+    check('la pantalla nueva no recibe mensajes viejos', pg.evaluate("App.session.msgs.length")==0 and pg.evaluate("document.querySelector('#mafeed').hidden"))
     # Pregunta libre
     n=len(SENT); pg.fill('#maQ','¿Qué plan tengo aquí?'); pg.press('#maQ','Enter'); m=wait_msg(pg, 60000)
     check('pregunta libre: se muestra la pregunta y la respuesta', pg.evaluate("App.session.msgs[1].label")=='Tú' and m['text']=='Explicación IA de prueba.')
@@ -116,8 +168,19 @@ with sync_playwright() as p:
     # Error de la IA: queda la explicación del motor
     ctx.unroute('**/*'); ctx.route('**/*', lambda r: r.fulfill(status=401,headers=CORS,content_type='application/json',body=json.dumps({"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}})) if 'api.anthropic.com' in r.request.url else handle4(r))
     pg.click('#maPos'); m=wait_msg(pg, 60000)
-    check('si la IA falla, explica el motor y avisa', 'Mueven' in m['text'] and 'invalid x-api-key' in (m.get('note') or ''))
+    check('si la IA falla, explica el motor y avisa sin mostrar el error crudo', 'Mueven' in m['text'] and 'la clave no es válida' in (m.get('note') or '') and 'x-api-key' not in (m.get('note') or ''))
+    check('el error original queda para los ajustes', 'invalid x-api-key' in pg.evaluate("ClaudeAI.lastError"))
     ctx.unroute('**/*'); ctx.route('**/*',handle4)
+
+    # --- Posiciones imposibles al importar: al editor ---
+    for fen, msg, name in [('4k3/8/8/8/8/8/8/8 w - - 0 1','Falta el rey blanco','FEN sin rey: abre el editor'),
+                           ('4k3/8/8/8/8/8/4Q3/4K3 w - - 0 1','está en jaque pero mueven','jaque del bando que no mueve: abre el editor')]:
+        pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+        pg.fill('#fenin', fen); pg.click('#fenAna'); time.sleep(.5)
+        check(name, pg.evaluate("App.session instanceof EditorSession") and msg in pg.inner_text('#edprob'))
+    pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+    pg.fill('#fenin', '4k3/8/8/8/8/8/8/4K3 w KQkq - 0 1'); pg.click('#fenAna'); time.sleep(.5)
+    check('enroques imposibles se quitan al importar', pg.evaluate("App.session instanceof AnalysisSession && App.game.fen()")=='4k3/8/8/8/8/8/8/4K3 w - - 0 1')
 
     # --- Captura ---
     target='rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 0 1'
@@ -188,6 +251,24 @@ with sync_playwright() as p:
     check('volver a la partida', pg.evaluate("App.session.vars.length")==0 and pg.evaluate("App.session.ply")==5)
     pg.click('.sq[data-sq="g8"]'); pg.click('.sq[data-sq="f6"]'); time.sleep(.2)
     check('si la jugada coincide con la partida, sigue en ella', pg.evaluate("App.session.ply")==6 or pg.evaluate("App.session.vars.length")==1)
+    ai_on(pg, False); pg.click('#controls button:has-text("Final")'); time.sleep(.3)
+    check('al final de una partida con mate se ofrece "¿Qué tal Nd5#?"', pg.is_visible('#maMine') and pg.inner_text('#maMine')=='¿Qué tal Nd5#?')
+    pg.click('#maMine'); m=wait_msg(pg, 60000); print('  ', m['text'][:140])
+    check('y explica la jugada que dio mate', 'Nd5#' in m['text'] and 'No pude' not in m['text'])
+    ai_on(pg)
+
+    # Archivo PGN con dos partidas (lo que descarga Compartir): se usa la primera
+    import tempfile
+    pf=os.path.join(tempfile.mkdtemp(), 'partida.pgn'); open(pf,'w').write('\ufeff'+games[1]['pgn']+'\n\n'+games[2]['pgn']+'\n')
+    pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+    pg.set_input_files('#pgnin', pf); pg.wait_for_function("document.querySelector('#fenerr').textContent.includes('Cargué')", timeout=5000)
+    check('subir PGN: carga la primera partida del archivo', 'partida.pgn (13 jugadas)' in pg.inner_text('#fenerr') and 'rival3' not in pg.input_value('#fenin'))
+    pg.click('#fenAna'); time.sleep(.5)
+    check('subir PGN: se analiza la partida', pg.evaluate("App.session instanceof AnalysisSession && App.session.main.length")==13)
+    bad=os.path.join(tempfile.mkdtemp(), 'nada.txt'); open(bad,'w').write('hola')
+    pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+    pg.set_input_files('#pgnin', bad); time.sleep(.4)
+    check('subir un archivo sin partida se explica', 'no tiene una partida' in pg.inner_text('#fenerr'))
 
     # --- Link de Chess.com ---
     pg.evaluate("S.username=''; S.games=[]; App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
@@ -208,6 +289,22 @@ with sync_playwright() as p:
     pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
     pg.fill('#fenin', 'https://www.chess.com/analysis?fen=' + FEN_IT.replace(' ','%20')); pg.click('#fenAna'); time.sleep(.5)
     check('link de análisis con FEN', pg.evaluate("App.game.fen()")==FEN_IT)
+    # Links de Lichess: partida, desde el lado de negras, que no existe, sin respuesta y tablero de análisis
+    pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+    pg.fill('#fenin', 'https://lichess.org/abcdEFGH/black'); pg.click('#fenAna')
+    pg.wait_for_function("App.session instanceof AnalysisSession", timeout=10000); time.sleep(.3)
+    check('link de Lichess: abre la partida desde el lado de negras', pg.evaluate("App.session.main.length")==7 and pg.evaluate("Board.orient")=='b' and 'blanco_li vs negro_li' in pg.inner_text('#side h2'))
+    for link, msg, name in [('lichess.org/noexisteXXXX','No encontré esa partida en Lichess','link de Lichess que no existe'),
+                            ('https://lichess.org/zzzzzzzz','pega aquí su PGN','Lichess sin respuesta: pide pegar el PGN'),
+                            ('https://lichess.org/training/12345','no es de una partida','link de Lichess que no es partida')]:
+        pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+        pg.fill('#fenin', link); pg.click('#fenAna')
+        pg.wait_for_function("document.querySelector('#fenerr') && document.querySelector('#fenerr').textContent.length > 0 && !document.querySelector('#fenerr').textContent.includes('Trayendo')", timeout=10000)
+        check(name, msg in pg.inner_text('#fenerr'))
+    pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+    pg.fill('#fenin', 'https://lichess.org/analysis/standard/' + FEN_IT.replace(' ','_')); pg.click('#fenAna'); time.sleep(.5)
+    check('tablero de análisis de Lichess con FEN', pg.evaluate("App.game.fen()")==FEN_IT)
+
     # Partidas recientes
     pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
     check('partidas recientes listadas', len(pg.query_selector_all('[data-rg]'))==3)
@@ -221,9 +318,10 @@ with sync_playwright() as p:
     pg.click('#bk'); time.sleep(.3)
     check('y regresa a la revisión', pg.evaluate("App.session instanceof ReviewSession"))
     pg.click('.tab[data-tab=coach]'); time.sleep(.3)
-    check('ajuste del modelo de análisis con Opus por defecto', pg.evaluate("document.querySelector('#aimodel2').value")=='claude-opus-5-5')
+    check('el ajuste muestra el modelo de análisis elegido', pg.evaluate("document.querySelector('#aimodel2').value")=='claude-opus-5-5')
     pg.select_option('#aimodel2','claude-sonnet-5-5')
     check('el modelo de análisis se guarda', pg.evaluate("S.settings.claude.anaModel")=='claude-sonnet-5-5' and pg.evaluate("S.settings.claude.model")=='claude-haiku-5-5')
+    check('las opciones del ajuste muestran el costo', 'centavos por uso' in pg.evaluate("[...document.querySelectorAll('#aimodel2 option')].map(o=>o.textContent).join(' ')"))
     pg.click('#cana'); time.sleep(.3)
     check('la pestaña Maestro lleva a Importar', pg.evaluate("App.tab")=='positions' and pg.is_visible('#fenin'))
     check('la clave no queda en el respaldo', pg.evaluate("!stripForSync(JSON.parse(JSON.stringify(S))).settings.claude"))
@@ -249,5 +347,9 @@ with sync_playwright() as p:
     check('móvil: piezas de la paleta de al menos 40 px', min(pal)>=40)
     pg.tap('#edAna'); time.sleep(.5); pg.wait_for_function("App.session.cache[App.game.fen()]", timeout=20000)
     pg.tap('#maPos'); wait_msg(pg, 60000); time.sleep(.3); audit('analisis')
+    tip=pg.evaluate("(()=>{ const t=document.querySelector('#tip'); return [!t.hidden && getComputedStyle(t).display!=='none', t.innerText]; })()")
+    check('móvil: la respuesta del Maestro aparece debajo del tablero', tip[0] and tip[1].startswith('Maestro (IA):'))
+    pg.tap('.sq[data-sq="a7"]'); pg.tap('.sq[data-sq="a6"]'); time.sleep(.3)
+    check('móvil: al cambiar de posición la respuesta se oculta', pg.evaluate("document.querySelector('#tip').hidden"))
     b.close()
 print('\nRESULTADO:', 'todo bien' if not fails else 'fallas: ' + ', '.join(fails))

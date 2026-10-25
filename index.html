@@ -349,6 +349,9 @@ html.clocked{--bw:min(calc(100vh - 280px), calc(100vw - 540px), 680px)}
 .palette .erase{grid-column:7;grid-row:1 / span 2;aspect-ratio:auto;background:none;color:var(--text);font-size:13px}
 .edpal:empty{display:none}
 .edpal{margin:6px 0 12px}
+.mpick{margin:8px 0 14px;padding:10px 12px;border-left:2px solid var(--warn);background:var(--raise);border-radius:0 var(--r-sm) var(--r-sm) 0}
+.mpick p{margin:0 0 6px}
+.mpick .list{margin:6px 0 0}
 .castles{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
 .castles .check{margin:4px 0}
 footer{color:var(--faint);font-size:12px;text-align:center;padding:0 20px 26px}
@@ -2051,9 +2054,26 @@ const READ_PROMPT = [
   '{"tablero": true, "abajo": "w", "filas": ["8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres"], "mueven": null, "ultima": null, "dudas": []}'
 ].join('\n');
 const CLAUDE_MODELS = [['claude-haiku-5-5','Claude Haiku 5.5: rápido y económico'],['claude-sonnet-5-5','Claude Sonnet 5.5: explicaciones más finas'],['claude-opus-5-5','Claude Opus 5.5: el más preciso, cuesta más']];
+// Opciones para el análisis y la lectura de capturas. Costo aproximado por uso (captura leída o explicación), en dólares,
+// con los precios por millón de tokens de Anthropic (oct 2026): Haiku 5.5 0.10/0.50, Sonnet 5.5 2/10, Opus 5.5 4/20,
+// y unos 3 a 6 mil tokens de entrada y 0.5 a 3 mil de salida (contando el pensamiento) por uso.
+const ANA_OPTIONS = [
+  {id:'claude-haiku-5-5', model:'Haiku 5.5', name:'Económico', cost:'menos de 1 centavo por uso', note:'Puede equivocarse más al leer capturas.'},
+  {id:'claude-sonnet-5-5', model:'Sonnet 5.5', name:'Equilibrado', cost:'de 2 a 4 centavos por uso', note:'Explicaciones más finas que el económico.'},
+  {id:'claude-opus-5-5', model:'Opus 5.5', name:'Preciso', cost:'de 5 a 8 centavos por uso', note:'El modelo más capaz. Recomendado si subes capturas.'}
+];
+// Tarjeta para elegir el modelo la primera vez que se usa el análisis con IA
+function modelPickHTML(){
+  if(!ClaudeAI.ready() || ClaudeAI.cfg().anaModel) return '';
+  return '<div class="mpick"><p><b>Elige cómo quieres que trabaje el Maestro</b></p><p class="note">Se cobra a tu cuenta con tu clave. Mientras no elijas, usa el mismo modelo que para comentar partidas. Puedes cambiarlo después en la pestaña Maestro.</p>' +
+    '<ul class="list">' + ANA_OPTIONS.map(o => '<li class="item"><div class="t">' + o.name + '</div><div class="s">' + o.cost.charAt(0).toUpperCase() + o.cost.slice(1) + ' (aprox., en dólares). ' + o.note + '</div><div class="row"><button class="btn small" data-amodel="' + o.id + '">Usar ' + o.name.toLowerCase() + '</button></div></li>').join('') + '</ul></div>';
+}
+function bindModelPick(root, after){ $$('[data-amodel]', root).forEach(b => b.onclick = () => { S.settings.claude = Object.assign({}, S.settings.claude, {anaModel:b.dataset.amodel}); save(); toast('Listo: el Maestro usará el modo ' + ANA_OPTIONS.find(o => o.id === b.dataset.amodel).name.toLowerCase() + '.'); after(); }); }
 const ClaudeAI = {
   // model: comentarios durante la partida. anaModel: análisis con el Maestro y lectura de capturas.
-  cfg(){ return Object.assign({on:false, key:'', model:'claude-haiku-5-5', anaModel:'claude-opus-5-5'}, S.settings.claude || {}); },
+  // anaModel no tiene valor por defecto: mientras la persona no elija (ANA_OPTIONS), se usa el de comentarios.
+  cfg(){ return Object.assign({on:false, key:'', model:'claude-haiku-5-5'}, S.settings.claude || {}); },
+  anaModel(){ const c = this.cfg(); return c.anaModel || c.model; },
   // Sin conexión la IA se apaga sola (mismo camino que con la IA desactivada) y vuelve al regresar la red
   online(){ return typeof navigator === 'undefined' || navigator.onLine !== false; },
   ready(){ const c = this.cfg(); return !!(c.on && c.key && this.online()); },
@@ -2070,54 +2090,79 @@ const ClaudeAI = {
     else { body.output_config = {effort:'low'}; body.max_tokens = n + 4000; }
     return body;
   },
-  async post(body){
+  // signal: AbortSignal opcional para cancelar al salir de la pantalla
+  async post(body, signal){
     const c = this.cfg();
     const send = async () => {
-      const r = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
+      const r = await fetch('https://api.anthropic.com/v1/messages', {method:'POST', signal,
         headers:{'x-api-key':c.key, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true'},
         body:JSON.stringify(body)});
       return {r, d:await r.json().catch(() => ({}))};
     };
     let {r, d} = await send();
     const msg = () => (d.error && d.error.message) || ('HTTP ' + r.status);
-    // Si el modelo no acepta ese ajuste, se reintenta sin él y con espacio para pensar y responder
+    // Si el modelo no acepta ese ajuste, se reintenta sin él y con espacio para pensar y responder (con tope)
     if(!r.ok && r.status === 400 && (body.thinking || body.output_config) && /thinking|effort|output_config/i.test(msg())){
-      delete body.thinking; delete body.output_config; body.max_tokens = Math.max(2048, body.max_tokens * 8); ({r, d} = await send());
+      delete body.thinking; delete body.output_config; body.max_tokens = Math.min(32000, Math.max(2048, body.max_tokens * 8)); ({r, d} = await send());
     }
-    if(!r.ok) throw new Error(msg());
+    // Saturación o demasiadas consultas: un reintento, esperando lo que pida el servidor (máximo 10 s)
+    if(!r.ok && [429, 500, 529].includes(r.status)){
+      const ra = +(r.headers.get('retry-after') || 0); await sleep(Math.min(10, ra > 0 ? ra : 2) * 1000); ({r, d} = await send());
+    }
+    if(!r.ok){ const e = new Error(msg()); e.status = r.status; e.kind = d.error && d.error.type; throw e; }
     return d;
   },
-  textOf(d){
+  // Sin Markdown ni guiones largos aunque el modelo los use
+  clean(t){ return String(t).replace(/\s*\u2014\s*/g, ', ').replace(/\*\*|__/g, '').replace(/^#{1,6}\s*/gm, '').replace(/^\s*[*-]\s+/gm, '').replace(/\n{3,}/g, '\n\n').trim(); },
+  textOf(d, raw){
     const txt = (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
     if(!txt) throw new Error(d.stop_reason === 'max_tokens' ? 'La IA se quedó sin espacio para responder.' : 'La IA respondió sin texto' + (d.stop_reason ? ' (' + d.stop_reason + ')' : '') + '.');
-    return txt;
+    return raw ? txt : this.clean(txt);
+  },
+  // Motivo para la interfaz, sin nombres de proveedor ni de modelo (el mensaje original queda en lastError, en los ajustes)
+  friendly(e){
+    if(!e) return 'error desconocido';
+    if(e.name === 'AbortError') return 'se canceló';
+    if(e.status){
+      if(/credit|billing|balance/i.test(e.message || '')) return 'la cuenta de la IA no tiene saldo';
+      if(e.status === 401 || e.status === 403) return 'la clave no es válida o no tiene permiso';
+      if(e.status === 429) return 'demasiadas consultas seguidas; espera un momento';
+      if(e.status >= 500 || e.kind === 'overloaded_error') return 'el servicio de IA está saturado; intenta en un momento';
+      return 'la IA rechazó la consulta';
+    }
+    if(e.name === 'TypeError') return 'no hay conexión con el servicio de IA';
+    return String(e.message || 'error desconocido').replace(/\.$/, '');
   },
   async ask(system, user, maxTokens, model){
     const body = this.tune({model:model || this.cfg().model, system, messages:[{role:'user', content:user}]}, 'short', maxTokens);
     return this.textOf(await this.post(body));
   },
   // Lee una captura de un tablero. img: {data (base64), type}. Devuelve el JSON que pide READ_PROMPT.
-  async readBoard(img){
-    const body = this.tune({model:this.cfg().anaModel, system:READ_SYSTEM, messages:[{role:'user', content:[
+  async readBoard(img, signal){
+    const body = this.tune({model:this.anaModel(), system:READ_SYSTEM, messages:[{role:'user', content:[
       {type:'image', source:{type:'base64', media_type:img.type, data:img.data}}, {type:'text', text:READ_PROMPT}]}]}, 'vision', 600);
-    const txt = this.textOf(await this.post(body));
+    const txt = this.textOf(await this.post(body, signal), true);
     const j = /\{[\s\S]*\}/.exec(txt);
     if(!j) throw new Error('La IA no devolvió la posición en el formato esperado.');
     try{ return JSON.parse(j[0]); }catch(e){ throw new Error('La IA no devolvió la posición en el formato esperado.'); }
   },
   // Conversación con herramientas: la IA puede pedir al motor que calcule antes de responder.
   // run(name, input) ejecuta la herramienta; onTool avisa a la interfaz. Se limita a maxCalls consultas.
+  // alive() se revisa antes de cada ronda y de cada herramienta: al salir de la pantalla se deja de consultar.
   async converse(o){
-    const msgs = o.messages.slice(), maxCalls = o.maxCalls || 5; let calls = 0;
+    const msgs = o.messages.slice(), maxCalls = o.maxCalls || 5, alive = o.alive || (() => true); let calls = 0;
+    const stop = () => { const e = new Error('se canceló'); e.name = 'AbortError'; return e; };
     for(let round = 0; round < 6; round++){
-      const body = this.tune({model:this.cfg().anaModel, system:o.system, messages:msgs, tools:o.tools}, 'tools', o.maxTokens || 700);
+      if(!alive()) throw stop();
+      const body = this.tune({model:this.anaModel(), system:o.system, messages:msgs, tools:o.tools}, 'tools', o.maxTokens || 700);
       if(calls >= maxCalls) body.tool_choice = {type:'none'};
-      const d = await this.post(body);
+      const d = await this.post(body, o.signal);
       const content = d.content || [], uses = content.filter(b => b.type === 'tool_use');
       if(d.stop_reason !== 'tool_use' || !uses.length) return this.textOf(d);
       msgs.push({role:'assistant', content});
       const results = [];
       for(const u of uses){
+        if(!alive()) throw stop();
         calls++;
         let out; try{ out = await o.run(u.name, u.input || {}); }catch(e){ out = {error:e.message}; }
         results.push(Object.assign({type:'tool_result', tool_use_id:u.id, content:JSON.stringify(out)}, out && out.error ? {is_error:true} : {}));
@@ -2342,12 +2387,14 @@ function bestIdea(E, i, ctx){
   if(!ideas.length && gain >= 2) ideas.push('inicia una secuencia que gana ' + matPhrase(gain));
   if(!ideas.length && /^O-O/.test(bm.san)) ideas.push('enroca: pone a salvo a tu rey y conecta las torres');
   const back = uc === 'w' ? '1' : '8';
-  if(!ideas.length && i < 20 && bm.piece === 'p' && ['d4','e4','d5','e5','c4','c5'].includes(bm.to)) ideas.push('toma espacio en el centro');
-  if(!ideas.length && i < 20 && ['n','b'].includes(bm.piece) && bm.from[1] === back) ideas.push('desarrolla ' + pz('tu', bm.piece) + ' hacia el centro');
+  // ctx.noOpening: el análisis de posiciones sueltas siempre ve i = 0, aunque sea un final
+  if(!ideas.length && i < 20 && !ctx.noOpening && bm.piece === 'p' && ['d4','e4','d5','e5','c4','c5'].includes(bm.to)) ideas.push('toma espacio en el centro');
+  if(!ideas.length && i < 20 && !ctx.noOpening && ['n','b'].includes(bm.piece) && bm.from[1] === back) ideas.push('desarrolla ' + pz('tu', bm.piece) + ' hacia el centro');
   if(!ideas.length){ const hit = capturesFrom(fenB, bm.to).find(x => x.captured !== 'p' && x.captured !== 'k'); if(hit) ideas.push('ataca ' + pz('su', hit.captured, hit.to)); }
   if(!ideas.length && bm.piece !== 'p' && bm.piece !== 'k'){ const m0 = mobility(fen0, bm.from), m1 = mobility(fenB, bm.to); if(m1 - m0 >= 3) ideas.push('activa ' + pz('tu', bm.piece) + ': pasa de ' + m0 + ' a ' + m1 + ' casillas disponibles'); }
   if(!ideas.length){ const t0m = totalMobility(fen0, uc), t1m = totalMobility(fenB, uc); if(t1m - t0m >= 5) ideas.push('abre líneas: tus piezas ganan ' + (t1m - t0m) + ' casillas de movimiento'); }
-  if(!ideas.length) ideas.push('mantiene tu posición sin conceder nada (' + fmtEval(P.before) + ')');
+  // ctx.quiet reemplaza la frase genérica (que lleva la evaluación desde quien mueve) en el análisis, donde todo va desde las blancas
+  if(!ideas.length) ideas.push(ctx.quiet || 'mantiene tu posición sin conceder nada (' + fmtEval(P.before) + ')');
   let txt = 'La mejor era ' + moveLabel(fen0, bm.san) + ': ' + ideas.slice(0, 3).join('; ') + '.';
   if(ctx.short) return txt;
   if(ctx.played && !P.isBest){
@@ -3157,8 +3204,8 @@ function renderCoachHome(){
     '<label class="check"><input type="checkbox" id="aion"' + (ai.on ? ' checked' : '') + '> <span>Usar Claude para los comentarios</span></label>' +
     '<div class="field"><span class="lbl">Clave de la API</span><input type="password" id="aikey" value="' + esc(ai.key) + '" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></div>' +
     '<div class="field"><span class="lbl">Modelo para comentar tus partidas</span><select id="aimodel">' + CLAUDE_MODELS.map(([v,l]) => '<option value="' + v + '"' + (ai.model === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
-    '<div class="field"><span class="lbl">Modelo para analizar posiciones y leer capturas</span><select id="aimodel2">' + CLAUDE_MODELS.map(([v,l]) => '<option value="' + v + '"' + (ai.anaModel === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
-      '<p class="note" style="margin-top:6px">Para leer capturas conviene Opus 5.5: es el que mejor ubica las piezas en una imagen. Cada lectura o explicación cuesta unos centavos de dólar con Opus o Sonnet y menos de un centavo con Haiku.</p></div>' +
+    '<div class="field"><span class="lbl">Modelo para analizar posiciones y leer capturas</span><select id="aimodel2">' + ANA_OPTIONS.map(o => '<option value="' + o.id + '"' + (ClaudeAI.anaModel() === o.id ? ' selected' : '') + '>Claude ' + o.model + ': ' + o.name.toLowerCase() + ', ' + o.cost + '</option>').join('') + '</select>' +
+      '<p class="note" style="margin-top:6px">' + (ai.anaModel ? '' : 'Todavía no eliges: mientras, el análisis usa el mismo modelo que los comentarios. ') + 'Costo aproximado en dólares por cada captura leída o explicación, con tu clave. Para leer capturas se recomienda Opus 5.5; Haiku puede equivocarse más.</p></div>' +
     '<div class="row"><button class="btn small" id="aitest">Probar conexión</button><a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Obtener una clave</a></div><p class="note" id="aist" style="margin-top:8px">' + (ClaudeAI.lastError ? 'Último error de Claude: ' + esc(ClaudeAI.lastError) : '') + '</p>';
   const root = side();
   const prefs = () => S.settings.coachPrefs;
@@ -3170,8 +3217,9 @@ function renderCoachHome(){
   bindSeg(root, 'cclock', v => { prefs().clock = v; save(); });
   $('#cgo').onclick = () => startCoachGame();
   $('#cbar').onchange = e => { S.settings.showBar = e.target.checked; save(); };
-  const saveAI = () => { S.settings.claude = {on:$('#aion').checked, key:$('#aikey').value.trim(), model:$('#aimodel').value, anaModel:$('#aimodel2').value}; save(); };
-  $('#aion').onchange = saveAI; $('#aikey').onchange = saveAI; $('#aimodel').onchange = saveAI; $('#aimodel2').onchange = saveAI;
+  // El modelo de análisis solo se guarda cuando la persona lo elige
+  const saveAI = () => { const c = {on:$('#aion').checked, key:$('#aikey').value.trim(), model:$('#aimodel').value}; const a = $('#aimodel2').dataset.set ? $('#aimodel2').value : ClaudeAI.cfg().anaModel; if(a) c.anaModel = a; S.settings.claude = c; save(); };
+  $('#aion').onchange = saveAI; $('#aikey').onchange = saveAI; $('#aimodel').onchange = saveAI; $('#aimodel2').onchange = () => { $('#aimodel2').dataset.set = '1'; saveAI(); };
   $('#cana').onclick = () => { App.posTab = 'importar'; switchTab('positions'); };
   $('#aitest').onclick = async () => {
     saveAI(); const out = $('#aist');
@@ -3180,7 +3228,8 @@ function renderCoachHome(){
     try{
       const c = ClaudeAI.cfg(), t = await ClaudeAI.ask('Responde solo con la palabra: listo', 'Prueba de conexión', 20);
       let msg = 'Conexión correcta con ' + c.model + ' (respondió: ' + t + ').';
-      if(c.anaModel !== c.model){ try{ await ClaudeAI.ask('Responde solo con la palabra: listo', 'Prueba de conexión', 20, c.anaModel); msg += ' ' + c.anaModel + ' también responde.'; }catch(e2){ msg += ' Pero ' + c.anaModel + ' falló: ' + e2.message; } }
+      const am = ClaudeAI.anaModel();
+      if(am !== c.model){ try{ await ClaudeAI.ask('Responde solo con la palabra: listo', 'Prueba de conexión', 20, am); msg += ' ' + am + ' también responde.'; }catch(e2){ msg += ' Pero ' + am + ' falló: ' + e2.message; } }
       out.textContent = msg;
     }
     catch(e){ out.textContent = 'No se pudo conectar: ' + e.message; }
@@ -3188,15 +3237,16 @@ function renderCoachHome(){
 }
 
 /* ---------- Puzzles ---------- */
-async function chessComJSON(url){
+async function chessComJSON(url, tries){
   try{
     const r = await fetch(url);
     if(r.status === 404){ const e = new Error('No existe'); e.code = 404; throw e; }
-    if(r.status === 429){ await sleep(1500); return chessComJSON(url); }
+    // Límite de Chess.com: se reintenta pocas veces en lugar de para siempre
+    if(r.status === 429){ if((tries || 0) >= 3){ const e = new Error('Chess.com pide esperar un momento'); e.code = 429; throw e; } await sleep(1500 * ((tries || 0) + 1)); return chessComJSON(url, (tries || 0) + 1); }
     if(!r.ok) throw new Error('HTTP ' + r.status);
     return await r.json();
   }catch(e){
-    if(e.code === 404) throw e;
+    if(e.code === 404 || e.code === 429) throw e;
     return jsonp(url);
   }
 }
@@ -3813,18 +3863,28 @@ function localExplain(ctx){
   const fen = ctx.fen, ls = ctx.lines, g = new Chess(fen), stm = g.turn(), side = colorName(stm);
   if(!ls.length) return {text:gameOverText(g), line:'', arrows:[]};
   const l0 = ls[0], s = stm === 'w' ? 1 : -1, bestSan = uciToSan(fen, l0.pv[0]);
-  const idea = (bestIdea(synthE(fen, ls), 0, {}) || '').replace(/^La mejor era /, 'la mejor es ');
-  let alt = '';
-  if(ls[1]){
-    const gap = Math.abs(winPct(s * l0.v) - winPct(s * ls[1].v)), san1 = uciToSan(fen, ls[1].pv[0]);
-    if(gap < 3) alt = ' También sirve ' + san1 + ' (' + fmtEval(ls[1].v) + '): el motor las ve casi iguales.';
-    else if(gap > 15) alt = ' Es la única jugada buena: con la siguiente opción, ' + san1 + ', la evaluación queda en ' + fmtEval(ls[1].v) + '.';
-  }
+  const lost = s * l0.v <= -300;
+  const idea = bestIdea(synthE(fen, ls), 0, ideaCtx(lost, fen)).replace(/^La mejor era /, lost ? 'la mejor defensa es ' : 'la mejor es ');
+  const alt = ls[1] ? altText(fen, l0, ls[1]) : '';
   const facts = staticFacts(fen).filter(x => /^Amenaza|^Oportunidad|mate en una/.test(x)).slice(0, 2).join(' ');
   const head = ctx.kind === 'pos'
     ? 'Mueven ' + side + '. Según el motor, ' + evalWords(l0.v) + ' (' + fmtEval(l0.v) + '). ' + (facts ? facts + ' ' : '') + 'Hablando desde el lado de las ' + side + ': '
     : 'Hablando desde el lado de las ' + side + ' (mueven): ';
   return {text:head + idea + alt, line:'Línea del motor: ' + lineTextPlain(annotatedLine(fen, l0.pv, 6, stm)), arrows:[arrowOf(l0.pv[0], 'g')], bestSan};
+}
+// Contexto para bestIdea en el análisis: frase genérica sin evaluación y sin ideas de apertura cuando hay poco material
+function ideaCtx(lost, fen, extra){ return Object.assign({quiet:lost ? 'es la que más resiste según el motor' : 'es la más precisa según el motor, sin una táctica inmediata', noOpening:material(fen).np < 50}, extra || {}); }
+// Qué decir de la segunda línea del motor, cuidando los mates (con mate, el porcentaje de ganar no distingue nada)
+function altText(fen, l0, l1){
+  const s = fen.split(' ')[1] === 'w' ? 1 : -1, a = s * l0.v, b = s * l1.v, san1 = uciToSan(fen, l1.pv[0]), n = v => 1500 - Math.abs(v);
+  if(b <= -1450 && a > -1450) return ' Cuidado con ' + san1 + ': después tu rival tendría mate en ' + n(b) + '.';
+  if(a >= 1450) return b >= 1450 ? ' ' + san1 + ' también da mate, en ' + n(b) + '.' : ' Es la única que fuerza el mate; con ' + san1 + ' ya no hay mate forzado (' + fmtEval(l1.v) + ').';
+  if(a <= -1450) return '';
+  if(a >= 300 && b >= 300) return ' También gana ' + san1 + ' (' + fmtEval(l1.v) + ').';
+  const gap = Math.abs(winPct(a) - winPct(b));
+  if(gap < 3) return ' También sirve ' + san1 + ' (' + fmtEval(l1.v) + '): el motor las ve casi iguales.';
+  if(gap > 15) return ' Es la única jugada buena: con la siguiente opción, ' + san1 + ', la evaluación queda en ' + fmtEval(l1.v) + '.';
+  return '';
 }
 function explainMove(ctx){
   const {fen0, lines0, mv, fen, lines} = ctx, mover = mv.color, s = mover === 'w' ? 1 : -1, label = moveLabel(fen0, mv.san);
@@ -3836,13 +3896,27 @@ function explainMove(ctx){
   const arrows = lines[0] ? [arrowOf(lines[0].pv[0], 'r')] : [];
   const pre = 'Hablando desde el lado de las ' + colorName(mover) + ': ';
   if(best === moveUci(mv)){
-    const body = (bestIdea(E, 0, {}) || '').replace(/^La mejor era [^:]+: /, '');
+    const body = bestIdea(E, 0, ideaCtx(s * after <= -300, fen0)).replace(/^La mejor era [^:]+: /, '');
     return {text:pre + label + ' es la jugada que prefiere el motor (' + fmtEval(after) + '): ' + body, line:reply, arrows};
   }
   if(drop <= 3) return {text:label + ' es casi tan buena como ' + bestSan + ': la evaluación queda en ' + fmtEval(after) + ', y con ' + bestSan + ' sería ' + fmtEval(lines0[0].v) + '.', line:reply, arrows};
-  const sev = drop <= 8 ? 'una imprecisión' : drop <= 18 ? 'un error' : 'un error grave';
-  const rc = rootCause(E, 0).text, bi = bestIdea(E, 0, {short:true});
+  // Mismos umbrales que la evaluación de partidas: 10 imprecisión, 20 error, 30 error grave (puntos de probabilidad de ganar)
+  if(drop < 10) return {text:label + ' es algo peor que ' + bestSan + ', sin llegar a imprecisión: la evaluación queda en ' + fmtEval(after) + ' en lugar de ' + fmtEval(lines0[0].v) + '.', line:reply, arrows};
+  const sev = drop < 20 ? 'una imprecisión' : drop < 30 ? 'un error' : 'un error grave';
+  const rc = rootCause(E, 0).text, bi = bestIdea(E, 0, ideaCtx(s * lines0[0].v <= -300, fen0, {short:true}));
   return {text:pre + label + ' es ' + sev + ' según el motor. ' + rc + (bi ? ' ' + bi : ''), line:reply, arrows};
+}
+// Compara una jugada con la mejor del motor, desde el lado de quien la juega. La herramienta calcula con menos tiempo que
+// el análisis, así que una diferencia a favor de la jugada se toma como "prácticamente igual". Los mates van aparte.
+function compareToBest(root, best0, mv, vAfter){
+  const s = root.split(' ')[1] === 'w' ? 1 : -1, a = s * best0.v, b = s * vAfter, bestSan = uciToSan(root, best0.pv[0]), n = v => 1500 - Math.abs(v);
+  if(moveUci(mv) === best0.pv[0]) return 'Es la jugada que prefiere el motor.';
+  const pre = 'Comparada con la mejor (' + bestSan + ', ' + fmtEval(best0.v) + '), ';
+  if(b <= -1450) return pre + 'permite que el rival dé mate' + (n(b) > 0 ? ' en ' + n(b) : '') + '.';
+  if(a >= 1450 && b < 1450) return pre + 'deja escapar un mate en ' + n(a) + '.';
+  if(a >= 1450 && b >= 1450) return pre + 'también da mate, en ' + n(b) + ' en lugar de ' + n(a) + '.';
+  const diff = (a - b) / 100;
+  return pre + (diff < .1 ? 'queda prácticamente igual' : 'queda ' + diff.toFixed(1) + ' peones peor') + ' para el bando que la juega.';
 }
 const MAESTRO_TOOL = {name:'evaluar_jugadas',
   description:'Juega una secuencia de jugadas desde la posición analizada (puede ser una sola jugada candidata) y devuelve la evaluación del motor de la posición resultante, su mejor continuación y datos de esa posición. Úsala para comprobar cualquier jugada o variante que no venga en los datos antes de mencionarla.',
@@ -3877,7 +3951,9 @@ class AnalysisSession{
     window.addEventListener('keydown', this.keys);
     this.renderSide(); this.update();
   }
-  exit(){ window.removeEventListener('keydown', this.keys); Engine.cancel('ana'); Engine.cancel('maestro'); }
+  // Al salir se cancela todo: motor, consultas de la IA en curso y las que faltaban del ciclo con herramientas
+  exit(){ window.removeEventListener('keydown', this.keys); Engine.cancel('ana'); Engine.cancel('maestro'); if(this.ctl) this.ctl.abort(); }
+  alive(){ return App.session === this; }
   rebuild(){
     const g = new Chess(this.start);
     for(let k = 0; k < this.ply; k++) g.move(this.main[k]);
@@ -3910,6 +3986,7 @@ class AnalysisSession{
     if(r && r.lines){ const ls = linesFromInfo(fen, r.lines); if(ls.length) this.cache[fen] = ls; }
   }
   showLines(fen, ls){
+    if(!this.alive()) return;
     const top = ls[0]; EvalBar.set(top.v);
     Board.arrows = [arrowOf(top.pv[0], 'h')]; Board.drawArrows();
     const el = $('#lines'); if(el) el.innerHTML = ls.map(l => '<div><b>' + fmtEval(l.v) + '</b> ' + esc(pvToSan(fen, l.pv, 8).join(' ')) + '</div>').join('') + '<div class="note" style="background:none;padding:0">Profundidad ' + top.depth + '</div>';
@@ -3957,7 +4034,7 @@ class AnalysisSession{
     this.analyze();
   }
   renderMaBtns(){
-    const pos = $('#maPos'); if(!pos) return;
+    const pos = $('#maPos'); if(!pos || !this.alive()) return;
     const g = App.game, fen = g.fen(), over = g.game_over();
     const ls = this.cache[fen], san = this.liveBest && this.liveBest.fen === fen ? this.liveBest.san : ls && ls[0] ? uciToSan(fen, ls[0].pv[0]) : null;
     pos.disabled = over;
@@ -3969,7 +4046,7 @@ class AnalysisSession{
     side().innerHTML = '<button class="back" id="bk">← ' + esc(this.o.backLabel || 'Volver') + '</button><h2>' + esc(this.o.title || 'Análisis') + '</h2>' +
       '<p class="lede">' + (this.main.length ? 'Recorre la partida con los botones o la lista de jugadas. ' : '') + 'El motor muestra sus tres mejores líneas. Mueve piezas para probar ideas y pídele al Maestro que te las explique.</p>' +
       '<div class="lines" id="lines"></div>' +
-      '<h3>Maestro</h3>' +
+      '<h3>Maestro</h3>' + modelPickHTML() +
       '<div class="row mabtns"><button class="btn small" id="maPos">Explicar posición</button><button class="btn small" id="maBest" disabled>¿Por qué la mejor?</button><button class="btn small" id="maMine" hidden></button></div>' +
       (ai ? '<form class="ask" id="maAsk"><input type="text" id="maQ" placeholder="Pregúntale algo sobre esta posición" autocomplete="off" maxlength="300" aria-label="Pregunta para el Maestro"><button class="btn small" type="submit">Preguntar</button></form>'
           : '<p class="note">' + (c.on && c.key ? 'Las preguntas libres necesitan conexión. Mientras, el Maestro explica con frases armadas a partir del motor.' : 'Con la IA activada en la pestaña Maestro te explica en lenguaje natural y puedes hacerle preguntas libres. Sin ella, explica con frases armadas a partir del motor.') + '</p>') +
@@ -3981,28 +4058,41 @@ class AnalysisSession{
     $('#maBest').onclick = () => this.ask('best');
     $('#maMine').onclick = () => this.ask('mine');
     const f = $('#maAsk'); if(f) f.onsubmit = e => { e.preventDefault(); const q = $('#maQ').value.trim(); if(!q) return; $('#maQ').value = ''; this.ask('q', q); };
+    bindModelPick(side(), () => { this.renderSide(); this.renderMaBtns(); this.renderFeed(); const c = this.cache[App.game.fen()]; if(c) this.showLines(App.game.fen(), c); else this.analyze(); });
   }
   say(m){ m.id = Math.random().toString(36).slice(2); this.msgs.unshift(m); this.renderFeed(); return m; }
   renderFeed(){
-    const box = $('#mafeed'); if(!box) return;
+    const box = $('#mafeed'); if(!box || !this.alive()) return;
     box.hidden = !this.msgs.length;
     const cur = App.game.fen();
     box.innerHTML = this.msgs.map(m => '<div class="msg ' + (m.kind || '') + '" data-id="' + m.id + '"><div class="who"><span>' + esc(m.label) + '</span>' + (m.pending ? '<span>' + esc(m.pending) + '</span>' : m.ai ? '<span>IA</span>' : '') + '</div>' +
       (m.text ? '<div>' + esc(m.text) + '</div>' : '') + (m.line ? '<p class="line">' + esc(m.line) + '</p>' : '') + (m.note ? '<p class="line">' + esc(m.note) + '</p>' : '') +
       (m.at && !m.pending && (m.fen !== cur || (m.arrows && m.arrows.length)) ? '<div class="row"><button class="btn small" data-show="' + m.id + '">Ver en el tablero</button></div>' : '') + '</div>').join('');
     $$('[data-show]', box).forEach(b => b.onclick = () => { const m = this.msgs.find(x => x.id === b.dataset.show); if(!m) return; this.ply = m.at.ply; this.vars = m.at.vars.slice(); this.rebuild(); this.update(); Board.arrows = (m.arrows || []).slice(); Board.drawArrows(); revealBoard(); });
+    this.renderTip();
+  }
+  // En el celular la última respuesta del Maestro aparece también debajo del tablero, mientras siga en esa posición
+  renderTip(){
+    const t = $('#tip'); if(!t || !this.alive()) return;
+    const m = this.msgs.find(x => x.label === 'Maestro');
+    if(!m || m.fen !== App.game.fen()){ t.hidden = true; return; }
+    t.className = 'tip'; t.hidden = false;
+    t.innerHTML = '<b>Maestro' + (m.ai ? ' (IA)' : '') + ':</b> ' + esc(m.pending || m.text);
   }
   async ask(kind, question){
     const g = App.game, fen = g.fen(), tok = App.token;
-    if(kind !== 'q' && g.game_over()) return;
-    if(kind === 'q') this.say({label:'Tú', kind:'you', text:question});
+    // "¿Qué tal ...?" sí aplica a la jugada que dio mate o ahogado; las otras dos no
+    if(kind !== 'q' && kind !== 'mine' && g.game_over()) return;
+    // Todo lo que depende de la posición se toma ahora: si la persona navega mientras calcula, no se mezcla
+    const hist = g.history({verbose:true});
+    const fen0 = kind === 'mine' && hist.length ? (() => { const c = new Chess(this.start); hist.slice(0, -1).forEach(x => c.move(x)); return c.fen(); })() : null;
+    if(kind === 'q') this.say({label:'Tú', kind:'you', text:question, fen});
     const m = this.say({label:'Maestro', text:'', pending:'Calculando…', fen, at:this.snapshot()});
-    const live = () => tok === App.token && App.session === this;
+    const live = () => tok === App.token && this.alive();
+    if(!this.ctl || this.ctl.signal.aborted) this.ctl = new AbortController();
     try{
-      const ctx = {kind, fen, lines:await this.linesFor(fen)};
-      if(kind === 'mine'){
-        const h = g.history({verbose:true}); ctx.mv = h[h.length - 1]; ctx.fen0 = this.fenBefore(); ctx.lines0 = await this.linesFor(ctx.fen0);
-      }
+      const ctx = {kind, fen, hist, lines:await this.linesFor(fen)};
+      if(kind === 'mine'){ ctx.mv = hist[hist.length - 1]; ctx.fen0 = fen0; ctx.lines0 = await this.linesFor(fen0); }
       if(!live()) return;
       const loc = kind === 'q' ? localExplain(Object.assign({}, ctx, {kind:'pos'})) : localExplain(ctx);
       m.arrows = loc.arrows; if(kind !== 'q') m.line = loc.line;
@@ -4012,12 +4102,12 @@ class AnalysisSession{
         catch(e){
           if(!live()) return;
           ClaudeAI.lastError = e.message; console.warn('Claude', e);
-          if(kind === 'q'){ m.text = 'No pude responder tu pregunta: ' + e.message; m.arrows = []; }
-          else { m.text = loc.text; m.note = 'La IA no respondió (' + e.message + '). Esta explicación es del motor.'; }
+          if(kind === 'q'){ m.text = 'No pude responder tu pregunta: ' + ClaudeAI.friendly(e) + '.'; m.arrows = []; m.err = true; }
+          else { m.text = loc.text; m.note = 'La IA no respondió (' + ClaudeAI.friendly(e) + '). Esta explicación es del motor.'; }
         }
-      } else if(kind === 'q'){ m.text = 'Las preguntas libres necesitan la IA activada y conexión.'; m.arrows = []; }
+      } else if(kind === 'q'){ m.text = 'Las preguntas libres necesitan la IA activada y conexión.'; m.arrows = []; m.err = true; }
       else m.text = loc.text;
-    }catch(e){ m.text = 'No pude analizar esta posición: ' + e.message; m.arrows = []; }
+    }catch(e){ m.text = 'No pude analizar esta posición: ' + e.message; m.arrows = []; m.err = true; }
     if(!live()) return;
     m.pending = null; this.renderFeed();
     if(App.game.fen() === fen && m.arrows && m.arrows.length){ Board.arrows = m.arrows.slice(); Board.drawArrows(); }
@@ -4025,8 +4115,10 @@ class AnalysisSession{
   factsFor(ctx, loc){
     const mine = ctx.kind === 'mine', fen = mine ? ctx.fen0 : ctx.fen, lines = mine ? ctx.lines0 : ctx.lines;
     const g = new Chess(fen), p = fen.split(' '), stm = g.turn();
+    // Las posiciones sueltas (editor, captura, FEN) terminan en "0 1": ahí la fase sale solo del material y no hay número de jugada
+    const fromGame = this.main.length > 0 || (+p[5] || 1) > 1, ply = ((+p[5] || 1) - 1) * 2 + (stm === 'b' ? 1 : 0);
     const f = {
-      posicion:{fen, mueven:colorName(stm), jugada_numero:+p[5] || 1, fase:phaseOf(fen, ((+p[5] || 1) - 1) * 2)},
+      posicion:Object.assign({fen, mueven:colorName(stm), fase:fromGame ? phaseOf(fen, ply) : phaseOf(fen, 99)}, fromGame ? {jugada_numero:+p[5] || 1} : {}),
       piezas:{blancas:pieceList(fen, 'w'), negras:pieceList(fen, 'b')},
       evaluacion:lines.length ? fmtEval(lines[0].v) + ' (' + evalWords(lines[0].v) + ')' : gameOverText(g),
       mejores_lineas:lines.map(l => ({jugada:uciToSan(fen, l.pv[0]), evaluacion:fmtEval(l.v), linea:sanLine(fen, l.pv, 8), notas:annotatedLine(fen, l.pv, 4, stm).map(x => x.label + (x.note ? ': ' + x.note : ''))})),
@@ -4035,7 +4127,7 @@ class AnalysisSession{
       explicacion_del_motor:loc.text,
       profundidad:lines[0] ? lines[0].depth : 0
     };
-    const h = App.game.history({verbose:true}), prev = mine ? h.slice(0, -1) : h;
+    const h = ctx.hist || [], prev = mine ? h.slice(0, -1) : h;
     if(prev.length){ const k = Math.max(0, prev.length - 8), g0 = new Chess(this.start); h.slice(0, k).forEach(m => g0.move(m)); f.jugadas_previas = movesText(g0.fen(), prev.slice(k)); }
     if(mine) f.jugada_considerada = {jugada:moveLabel(ctx.fen0, ctx.mv.san), es_la_preferida_del_motor:lines.length > 0 && lines[0].pv[0] === moveUci(ctx.mv), evaluacion_despues:fmtEval(evalOf(ctx.fen, ctx.lines)), respuesta_del_rival:ctx.lines[0] ? sanLine(ctx.fen, ctx.lines[0].pv, 6) : gameOverText(new Chess(ctx.fen))};
     return f;
@@ -4049,9 +4141,10 @@ class AnalysisSession{
       q:'Pregunta del jugador: ' + question + '\nResponde la pregunta en 2 a 8 frases. Si menciona jugadas o planes que no están en los datos, compruébalos con la herramienta antes de opinar.'
     }[ctx.kind];
     let hist = '';
-    if(ctx.kind === 'q'){ const pairs = this.msgs.filter(x => x !== m && !x.pending && x.text).slice(1, 7).reverse(); if(pairs.length) hist = '\nConversación previa:\n' + pairs.map(x => x.label + ': ' + x.text).join('\n'); }
+    if(ctx.kind === 'q'){ const pairs = this.msgs.filter(x => x !== m && !x.pending && !x.err && x.text && x.fen === ctx.fen).slice(1, 7).reverse(); if(pairs.length) hist = '\nConversación previa sobre esta misma posición:\n' + pairs.map(x => x.label + ': ' + x.text).join('\n'); }
     const user = 'Datos de la posición analizada (JSON):\n' + JSON.stringify(this.factsFor(ctx, loc)) + hist + '\n\n' + req;
     return ClaudeAI.converse({system:maestroSystem(), messages:[{role:'user', content:user}], tools:[MAESTRO_TOOL], maxTokens:ctx.kind === 'q' ? 900 : 600, maxCalls:4,
+      alive:() => this.alive(), signal:this.ctl && this.ctl.signal,
       run:async (name, inp) => {
         const list = Array.isArray(inp.jugadas) ? inp.jugadas.map(String) : [];
         m.pending = 'Calculando ' + (list.length ? list.slice(0, 4).join(' ') : 'la posición') + '…'; this.renderFeed();
@@ -4063,8 +4156,9 @@ class AnalysisSession{
   async toolRun(name, list, root, rootLines){
     if(name !== MAESTRO_TOOL.name) return {error:'No conozco esa herramienta.'};
     const g = new Chess(root), done = [];
-    for(const t of list.slice(0, 12)){
-      const m = g.move(t.trim(), {sloppy:true});
+    for(const t0 of list.slice(0, 12)){
+      const t = t0.trim().replace(/^\d+\.+\s*/, '');
+      const m = g.move(t, {sloppy:true});
       if(!m) return {error:'La jugada ' + t + ' no es legal ' + (done.length ? 'después de ' + movesText(root, done) : 'en la posición analizada') + '.', jugadas_legales:g.moves().slice(0, 40)};
       done.push(m);
     }
@@ -4072,16 +4166,14 @@ class AnalysisSession{
     let ls = [];
     if(g.game_over()) out.resultado = gameOverText(g);
     else {
+      if(!this.alive()) return {error:'Se canceló el cálculo.'};
       const r = await Engine.run(fen, {movetime:1500, multipv:2, tag:'maestro', priority:2});
       if(!r) return {error:'Se canceló el cálculo.'};
       ls = linesFromInfo(fen, r.lines);
       if(ls[0]){ out.evaluacion = fmtEval(ls[0].v) + ' (' + evalWords(ls[0].v) + ')'; out.mejor_continuacion = sanLine(fen, ls[0].pv, 8); }
       if(ls[1]) out.segunda_opcion = sanLine(fen, ls[1].pv, 4) + ' (' + fmtEval(ls[1].v) + ')';
     }
-    if(done.length === 1 && rootLines[0]){
-      const s = new Chess(root).turn() === 'w' ? 1 : -1, best = rootLines[0].pv[0], diff = s * (rootLines[0].v - evalOf(fen, ls)) / 100;
-      out.comparacion = moveUci(done[0]) === best ? 'Es la jugada que prefiere el motor.' : 'Comparada con la mejor (' + uciToSan(root, best) + ', ' + fmtEval(rootLines[0].v) + '), queda ' + (Math.abs(diff) < .1 ? 'prácticamente igual' : Math.abs(diff).toFixed(1) + ' peones ' + (diff > 0 ? 'peor' : 'mejor')) + ' para el bando que la juega.';
-    }
+    if(done.length === 1 && rootLines[0]) out.comparacion = compareToBest(root, rootLines[0], done[0], evalOf(fen, ls));
     out.hechos = staticFacts(fen).slice(0, 8);
     return out;
   }
@@ -4224,7 +4316,7 @@ async function readShot(file){
     if(!pos){ st('No encontré un tablero en esa imagen. Prueba con otra captura o arma la posición a mano.'); return; }
     ClaudeAI.lastError = null;
     App.setSession(new EditorSession({fen:pos.fen, orient:pos.orient, shot:img.url, doubt:pos.doubt, turnKnown:pos.turnKnown, title:'Revisa la posición', backLabel:'Importar', back:() => { App.posTab = 'importar'; switchTab('positions'); }}));
-  }catch(e){ if(tok === App.token){ ClaudeAI.lastError = e.message; st('No se pudo leer la captura: ' + e.message); } }
+  }catch(e){ if(tok === App.token){ ClaudeAI.lastError = e.message; st('No se pudo leer la captura: ' + ClaudeAI.friendly(e) + '.'); } }
   finally{ if(btn && tok === App.token) btn.classList.remove('off'); }
 }
 document.addEventListener('paste', e => {
@@ -4242,11 +4334,33 @@ function chessComLink(t){
   if(!m) return {err:'Ese link de Chess.com no es de una partida. Cópialo desde Compartir en la partida.'};
   return {kind:'link', type:(m[1] || m[2] || '').toLowerCase() || null, id:m[3]};
 }
+// De un PGN con varias partidas, la primera (cada una empieza con su encabezado Event)
+function firstGame(txt){ const t = String(txt || '').replace(/^\uFEFF/, ''), at = [...t.matchAll(/^\s*\[Event\s+"/gm)].map(m => m.index); return at.length > 1 ? t.slice(0, at[1]).trim() : t.trim(); }
+// Links de Lichess: partida (lichess.org/abcdEFGH, con o sin /white o /black) o tablero de análisis con la FEN en la ruta
+function lichessLink(t){
+  const raw = (/(?:https?:\/\/)?(?:[\w-]+\.)?lichess\.org\/\S*/i.exec(t) || [])[0]; if(!raw) return null;
+  let u; try{ u = new URL(/^https?:/i.test(raw) ? raw : 'https://' + raw); }catch(e){ return {err:'Ese link no parece válido.'}; }
+  const a = /^\/analysis\/(?:standard\/|fromPosition\/)?(.+)$/.exec(u.pathname);
+  if(a){ const p = decodeURIComponent(a[1]).replace(/_/g, ' ').trim().split(' '), d = ['', 'w', '-', '-', '0', '1']; for(let k = 0; k < 6; k++) if(!p[k]) p[k] = d[k]; const fen = p.slice(0, 6).join(' '), v = new Chess().validate_fen(fen); return v.valid ? {kind:'fen', fen} : {err:'La FEN del link no es válida: ' + v.error}; }
+  const m = /^\/(?:game\/export\/)?([a-zA-Z0-9]{8})(?:[a-zA-Z0-9]{4})?(?:\/(white|black))?\/?$/.exec(u.pathname);
+  if(!m || /^(training|analysis|practice|streamer|insights|tutorial)$/i.test(m[1])) return {err:'Ese link de Lichess no es de una partida.'};
+  return {kind:'lichess', id:m[1], side:m[2] === 'black' ? 'b' : m[2] === 'white' ? 'w' : null};
+}
+// Partida de Lichess en PGN (exportar una partida); sin red o si Lichess no responde, se explica cómo pegar el PGN
+async function lichessGame(id){
+  let r;
+  try{ r = await fetch('https://lichess.org/game/export/' + encodeURIComponent(id) + '?clocks=false&evals=false&literate=false', {headers:{Accept:'application/x-chess-pgn'}}); }
+  catch(e){ throw new Error('No pude traer la partida desde Lichess. Ábrela allá, usa Compartir y pega aquí su PGN.'); }
+  if(r.status === 404) throw new Error('No encontré esa partida en Lichess.');
+  if(r.status === 429) throw new Error('Lichess pide esperar un minuto antes de otra consulta.');
+  if(!r.ok) throw new Error('Lichess respondió con un error (' + r.status + ').');
+  return r.text();
+}
 function parseImport(txt){
-  const t = String(txt || '').trim(); if(!t) return {err:'Pega una FEN, un PGN o un link.'};
+  const t = firstGame(txt); if(!t) return {err:'Pega una FEN, un PGN o un link.'};
   // Un PGN de Chess.com trae links en sus encabezados (Link, ECOUrl): si hay encabezados o jugadas numeradas, es PGN
   const looksPgn = /^\s*\[\w+\s+"/m.test(t) || /(^|\s)1\.\s*[a-hKQRBNO]/.test(t);
-  const link = looksPgn ? null : chessComLink(t); if(link) return link;
+  const link = looksPgn ? null : (chessComLink(t) || lichessLink(t)); if(link) return link;
   const one = t.replace(/\s+/g, ' ');
   if(/^[1-8prnbqkPRNBQK]+(\/[1-8prnbqkPRNBQK]+){7}( |$)/.test(one)){
     const p = one.split(' '), d = ['', 'w', '-', '-', '0', '1']; for(let k = 0; k < 6; k++) if(!p[k]) p[k] = d[k];
@@ -4257,7 +4371,7 @@ function parseImport(txt){
   if(hdr.FEN && !new Chess().validate_fen(hdr.FEN).valid) return {err:'La FEN del PGN no es válida.'};
   const b = buildGame(t);
   if(b.moves.length || hdr.FEN) return {kind:'pgn', start:b.start, sans:b.moves.map(m => m.san), headers:b.headers};
-  return {err:'No reconozco ese texto. Pega una FEN, un PGN o el link de una partida de Chess.com.'};
+  return {err:'No reconozco ese texto. Pega una FEN, un PGN o el link de una partida de Chess.com o Lichess.'};
 }
 const monthLabel = url => { const m = /(\d{4})\/(\d{2})\/?$/.exec(url || ''); return m ? new Date(+m[1], +m[2] - 1, 1).toLocaleDateString('es-MX', {month:'long', year:'numeric'}) : ''; };
 // La API pública de Chess.com no da partidas por su número: se busca en el archivo mensual de un jugador
@@ -4265,7 +4379,8 @@ async function findChessComGame(user, id, type, status){
   const base = 'https://api.chess.com/pub/player/' + encodeURIComponent(user.toLowerCase().trim());
   status('Buscando la partida en el archivo de ' + user + '…');
   const arch = await chessComJSON(base + '/games/archives');
-  const urls = (arch.archives || []).slice().reverse().slice(0, 36);
+  // Sin saber si es en vivo o diaria no hay forma de cortar antes: se revisa solo el último año
+  const urls = (arch.archives || []).slice().reverse().slice(0, type ? 36 : 12);
   for(const url of urls){
     status('Buscando la partida en el archivo de ' + user + ' (' + monthLabel(url) + ')…');
     const gs = ((await chessComJSON(url)).games || []).filter(g => g.url && g.pgn);
@@ -4277,6 +4392,8 @@ async function findChessComGame(user, id, type, status){
   return null;
 }
 function colorOf(white, black, user){ return user && black && black.toLowerCase() === user.toLowerCase() ? 'b' : user && white && white.toLowerCase() === user.toLowerCase() ? 'w' : null; }
+// Quita los enroques que la posición no permite (chess.js 0.10.3 generaría O-O sin torre)
+function cleanCastle(fen){ const p = fen.split(' '), ok = castleRights(fenBoard(fen)); p[2] = (p[2] || '-').split('').filter(c => ok[c]).join('') || '-'; return p.join(' '); }
 function endFen(r){ const g = new Chess(r.start); r.sans.forEach(s => g.move(s, {sloppy:true})); return g.fen(); }
 // Interpreta el texto pegado y, si es un link, busca la partida. Devuelve {start, sans, orient, title} o null con el motivo en pantalla.
 async function resolveImport(){
@@ -4284,8 +4401,19 @@ async function resolveImport(){
   const p = parseImport($('#fenin').value);
   if(p.err) return fail(p.err);
   say('');
-  if(p.kind === 'fen') return {start:p.fen, sans:[], orient:p.fen.split(' ')[1], title:'Posición importada'};
-  if(p.kind === 'pgn'){ const h = p.headers; return {start:p.start, sans:p.sans, orient:colorOf(h.White, h.Black, S.username) || 'w', title:h.White && h.Black ? h.White + ' vs ' + h.Black : 'Partida importada'}; }
+  // Una FEN puede ser válida en su forma y aun así imposible (sin rey, rey en jaque del bando que no mueve):
+  // el motor no la analiza bien, así que esas posiciones van al editor (problems)
+  if(p.kind === 'fen'){ const fen = cleanCastle(p.fen); return {start:fen, sans:[], orient:fen.split(' ')[1], title:'Posición importada', problems:positionProblems(fen)}; }
+  if(p.kind === 'pgn'){ const h = p.headers; return {start:p.start, sans:p.sans, orient:colorOf(h.White, h.Black, S.username) || 'w', title:h.White && h.Black ? h.White + ' vs ' + h.Black : 'Partida importada', problems:positionProblems(p.start)}; }
+  if(p.kind === 'lichess'){
+    if(!Net.on) return fail('Traer una partida de Lichess necesita conexión. Mientras, pega su PGN.');
+    say('Trayendo la partida de Lichess…');
+    try{
+      const b = buildGame(await lichessGame(p.id)); if(!b.moves.length && !b.headers.FEN) return fail('Lichess no devolvió jugadas para esa partida.');
+      say(''); const h = b.headers;
+      return {start:b.start, sans:b.moves.map(m => m.san), orient:p.side || 'w', title:h.White && h.Black ? h.White + ' vs ' + h.Black : 'Partida de Lichess'};
+    }catch(e){ return fail(e.message); }
+  }
   const known = S.games.find(g => g.pgn && idOfUrl(g.id) === p.id && (!p.type || g.id.includes('/' + p.type + '/')));
   if(known){ const b = buildGame(known.pgn); return {start:b.start, sans:b.moves.map(m => m.san), orient:colorOf(known.white, known.black, S.username) || 'w', title:known.white + ' vs ' + known.black}; }
   if(!Net.on) return fail('Buscar una partida por su link necesita conexión. Mientras, pega su PGN.');
@@ -4585,13 +4713,14 @@ function renderPositionsHome(){
   } else {
     const ai = ClaudeAI.ready(), ac = ClaudeAI.cfg(), recent = recentGames();
     body = '<p class="lede">Trae una posición o una partida para que el Maestro te la explique o para jugarla contra el motor.</p>' +
+      modelPickHTML() +
       '<h3>Desde una captura</h3>' +
       '<p class="note">' + (ai ? 'Sube una captura de pantalla del tablero (de Chess.com, Lichess o un libro). La IA reconoce las piezas y luego las revisas antes de analizar.' + (isMobile() ? '' : ' También puedes pegar la imagen aquí con Ctrl+V.')
         : ac.on && ac.key ? 'Leer capturas necesita conexión. Mientras, puedes armar la posición a mano.' : 'Para leer capturas, activa la IA en la pestaña Maestro. Mientras, puedes armar la posición a mano.') + '</p>' +
       '<div class="row"><label class="btn filebtn' + (ai ? ' primary' : ' off') + '">Subir captura<input type="file" id="shotin" accept="image/*"' + (ai ? '' : ' disabled') + '></label><button class="btn" id="byHand">Armar a mano</button></div>' +
       '<p class="note" id="shotst" aria-live="polite" style="margin-top:8px"></p>' +
       '<h3>Pegar FEN, PGN o link</h3>' +
-      '<div class="field"><textarea id="fenin" placeholder="FEN, PGN o link de una partida de Chess.com" spellcheck="false" aria-label="FEN, PGN o link"></textarea><p class="note" style="margin-top:6px">En Chess.com, usa Compartir y copia el link de la partida o descarga su PGN.</p><p class="note" id="fenerr" aria-live="polite"></p></div>' +
+      '<div class="field"><textarea id="fenin" placeholder="FEN, PGN o link de una partida de Chess.com o Lichess" spellcheck="false" aria-label="FEN, PGN o link"></textarea><p class="note" style="margin-top:6px">En Chess.com, usa Compartir y copia el link de la partida o descarga su PGN y súbelo aquí.</p><label class="btn small filebtn">Subir archivo PGN<input type="file" id="pgnin" accept=".pgn,.txt,text/plain,application/x-chess-pgn,application/vnd.chess-pgn"></label><p class="note" id="fenerr" aria-live="polite" style="margin-top:6px"></p></div>' +
       '<div class="field" id="linkUserBox" hidden><span class="lbl">Usuario de Chess.com de uno de los dos jugadores</span><input type="text" id="linkUser" autocomplete="off" spellcheck="false" placeholder="usuario"></div>' +
       '<div class="row"><button class="btn primary" id="fenAna">Analizar con el Maestro</button><button class="btn" id="fenEdit">Editar</button></div>' +
       '<div class="field"><span class="lbl">Rival para jugarla</span>' + tierSelectHTML('fenTier') + '</div>' +
@@ -4629,15 +4758,30 @@ function renderPositionsHome(){
     const ib = () => { App.posTab = 'importar'; switchTab('positions'); };
     const btns = ['#fenAna','#fenEdit','#fenPlay','#fenLoad'];
     // Mientras se busca un link en Chess.com, los botones esperan
-    const run = act => async () => { btns.forEach(s => $(s).disabled = true); const tok = App.token; const r = await resolveImport(); if(tok !== App.token) return; btns.forEach(s => { const b = $(s); if(b) b.disabled = false; }); if(r) act(r); };
+    // Si la posición no se puede analizar (falta un rey, jaque imposible…), se abre el editor para corregirla
+    const run = (act, edit) => async () => { btns.forEach(s => $(s).disabled = true); const tok = App.token; const r = await resolveImport(); if(tok !== App.token) return; btns.forEach(s => { const b = $(s); if(b) b.disabled = false; }); if(!r) return;
+      if(r.problems && r.problems.length && !edit){ toast('Esa posición no se puede analizar así: corrígela en el editor.'); App.setSession(new EditorSession({fen:r.start, orient:r.orient, title:'Corrige la posición', backLabel:'Importar', back:ib})); return; }
+      act(r); };
     $('#fenAna').onclick = run(r => App.setSession(new AnalysisSession({line:{start:r.start, sans:r.sans}, orient:r.orient, title:r.title, backLabel:'Importar', back:ib})));
-    $('#fenEdit').onclick = run(r => App.setSession(new EditorSession({fen:endFen(r), orient:r.orient, title:'Editar posición', backLabel:'Importar', back:ib})));
+    $('#fenEdit').onclick = run(r => App.setSession(new EditorSession({fen:r.problems && r.problems.length ? r.start : endFen(r), orient:r.orient, title:'Editar posición', backLabel:'Importar', back:ib})), true);
     fp.onclick = run(r => { const f = endFen(r), g = new Chess(f); if(g.game_over()){ $('#fenerr').textContent = 'En esa posición la partida ya terminó.'; return; } const i = +$('#fenTier').value; App.playTier = i; App.setSession(new PlaySession({fen:f, userColor:g.turn(), tier:TIERS[i], tierIdx:i, helps:$('#fenHelps').checked, title:'Posición personalizada', backLabel:'Importar', back:ib})); });
     $('#fenLoad').onclick = run(r => { const f = endFen(r); App.game = new Chess(f); Board.orient = r.orient; Board.layout(); Board.render(); revealBoard(); });
     $('#linkUser').onkeydown = e => { if(e.key === 'Enter') $('#fenAna').click(); };
     $('#byHand').onclick = () => App.setSession(new EditorSession({fen:START_FEN, title:'Armar posición', backLabel:'Importar', back:ib}));
     const si = $('#shotin'); si.onchange = () => { const f = si.files[0]; si.value = ''; if(f) readShot(f); };
+    // Archivo PGN (lo que descarga Compartir de Chess.com): se pone en el campo y se revisa con el mismo parser
+    const pi = $('#pgnin'); pi.onchange = async () => {
+      const f = pi.files[0]; pi.value = ''; if(!f) return;
+      const say = t => { $('#fenerr').textContent = t; };
+      if(f.size > 2000000){ say('Ese archivo es demasiado grande para una partida.'); return; }
+      try{
+        const txt = firstGame(await f.text()), p = parseImport(txt);
+        if(p.err || p.kind !== 'pgn'){ say('Ese archivo no tiene una partida en PGN que pueda leer.'); return; }
+        $('#fenin').value = txt; say('Cargué ' + f.name + ' (' + p.sans.length + ' jugadas). Elige qué hacer con la partida.');
+      }catch(e){ say('No pude leer ese archivo.'); }
+    };
     $$('[data-rg]', root).forEach(li => { const open = () => openRecent(li.dataset.rg, li.dataset.rid, ib); li.onclick = open; li.onkeydown = e => { if(e.key === 'Enter') open(); }; });
+    bindModelPick(root, () => renderPositionsHome());
   }
 }
 function myOpenings(){

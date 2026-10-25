@@ -79,7 +79,11 @@ La etapa se elige sola según tu nivel estimado, o la eliges tú. Cada etapa mue
 - Claude solo redacta. Las jugadas, las líneas y las evaluaciones siempre vienen de Stockfish.
 - Hay dos modelos que eliges por separado: uno para comentar tus partidas y otro para el análisis con el Maestro y la lectura de capturas.
 - Para comentar partidas se recomienda **Claude Haiku 5.5**, que cuesta menos de un centavo de dólar por partida. **Claude Sonnet 5.5** da explicaciones algo más finas y cuesta varias veces más.
-- Para analizar posiciones y leer capturas el valor inicial es **Claude Opus 5.5**, el que mejor ubica las piezas en una imagen. Cada lectura o explicación cuesta unos centavos de dólar con Opus o Sonnet y menos de un centavo con Haiku.
+- Para analizar posiciones y leer capturas eliges entre tres opciones. La primera vez que usas el análisis con IA aparece una tarjeta para elegir; mientras no elijas, se usa el modelo de comentarios. Costo aproximado en dólares por cada captura leída o explicación:
+  - **Económico (Claude Haiku 5.5):** menos de 1 centavo. Puede equivocarse más al leer capturas.
+  - **Equilibrado (Claude Sonnet 5.5):** de 2 a 4 centavos.
+  - **Preciso (Claude Opus 5.5):** de 5 a 8 centavos. Recomendado si subes capturas.
+  Son estimaciones con los precios de Anthropic; el costo real depende de cuánto piense el modelo.
 - **Probar conexión** revisa los dos modelos.
 - Cada persona que use la app necesita su propia clave. Puedes obtenerla en https://console.anthropic.com/settings/keys
 
@@ -89,6 +93,8 @@ Abre cualquier posición o partida y pídele al Maestro que te la explique. Se l
 **Traer una posición (Posiciones > Importar):**
 - **Desde una captura:** sube una captura de pantalla del tablero (de Chess.com, Lichess o un libro) o, en la computadora, pégala con Ctrl+V. La IA reconoce las piezas, qué bando está abajo y, si se ve, a quién le toca (por el texto de la pantalla o por la última jugada resaltada). Después se abre el editor con tu captura al lado. Necesita la IA activada.
 - **Pegar FEN, PGN o link:** en Chess.com usa **Compartir** (en la app: **Opciones > Compartir partida**) y copia el link de la partida o descarga su PGN. Con un PGN o un link recorres toda la partida. La API pública de Chess.com no permite pedir una partida por su link, así que la app la busca en el archivo mensual de un jugador: si es tuya y ya cargaste tus partidas, se abre al instante; si no, te pide el usuario de uno de los dos jugadores.
+- **Lichess:** pega el link de una partida (si termina en `/black`, el tablero se gira) o del tablero de análisis. Si Lichess no responde, la app te pide pegar el PGN.
+- **Subir archivo PGN:** el que descargas en Compartir. Si el archivo trae varias partidas, se usa la primera.
 - **Tus partidas recientes:** las últimas jugadas en Casilla o cargadas de Chess.com. Si ya están evaluadas, se abren justo después de tu primer error.
 - **Armar a mano** o **Editar:** abre el editor de posición.
 
@@ -132,7 +138,7 @@ El tema **Recomendado para ti** elige puzzles según tus errores más frecuentes
 - **Finales:** diez finales clásicos contra Stockfish a máxima fuerza, cada uno con un objetivo: dar mate, ganar o entablar. Incluye la regla del cuadrado, las casillas clave, Lucena, Philidor y el mate de alfil y caballo. Los que forman parte de la ruta a 1500 indican su etapa.
 - **Aperturas:** doce líneas principales, como la Italiana, la Española, la Siciliana Najdorf, la Caro-Kann y el Gambito de Dama. El rival juega la teoría y tú debes recordar tus jugadas; al terminar puedes seguir la partida contra el motor. También aparecen tus aperturas más jugadas en Chess.com.
 - **De mis partidas:** tus errores más frecuentes agrupados por tipo. Puedes resolverlos como puzzle o volver a jugar desde esa posición.
-- **Importar:** trae una posición o partida desde una captura, una FEN, un PGN, un link de Chess.com o tus partidas recientes para analizarla con el Maestro o jugarla contra el motor. Ver [Análisis con el Maestro](#análisis-con-el-maestro).
+- **Importar:** trae una posición o partida desde una captura, una FEN, un PGN (pegado o en archivo), un link de Chess.com o Lichess, o tus partidas recientes para analizarla con el Maestro o jugarla contra el motor. Ver [Análisis con el Maestro](#análisis-con-el-maestro).
 
 ### Partidas
 **Jugadas en Casilla:** cada partida de la escalera, contra el maestro o desde una posición entra a esta lista cuando termina su evaluación, con el resultado, tu precisión y tus errores. Tócala para ver otra vez la evaluación completa, al instante y sin volver a calcularla. Sus errores ya están en tus puzzles de **Mis errores**.
@@ -213,7 +219,7 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
 ## Privacidad
 
 - **Chess.com:** la app solo lee la API pública con tu nombre de usuario. No pide contraseña ni puede modificar nada en tu cuenta.
-- **Lichess:** se piden puzzles de forma anónima.
+- **Lichess:** se piden puzzles de forma anónima y, si pegas el link de una partida, su PGN.
 - **GitHub:** solo si activas la sincronización. Tu progreso se guarda en un gist secreto de tu cuenta.
 - **Anthropic:** solo si activas Claude. Se envían las posiciones y los datos de Stockfish de cada comentario o análisis, tus preguntas al Maestro, las capturas que subes para leer y tu nivel estimado con tus errores más comunes. Las capturas no se guardan en la app ni en los respaldos. La clave va directo de tu navegador a Anthropic.
 - Nada más sale de tu navegador. Cada persona que abre la app empieza de cero y nadie ve el progreso de otros.

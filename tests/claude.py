@@ -26,7 +26,7 @@ with sync_playwright() as p:
     pg.click('.tab[data-tab=coach]'); time.sleep(.4)
     pg.check('#aion'); pg.fill('#aikey','sk-ant-prueba'); pg.select_option('#aimodel','claude-haiku-5-5')
     # El modelo de análisis igual al de comentarios: la prueba hace una sola llamada
-    check('modelo de análisis por defecto: Opus 5.5', pg.evaluate("document.querySelector('#aimodel2').value") == 'claude-opus-5-5')
+    check('sin elegir, el análisis usa el modelo de comentarios y no se guarda nada', pg.evaluate("document.querySelector('#aimodel2').value") == 'claude-haiku-5-5' and pg.evaluate("S.settings.claude.anaModel === undefined"))
     pg.select_option('#aimodel2','claude-haiku-5-5')
     def test():
         n=len(SENT); pg.click('#aitest'); pg.wait_for_function("!document.querySelector('#aist').textContent.includes('Probando')",timeout=10000); time.sleep(.2)
