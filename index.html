@@ -349,6 +349,9 @@ html.clocked{--bw:min(calc(100vh - 280px), calc(100vw - 540px), 680px)}
 .palette .erase{grid-column:7;grid-row:1 / span 2;aspect-ratio:auto;background:none;color:var(--text);font-size:13px}
 .edpal:empty{display:none}
 .edpal{margin:6px 0 12px}
+.mpick{margin:8px 0 14px;padding:10px 12px;border-left:2px solid var(--warn);background:var(--raise);border-radius:0 var(--r-sm) var(--r-sm) 0}
+.mpick p{margin:0 0 6px}
+.mpick .list{margin:6px 0 0}
 .castles{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
 .castles .check{margin:4px 0}
 footer{color:var(--faint);font-size:12px;text-align:center;padding:0 20px 26px}
@@ -2051,9 +2054,26 @@ const READ_PROMPT = [
   '{"tablero": true, "abajo": "w", "filas": ["8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres"], "mueven": null, "ultima": null, "dudas": []}'
 ].join('\n');
 const CLAUDE_MODELS = [['claude-haiku-5-5','Claude Haiku 5.5: rápido y económico'],['claude-sonnet-5-5','Claude Sonnet 5.5: explicaciones más finas'],['claude-opus-5-5','Claude Opus 5.5: el más preciso, cuesta más']];
+// Opciones para el análisis y la lectura de capturas. Costo aproximado por uso (captura leída o explicación), en dólares,
+// con los precios por millón de tokens de Anthropic (oct 2026): Haiku 5.5 0.10/0.50, Sonnet 5.5 2/10, Opus 5.5 4/20,
+// y unos 3 a 6 mil tokens de entrada y 0.5 a 3 mil de salida (contando el pensamiento) por uso.
+const ANA_OPTIONS = [
+  {id:'claude-haiku-5-5', model:'Haiku 5.5', name:'Económico', cost:'menos de 1 centavo por uso', note:'Puede equivocarse más al leer capturas.'},
+  {id:'claude-sonnet-5-5', model:'Sonnet 5.5', name:'Equilibrado', cost:'de 2 a 4 centavos por uso', note:'Explicaciones más finas que el económico.'},
+  {id:'claude-opus-5-5', model:'Opus 5.5', name:'Preciso', cost:'de 5 a 8 centavos por uso', note:'El modelo más capaz. Recomendado si subes capturas.'}
+];
+// Tarjeta para elegir el modelo la primera vez que se usa el análisis con IA
+function modelPickHTML(){
+  if(!ClaudeAI.ready() || ClaudeAI.cfg().anaModel) return '';
+  return '<div class="mpick"><p><b>Elige cómo quieres que trabaje el Maestro</b></p><p class="note">Se cobra a tu cuenta con tu clave. Mientras no elijas, usa el mismo modelo que para comentar partidas. Puedes cambiarlo después en la pestaña Maestro.</p>' +
+    '<ul class="list">' + ANA_OPTIONS.map(o => '<li class="item"><div class="t">' + o.name + '</div><div class="s">' + o.cost.charAt(0).toUpperCase() + o.cost.slice(1) + ' (aprox., en dólares). ' + o.note + '</div><div class="row"><button class="btn small" data-amodel="' + o.id + '">Usar ' + o.name.toLowerCase() + '</button></div></li>').join('') + '</ul></div>';
+}
+function bindModelPick(root, after){ $$('[data-amodel]', root).forEach(b => b.onclick = () => { S.settings.claude = Object.assign({}, S.settings.claude, {anaModel:b.dataset.amodel}); save(); toast('Listo: el Maestro usará el modo ' + ANA_OPTIONS.find(o => o.id === b.dataset.amodel).name.toLowerCase() + '.'); after(); }); }
 const ClaudeAI = {
   // model: comentarios durante la partida. anaModel: análisis con el Maestro y lectura de capturas.
-  cfg(){ return Object.assign({on:false, key:'', model:'claude-haiku-5-5', anaModel:'claude-opus-5-5'}, S.settings.claude || {}); },
+  // anaModel no tiene valor por defecto: mientras la persona no elija (ANA_OPTIONS), se usa el de comentarios.
+  cfg(){ return Object.assign({on:false, key:'', model:'claude-haiku-5-5'}, S.settings.claude || {}); },
+  anaModel(){ const c = this.cfg(); return c.anaModel || c.model; },
   // Sin conexión la IA se apaga sola (mismo camino que con la IA desactivada) y vuelve al regresar la red
   online(){ return typeof navigator === 'undefined' || navigator.onLine !== false; },
   ready(){ const c = this.cfg(); return !!(c.on && c.key && this.online()); },
@@ -2098,7 +2118,7 @@ const ClaudeAI = {
   },
   // Lee una captura de un tablero. img: {data (base64), type}. Devuelve el JSON que pide READ_PROMPT.
   async readBoard(img){
-    const body = this.tune({model:this.cfg().anaModel, system:READ_SYSTEM, messages:[{role:'user', content:[
+    const body = this.tune({model:this.anaModel(), system:READ_SYSTEM, messages:[{role:'user', content:[
       {type:'image', source:{type:'base64', media_type:img.type, data:img.data}}, {type:'text', text:READ_PROMPT}]}]}, 'vision', 600);
     const txt = this.textOf(await this.post(body));
     const j = /\{[\s\S]*\}/.exec(txt);
@@ -2110,7 +2130,7 @@ const ClaudeAI = {
   async converse(o){
     const msgs = o.messages.slice(), maxCalls = o.maxCalls || 5; let calls = 0;
     for(let round = 0; round < 6; round++){
-      const body = this.tune({model:this.cfg().anaModel, system:o.system, messages:msgs, tools:o.tools}, 'tools', o.maxTokens || 700);
+      const body = this.tune({model:this.anaModel(), system:o.system, messages:msgs, tools:o.tools}, 'tools', o.maxTokens || 700);
       if(calls >= maxCalls) body.tool_choice = {type:'none'};
       const d = await this.post(body);
       const content = d.content || [], uses = content.filter(b => b.type === 'tool_use');
@@ -3157,8 +3177,8 @@ function renderCoachHome(){
     '<label class="check"><input type="checkbox" id="aion"' + (ai.on ? ' checked' : '') + '> <span>Usar Claude para los comentarios</span></label>' +
     '<div class="field"><span class="lbl">Clave de la API</span><input type="password" id="aikey" value="' + esc(ai.key) + '" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></div>' +
     '<div class="field"><span class="lbl">Modelo para comentar tus partidas</span><select id="aimodel">' + CLAUDE_MODELS.map(([v,l]) => '<option value="' + v + '"' + (ai.model === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
-    '<div class="field"><span class="lbl">Modelo para analizar posiciones y leer capturas</span><select id="aimodel2">' + CLAUDE_MODELS.map(([v,l]) => '<option value="' + v + '"' + (ai.anaModel === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
-      '<p class="note" style="margin-top:6px">Para leer capturas conviene Opus 5.5: es el que mejor ubica las piezas en una imagen. Cada lectura o explicación cuesta unos centavos de dólar con Opus o Sonnet y menos de un centavo con Haiku.</p></div>' +
+    '<div class="field"><span class="lbl">Modelo para analizar posiciones y leer capturas</span><select id="aimodel2">' + ANA_OPTIONS.map(o => '<option value="' + o.id + '"' + (ClaudeAI.anaModel() === o.id ? ' selected' : '') + '>Claude ' + o.model + ': ' + o.name.toLowerCase() + ', ' + o.cost + '</option>').join('') + '</select>' +
+      '<p class="note" style="margin-top:6px">' + (ai.anaModel ? '' : 'Todavía no eliges: mientras, el análisis usa el mismo modelo que los comentarios. ') + 'Costo aproximado en dólares por cada captura leída o explicación, con tu clave. Para leer capturas se recomienda Opus 5.5; Haiku puede equivocarse más.</p></div>' +
     '<div class="row"><button class="btn small" id="aitest">Probar conexión</button><a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Obtener una clave</a></div><p class="note" id="aist" style="margin-top:8px">' + (ClaudeAI.lastError ? 'Último error de Claude: ' + esc(ClaudeAI.lastError) : '') + '</p>';
   const root = side();
   const prefs = () => S.settings.coachPrefs;
@@ -3170,8 +3190,9 @@ function renderCoachHome(){
   bindSeg(root, 'cclock', v => { prefs().clock = v; save(); });
   $('#cgo').onclick = () => startCoachGame();
   $('#cbar').onchange = e => { S.settings.showBar = e.target.checked; save(); };
-  const saveAI = () => { S.settings.claude = {on:$('#aion').checked, key:$('#aikey').value.trim(), model:$('#aimodel').value, anaModel:$('#aimodel2').value}; save(); };
-  $('#aion').onchange = saveAI; $('#aikey').onchange = saveAI; $('#aimodel').onchange = saveAI; $('#aimodel2').onchange = saveAI;
+  // El modelo de análisis solo se guarda cuando la persona lo elige
+  const saveAI = () => { const c = {on:$('#aion').checked, key:$('#aikey').value.trim(), model:$('#aimodel').value}; const a = $('#aimodel2').dataset.set ? $('#aimodel2').value : ClaudeAI.cfg().anaModel; if(a) c.anaModel = a; S.settings.claude = c; save(); };
+  $('#aion').onchange = saveAI; $('#aikey').onchange = saveAI; $('#aimodel').onchange = saveAI; $('#aimodel2').onchange = () => { $('#aimodel2').dataset.set = '1'; saveAI(); };
   $('#cana').onclick = () => { App.posTab = 'importar'; switchTab('positions'); };
   $('#aitest').onclick = async () => {
     saveAI(); const out = $('#aist');
@@ -3180,7 +3201,8 @@ function renderCoachHome(){
     try{
       const c = ClaudeAI.cfg(), t = await ClaudeAI.ask('Responde solo con la palabra: listo', 'Prueba de conexión', 20);
       let msg = 'Conexión correcta con ' + c.model + ' (respondió: ' + t + ').';
-      if(c.anaModel !== c.model){ try{ await ClaudeAI.ask('Responde solo con la palabra: listo', 'Prueba de conexión', 20, c.anaModel); msg += ' ' + c.anaModel + ' también responde.'; }catch(e2){ msg += ' Pero ' + c.anaModel + ' falló: ' + e2.message; } }
+      const am = ClaudeAI.anaModel();
+      if(am !== c.model){ try{ await ClaudeAI.ask('Responde solo con la palabra: listo', 'Prueba de conexión', 20, am); msg += ' ' + am + ' también responde.'; }catch(e2){ msg += ' Pero ' + am + ' falló: ' + e2.message; } }
       out.textContent = msg;
     }
     catch(e){ out.textContent = 'No se pudo conectar: ' + e.message; }
@@ -3813,18 +3835,34 @@ function localExplain(ctx){
   const fen = ctx.fen, ls = ctx.lines, g = new Chess(fen), stm = g.turn(), side = colorName(stm);
   if(!ls.length) return {text:gameOverText(g), line:'', arrows:[]};
   const l0 = ls[0], s = stm === 'w' ? 1 : -1, bestSan = uciToSan(fen, l0.pv[0]);
-  const idea = (bestIdea(synthE(fen, ls), 0, {}) || '').replace(/^La mejor era /, 'la mejor es ');
-  let alt = '';
-  if(ls[1]){
-    const gap = Math.abs(winPct(s * l0.v) - winPct(s * ls[1].v)), san1 = uciToSan(fen, ls[1].pv[0]);
-    if(gap < 3) alt = ' También sirve ' + san1 + ' (' + fmtEval(ls[1].v) + '): el motor las ve casi iguales.';
-    else if(gap > 15) alt = ' Es la única jugada buena: con la siguiente opción, ' + san1 + ', la evaluación queda en ' + fmtEval(ls[1].v) + '.';
-  }
+  const lost = s * l0.v <= -300;
+  const idea = plainIdea(bestIdea(synthE(fen, ls), 0, {}), lost, fen).replace(/^La mejor era /, lost ? 'la mejor defensa es ' : 'la mejor es ');
+  const alt = ls[1] ? altText(fen, l0, ls[1]) : '';
   const facts = staticFacts(fen).filter(x => /^Amenaza|^Oportunidad|mate en una/.test(x)).slice(0, 2).join(' ');
   const head = ctx.kind === 'pos'
     ? 'Mueven ' + side + '. Según el motor, ' + evalWords(l0.v) + ' (' + fmtEval(l0.v) + '). ' + (facts ? facts + ' ' : '') + 'Hablando desde el lado de las ' + side + ': '
     : 'Hablando desde el lado de las ' + side + ' (mueven): ';
   return {text:head + idea + alt, line:'Línea del motor: ' + lineTextPlain(annotatedLine(fen, l0.pv, 6, stm)), arrows:[arrowOf(l0.pv[0], 'g')], bestSan};
+}
+// La idea genérica de bestIdea trae la evaluación desde el lado de quien mueve; en el análisis todo va desde las blancas
+// Fuera de la apertura (poco material) no aplican las ideas de apertura de bestIdea, que aquí siempre ve la jugada 1
+function plainIdea(t, lost, fen){
+  const gen = lost ? 'es la que más resiste según el motor' : 'es la más precisa según el motor, sin una táctica inmediata';
+  t = (t || '').replace(/mantiene tu posición sin conceder nada \([^)]*\)/, gen);
+  if(fen && material(fen).np < 50) t = t.replace(/: (toma espacio en el centro|desarrolla tu \S+ hacia el centro)\./, ': ' + gen + '.');
+  return t;
+}
+// Qué decir de la segunda línea del motor, cuidando los mates (con mate, el porcentaje de ganar no distingue nada)
+function altText(fen, l0, l1){
+  const s = fen.split(' ')[1] === 'w' ? 1 : -1, a = s * l0.v, b = s * l1.v, san1 = uciToSan(fen, l1.pv[0]), n = v => 1500 - Math.abs(v);
+  if(b <= -1450 && a > -1450) return ' Cuidado con ' + san1 + ': después tu rival tendría mate en ' + n(b) + '.';
+  if(a >= 1450) return b >= 1450 ? ' ' + san1 + ' también da mate, en ' + n(b) + '.' : ' Es la única que fuerza el mate; con ' + san1 + ' ya no hay mate forzado (' + fmtEval(l1.v) + ').';
+  if(a <= -1450) return '';
+  if(a >= 300 && b >= 300) return ' También gana ' + san1 + ' (' + fmtEval(l1.v) + ').';
+  const gap = Math.abs(winPct(a) - winPct(b));
+  if(gap < 3) return ' También sirve ' + san1 + ' (' + fmtEval(l1.v) + '): el motor las ve casi iguales.';
+  if(gap > 15) return ' Es la única jugada buena: con la siguiente opción, ' + san1 + ', la evaluación queda en ' + fmtEval(l1.v) + '.';
+  return '';
 }
 function explainMove(ctx){
   const {fen0, lines0, mv, fen, lines} = ctx, mover = mv.color, s = mover === 'w' ? 1 : -1, label = moveLabel(fen0, mv.san);
@@ -3836,12 +3874,12 @@ function explainMove(ctx){
   const arrows = lines[0] ? [arrowOf(lines[0].pv[0], 'r')] : [];
   const pre = 'Hablando desde el lado de las ' + colorName(mover) + ': ';
   if(best === moveUci(mv)){
-    const body = (bestIdea(E, 0, {}) || '').replace(/^La mejor era [^:]+: /, '');
+    const body = plainIdea(bestIdea(E, 0, {}), s * after <= -300, fen0).replace(/^La mejor era [^:]+: /, '');
     return {text:pre + label + ' es la jugada que prefiere el motor (' + fmtEval(after) + '): ' + body, line:reply, arrows};
   }
   if(drop <= 3) return {text:label + ' es casi tan buena como ' + bestSan + ': la evaluación queda en ' + fmtEval(after) + ', y con ' + bestSan + ' sería ' + fmtEval(lines0[0].v) + '.', line:reply, arrows};
   const sev = drop <= 8 ? 'una imprecisión' : drop <= 18 ? 'un error' : 'un error grave';
-  const rc = rootCause(E, 0).text, bi = bestIdea(E, 0, {short:true});
+  const rc = rootCause(E, 0).text, bi = plainIdea(bestIdea(E, 0, {short:true}), s * lines0[0].v <= -300, fen0);
   return {text:pre + label + ' es ' + sev + ' según el motor. ' + rc + (bi ? ' ' + bi : ''), line:reply, arrows};
 }
 const MAESTRO_TOOL = {name:'evaluar_jugadas',
@@ -3969,7 +4007,7 @@ class AnalysisSession{
     side().innerHTML = '<button class="back" id="bk">← ' + esc(this.o.backLabel || 'Volver') + '</button><h2>' + esc(this.o.title || 'Análisis') + '</h2>' +
       '<p class="lede">' + (this.main.length ? 'Recorre la partida con los botones o la lista de jugadas. ' : '') + 'El motor muestra sus tres mejores líneas. Mueve piezas para probar ideas y pídele al Maestro que te las explique.</p>' +
       '<div class="lines" id="lines"></div>' +
-      '<h3>Maestro</h3>' +
+      '<h3>Maestro</h3>' + modelPickHTML() +
       '<div class="row mabtns"><button class="btn small" id="maPos">Explicar posición</button><button class="btn small" id="maBest" disabled>¿Por qué la mejor?</button><button class="btn small" id="maMine" hidden></button></div>' +
       (ai ? '<form class="ask" id="maAsk"><input type="text" id="maQ" placeholder="Pregúntale algo sobre esta posición" autocomplete="off" maxlength="300" aria-label="Pregunta para el Maestro"><button class="btn small" type="submit">Preguntar</button></form>'
           : '<p class="note">' + (c.on && c.key ? 'Las preguntas libres necesitan conexión. Mientras, el Maestro explica con frases armadas a partir del motor.' : 'Con la IA activada en la pestaña Maestro te explica en lenguaje natural y puedes hacerle preguntas libres. Sin ella, explica con frases armadas a partir del motor.') + '</p>') +
@@ -3981,6 +4019,7 @@ class AnalysisSession{
     $('#maBest').onclick = () => this.ask('best');
     $('#maMine').onclick = () => this.ask('mine');
     const f = $('#maAsk'); if(f) f.onsubmit = e => { e.preventDefault(); const q = $('#maQ').value.trim(); if(!q) return; $('#maQ').value = ''; this.ask('q', q); };
+    bindModelPick(side(), () => { this.renderSide(); this.renderMaBtns(); this.renderFeed(); const c = this.cache[App.game.fen()]; if(c) this.showLines(App.game.fen(), c); else this.analyze(); });
   }
   say(m){ m.id = Math.random().toString(36).slice(2); this.msgs.unshift(m); this.renderFeed(); return m; }
   renderFeed(){
@@ -4625,6 +4664,7 @@ function renderPositionsHome(){
   } else {
     const ai = ClaudeAI.ready(), ac = ClaudeAI.cfg(), recent = recentGames();
     body = '<p class="lede">Trae una posición o una partida para que el Maestro te la explique o para jugarla contra el motor.</p>' +
+      modelPickHTML() +
       '<h3>Desde una captura</h3>' +
       '<p class="note">' + (ai ? 'Sube una captura de pantalla del tablero (de Chess.com, Lichess o un libro). La IA reconoce las piezas y luego las revisas antes de analizar.' + (isMobile() ? '' : ' También puedes pegar la imagen aquí con Ctrl+V.')
         : ac.on && ac.key ? 'Leer capturas necesita conexión. Mientras, puedes armar la posición a mano.' : 'Para leer capturas, activa la IA en la pestaña Maestro. Mientras, puedes armar la posición a mano.') + '</p>' +
@@ -4689,6 +4729,7 @@ function renderPositionsHome(){
       }catch(e){ say('No pude leer ese archivo.'); }
     };
     $$('[data-rg]', root).forEach(li => { const open = () => openRecent(li.dataset.rg, li.dataset.rid, ib); li.onclick = open; li.onkeydown = e => { if(e.key === 'Enter') open(); }; });
+    bindModelPick(root, () => renderPositionsHome());
   }
 }
 function myOpenings(){

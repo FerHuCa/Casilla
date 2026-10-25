@@ -88,6 +88,22 @@ with sync_playwright() as p:
     check('mensajes previos ofrecen volver a su posición', pg.query_selector('#mafeed [data-show]') is not None)
     pg.click('#mafeed [data-show]'); time.sleep(.4)
     no_brand(pg,'análisis')
+    # Posiciones decididas (de la prueba con capturas reales): mates en la segunda línea, defensa y signo de la evaluación
+    F2='8/ppp3p1/5k1p/1q5P/nP6/1KP2p2/8/4R3 w - - 0 1'
+    check('segunda línea con mate en contra: avisa en lugar de "también sirve"', 'Cuidado con c4' in pg.evaluate(f"altText('{F2}', {{v:-1400, pv:['e1e3']}}, {{v:-1468, pv:['c3c4']}})"))
+    check('con dos jugadas que ganan: "también gana"', pg.evaluate(f"altText('{F2}', {{v:900, pv:['e1e3']}}, {{v:700, pv:['c3c4']}})").startswith(' También gana c4'))
+    check('perdido: "la mejor defensa" y sin evaluación desde quien mueve', pg.evaluate(f"plainIdea('La mejor era 1. c4: toma espacio en el centro.', true, '{F2}')")=='La mejor era 1. c4: es la que más resiste según el motor.' and '(' not in pg.evaluate("plainIdea('La mejor era g5: mantiene tu posición sin conceder nada (+11.3).', false)"))
+
+    # --- Con IA: elegir modelo la primera vez ---
+    pg.evaluate("S.settings.claude = {on:true, key:'sk-ant-prueba', model:'claude-haiku-5-5'}; App.session.renderSide(); App.session.update()"); time.sleep(.3)
+    check('sin modelo elegido aparece la tarjeta con tres opciones y costos', len(pg.query_selector_all('[data-amodel]'))==3 and 'centavo' in pg.inner_text('.mpick'))
+    no_brand(pg,'tarjeta de modelos')
+    n=len(SENT); pg.click('#maPos'); wait_msg(pg, 60000)
+    check('mientras no elija, usa el modelo de comentarios', SENT[n]['model']=='claude-haiku-5-5' and SENT[n].get('thinking')=={'type':'disabled'})
+    pg.click('[data-amodel="claude-sonnet-5-5"]'); time.sleep(.3)
+    check('elegir guarda el modelo y quita la tarjeta', pg.evaluate("S.settings.claude.anaModel")=='claude-sonnet-5-5' and pg.query_selector('.mpick') is None and pg.is_visible('#maQ'))
+    n=len(SENT); pg.click('#maPos'); wait_msg(pg, 60000)
+    check('Sonnet con herramientas: between_tools', SENT[n]['model']=='claude-sonnet-5-5' and SENT[n].get('thinking')=={'type':'between_tools'})
 
     # --- Con IA: herramientas del motor ---
     ai_on(pg); pg.evaluate("App.session.renderSide(); App.session.update()"); time.sleep(.3)
@@ -256,9 +272,10 @@ with sync_playwright() as p:
     pg.click('#bk'); time.sleep(.3)
     check('y regresa a la revisión', pg.evaluate("App.session instanceof ReviewSession"))
     pg.click('.tab[data-tab=coach]'); time.sleep(.3)
-    check('ajuste del modelo de análisis con Opus por defecto', pg.evaluate("document.querySelector('#aimodel2').value")=='claude-opus-5-5')
+    check('el ajuste muestra el modelo de análisis elegido', pg.evaluate("document.querySelector('#aimodel2').value")=='claude-opus-5-5')
     pg.select_option('#aimodel2','claude-sonnet-5-5')
     check('el modelo de análisis se guarda', pg.evaluate("S.settings.claude.anaModel")=='claude-sonnet-5-5' and pg.evaluate("S.settings.claude.model")=='claude-haiku-5-5')
+    check('las opciones del ajuste muestran el costo', 'centavos por uso' in pg.evaluate("[...document.querySelectorAll('#aimodel2 option')].map(o=>o.textContent).join(' ')"))
     pg.click('#cana'); time.sleep(.3)
     check('la pestaña Maestro lleva a Importar', pg.evaluate("App.tab")=='positions' and pg.is_visible('#fenin'))
     check('la clave no queda en el respaldo', pg.evaluate("!stripForSync(JSON.parse(JSON.stringify(S))).settings.claude"))

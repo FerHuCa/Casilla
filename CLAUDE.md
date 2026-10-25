@@ -60,7 +60,7 @@ Dependencias externas (por CDN, sin instalar nada):
 
 ### Claude en el análisis
 
-- Dos modelos: `model` (comentarios en partida, por defecto Haiku 5.5) y `anaModel` (análisis y capturas, por defecto Opus 5.5). Ambos viven en `S.settings.claude`, que nunca se sincroniza.
+- Dos modelos: `model` (comentarios en partida, por defecto Haiku 5.5) y `anaModel` (análisis y capturas). `anaModel` no tiene valor por defecto: `ClaudeAI.anaModel()` usa el de comentarios hasta que la persona elige en la tarjeta `modelPickHTML` (opciones y costos en `ANA_OPTIONS`) o en el ajuste. Ambos viven en `S.settings.claude`, que nunca se sincroniza. Si cambian los precios de Anthropic, actualiza los costos de `ANA_OPTIONS` y del README.
 - Opus 5.5 rechaza `thinking: disabled` y `between_tools`: se manda sin `thinking`, con `output_config.effort` bajo y `max_tokens` con espacio para pensar. Haiku usa `disabled` y Sonnet `between_tools`. Opus y Sonnet rechazan `tool_choice` forzado; al llegar al límite de consultas se manda `tool_choice: none`.
 - En el ciclo con herramientas, el contenido de la respuesta (incluidos los bloques de pensamiento) se devuelve sin cambios.
 - La captura se lee como cuadrícula tal como se ve (filas de arriba a abajo) más qué bando está abajo; `boardFromRead` la convierte a casillas. La lectura puede fallar: el editor siempre se abre para revisar.

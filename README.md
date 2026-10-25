@@ -79,7 +79,11 @@ La etapa se elige sola según tu nivel estimado, o la eliges tú. Cada etapa mue
 - Claude solo redacta. Las jugadas, las líneas y las evaluaciones siempre vienen de Stockfish.
 - Hay dos modelos que eliges por separado: uno para comentar tus partidas y otro para el análisis con el Maestro y la lectura de capturas.
 - Para comentar partidas se recomienda **Claude Haiku 5.5**, que cuesta menos de un centavo de dólar por partida. **Claude Sonnet 5.5** da explicaciones algo más finas y cuesta varias veces más.
-- Para analizar posiciones y leer capturas el valor inicial es **Claude Opus 5.5**, el que mejor ubica las piezas en una imagen. Cada lectura o explicación cuesta unos centavos de dólar con Opus o Sonnet y menos de un centavo con Haiku.
+- Para analizar posiciones y leer capturas eliges entre tres opciones. La primera vez que usas el análisis con IA aparece una tarjeta para elegir; mientras no elijas, se usa el modelo de comentarios. Costo aproximado en dólares por cada captura leída o explicación:
+  - **Económico (Claude Haiku 5.5):** menos de 1 centavo. Puede equivocarse más al leer capturas.
+  - **Equilibrado (Claude Sonnet 5.5):** de 2 a 4 centavos.
+  - **Preciso (Claude Opus 5.5):** de 5 a 8 centavos. Recomendado si subes capturas.
+  Son estimaciones con los precios de Anthropic; el costo real depende de cuánto piense el modelo.
 - **Probar conexión** revisa los dos modelos.
 - Cada persona que use la app necesita su propia clave. Puedes obtenerla en https://console.anthropic.com/settings/keys
 
