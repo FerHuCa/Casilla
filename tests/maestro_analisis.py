@@ -189,6 +189,19 @@ with sync_playwright() as p:
     pg.click('.sq[data-sq="g8"]'); pg.click('.sq[data-sq="f6"]'); time.sleep(.2)
     check('si la jugada coincide con la partida, sigue en ella', pg.evaluate("App.session.ply")==6 or pg.evaluate("App.session.vars.length")==1)
 
+    # Archivo PGN con dos partidas (lo que descarga Compartir): se usa la primera
+    import tempfile
+    pf=os.path.join(tempfile.mkdtemp(), 'partida.pgn'); open(pf,'w').write('\ufeff'+games[1]['pgn']+'\n\n'+games[2]['pgn']+'\n')
+    pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+    pg.set_input_files('#pgnin', pf); pg.wait_for_function("document.querySelector('#fenerr').textContent.includes('Cargué')", timeout=5000)
+    check('subir PGN: carga la primera partida del archivo', 'partida.pgn (13 jugadas)' in pg.inner_text('#fenerr') and 'rival3' not in pg.input_value('#fenin'))
+    pg.click('#fenAna'); time.sleep(.5)
+    check('subir PGN: se analiza la partida', pg.evaluate("App.session instanceof AnalysisSession && App.session.main.length")==13)
+    bad=os.path.join(tempfile.mkdtemp(), 'nada.txt'); open(bad,'w').write('hola')
+    pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+    pg.set_input_files('#pgnin', bad); time.sleep(.4)
+    check('subir un archivo sin partida se explica', 'no tiene una partida' in pg.inner_text('#fenerr'))
+
     # --- Link de Chess.com ---
     pg.evaluate("S.username=''; S.games=[]; App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
     pg.fill('#fenin', 'Mira esta partida https://www.chess.com/game/live/1001?move=3'); pg.click('#fenAna'); time.sleep(.5)

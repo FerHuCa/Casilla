@@ -4242,8 +4242,10 @@ function chessComLink(t){
   if(!m) return {err:'Ese link de Chess.com no es de una partida. Cópialo desde Compartir en la partida.'};
   return {kind:'link', type:(m[1] || m[2] || '').toLowerCase() || null, id:m[3]};
 }
+// De un PGN con varias partidas, la primera (cada una empieza con su encabezado Event)
+function firstGame(txt){ const t = String(txt || '').replace(/^\uFEFF/, ''), at = [...t.matchAll(/^\s*\[Event\s+"/gm)].map(m => m.index); return at.length > 1 ? t.slice(0, at[1]).trim() : t.trim(); }
 function parseImport(txt){
-  const t = String(txt || '').trim(); if(!t) return {err:'Pega una FEN, un PGN o un link.'};
+  const t = firstGame(txt); if(!t) return {err:'Pega una FEN, un PGN o un link.'};
   // Un PGN de Chess.com trae links en sus encabezados (Link, ECOUrl): si hay encabezados o jugadas numeradas, es PGN
   const looksPgn = /^\s*\[\w+\s+"/m.test(t) || /(^|\s)1\.\s*[a-hKQRBNO]/.test(t);
   const link = looksPgn ? null : chessComLink(t); if(link) return link;
@@ -4591,7 +4593,7 @@ function renderPositionsHome(){
       '<div class="row"><label class="btn filebtn' + (ai ? ' primary' : ' off') + '">Subir captura<input type="file" id="shotin" accept="image/*"' + (ai ? '' : ' disabled') + '></label><button class="btn" id="byHand">Armar a mano</button></div>' +
       '<p class="note" id="shotst" aria-live="polite" style="margin-top:8px"></p>' +
       '<h3>Pegar FEN, PGN o link</h3>' +
-      '<div class="field"><textarea id="fenin" placeholder="FEN, PGN o link de una partida de Chess.com" spellcheck="false" aria-label="FEN, PGN o link"></textarea><p class="note" style="margin-top:6px">En Chess.com, usa Compartir y copia el link de la partida o descarga su PGN.</p><p class="note" id="fenerr" aria-live="polite"></p></div>' +
+      '<div class="field"><textarea id="fenin" placeholder="FEN, PGN o link de una partida de Chess.com" spellcheck="false" aria-label="FEN, PGN o link"></textarea><p class="note" style="margin-top:6px">En Chess.com, usa Compartir y copia el link de la partida o descarga su PGN y súbelo aquí.</p><label class="btn small filebtn">Subir archivo PGN<input type="file" id="pgnin" accept=".pgn,.txt,text/plain,application/x-chess-pgn,application/vnd.chess-pgn"></label><p class="note" id="fenerr" aria-live="polite" style="margin-top:6px"></p></div>' +
       '<div class="field" id="linkUserBox" hidden><span class="lbl">Usuario de Chess.com de uno de los dos jugadores</span><input type="text" id="linkUser" autocomplete="off" spellcheck="false" placeholder="usuario"></div>' +
       '<div class="row"><button class="btn primary" id="fenAna">Analizar con el Maestro</button><button class="btn" id="fenEdit">Editar</button></div>' +
       '<div class="field"><span class="lbl">Rival para jugarla</span>' + tierSelectHTML('fenTier') + '</div>' +
@@ -4637,6 +4639,17 @@ function renderPositionsHome(){
     $('#linkUser').onkeydown = e => { if(e.key === 'Enter') $('#fenAna').click(); };
     $('#byHand').onclick = () => App.setSession(new EditorSession({fen:START_FEN, title:'Armar posición', backLabel:'Importar', back:ib}));
     const si = $('#shotin'); si.onchange = () => { const f = si.files[0]; si.value = ''; if(f) readShot(f); };
+    // Archivo PGN (lo que descarga Compartir de Chess.com): se pone en el campo y se revisa con el mismo parser
+    const pi = $('#pgnin'); pi.onchange = async () => {
+      const f = pi.files[0]; pi.value = ''; if(!f) return;
+      const say = t => { $('#fenerr').textContent = t; };
+      if(f.size > 2000000){ say('Ese archivo es demasiado grande para una partida.'); return; }
+      try{
+        const txt = firstGame(await f.text()), p = parseImport(txt);
+        if(p.err || p.kind !== 'pgn'){ say('Ese archivo no tiene una partida en PGN que pueda leer.'); return; }
+        $('#fenin').value = txt; say('Cargué ' + f.name + ' (' + p.sans.length + ' jugadas). Elige qué hacer con la partida.');
+      }catch(e){ say('No pude leer ese archivo.'); }
+    };
     $$('[data-rg]', root).forEach(li => { const open = () => openRecent(li.dataset.rg, li.dataset.rid, ib); li.onclick = open; li.onkeydown = e => { if(e.key === 'Enter') open(); }; });
   }
 }
