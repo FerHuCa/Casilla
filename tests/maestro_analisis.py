@@ -92,7 +92,12 @@ with sync_playwright() as p:
     F2='8/ppp3p1/5k1p/1q5P/nP6/1KP2p2/8/4R3 w - - 0 1'
     check('segunda línea con mate en contra: avisa en lugar de "también sirve"', 'Cuidado con c4' in pg.evaluate(f"altText('{F2}', {{v:-1400, pv:['e1e3']}}, {{v:-1468, pv:['c3c4']}})"))
     check('con dos jugadas que ganan: "también gana"', pg.evaluate(f"altText('{F2}', {{v:900, pv:['e1e3']}}, {{v:700, pv:['c3c4']}})").startswith(' También gana c4'))
-    check('perdido: "la mejor defensa" y sin evaluación desde quien mueve', pg.evaluate(f"plainIdea('La mejor era 1. c4: toma espacio en el centro.', true, '{F2}')")=='La mejor era 1. c4: es la que más resiste según el motor.' and '(' not in pg.evaluate("plainIdea('La mejor era g5: mantiene tu posición sin conceder nada (+11.3).', false)"))
+    F3='2k4r/p4qp1/2b1p1p1/p2p4/3P1P2/P5KP/2PB4/1R2R3 b - - 0 1'
+    t2=pg.evaluate(f"bestIdea(synthE('{F2}', [{{v:-1400, pv:['e1e2']}}]), 0, ideaCtx(true, '{F2}'))")
+    t3=pg.evaluate(f"bestIdea(synthE('{F3}', [{{v:-1160, pv:['g6g5']}}]), 0, ideaCtx(false, '{F3}'))")
+    print('  ', t2, '|', t3)
+    check('final sin ideas de apertura ni evaluación desde quien mueve', 'centro' not in t2 + t3 and '(+' not in t2 + t3 and ('resiste' in t2 or 'ataca' in t2))
+    check('perdido: "la mejor defensa"', 'la mejor defensa es' in pg.evaluate(f"localExplain({{kind:'pos', fen:'{F2}', lines:[{{v:-1400, pv:['e1e2'], depth:20}}]}}).text"))
 
     # --- Con IA: elegir modelo la primera vez ---
     pg.evaluate("S.settings.claude = {on:true, key:'sk-ant-prueba', model:'claude-haiku-5-5'}; App.session.renderSide(); App.session.update()"); time.sleep(.3)
@@ -131,6 +136,31 @@ with sync_playwright() as p:
     res=json.loads(tr.get('content','{}'))
     check('jugada ilegal: error con jugadas legales', tr.get('is_error') and 'no es legal' in res.get('error','') and 'Nf6' in res.get('jugadas_legales',[]))
     CFG['tool_moves']=['Nf6']
+    # Jugadas con número desde la IA ("3... Nf6") se aceptan; fase sin número de jugada en posiciones sueltas
+    CFG['tool_moves']=['3... Nf6']; n=len(SENT); pg.click('#maPos'); wait_msg(pg, 60000)
+    tr=json.loads(SENT[n+1]['messages'][2]['content'][0]['content']) if len(SENT)>n+1 else {}
+    check('la herramienta acepta jugadas con número', 'evaluacion' in tr and 'error' not in tr)
+    u=SENT[n]['messages'][0]['content']
+    check('FEN con número de jugada real: fase de la partida', '"fase":"Apertura"' in u and '"jugada_numero":3' in u)
+    fx=pg.evaluate("(()=>{ const F='2k4r/p4qp1/2b1p1p1/p2p4/3P1P2/P5KP/2PB4/1R2R3 b - - 0 1'; return AnalysisSession.prototype.factsFor.call({main:[], start:F}, {kind:'pos', fen:F, hist:[], lines:[{v:-1160, pv:['g6g5'], depth:20}]}, {text:''}).posicion; })()")
+    check('posición suelta (0 1): fase por material y sin número de jugada', fx.get('fase')=='Medio juego' and 'jugada_numero' not in fx)
+    CFG['tool_moves']=['Nf6']
+    # Texto de la IA sin Markdown ni guiones largos
+    CFG['answer']='Idea **clave** \u2014 ataque al rey.'; pg.click('#maPos'); m=wait_msg(pg, 60000); CFG['answer']='Explicación IA de prueba.'
+    check('la respuesta se limpia de Markdown y guiones largos', m['text']=='Idea clave, ataque al rey.')
+    # Comparación con la mejor: mates y diferencias a favor por calcular con menos tiempo
+    cmp=lambda a,b,mv: pg.evaluate(f"compareToBest('{FEN_IT}', {{v:{a}, pv:['g8f6']}}, {{from:'f8',to:'c5'}}, {b})")
+    check('comparación: diferencia a favor se toma como igual', 'prácticamente igual' in cmp(0, -40, 'f8c5'))
+    check('comparación: permite mate', 'permite que el rival dé mate en 3' in cmp(0, 1497, 'f8c5'))
+    check('comparación: deja escapar un mate', 'deja escapar un mate en 2' in cmp(-1498, -500, 'f8c5'))
+    # Al salir mientras la IA consulta al motor, no hay más llamadas ni mensajes en la pantalla nueva
+    pg.evaluate("App.session.cache = {}"); n=len(SENT); pg.click('#maPos')
+    pg.wait_for_function(f"window.__n === undefined", timeout=1000) if False else None
+    t0=time.time()
+    while len(SENT)<=n and time.time()-t0<30: time.sleep(.05)
+    pg.click('#bk'); time.sleep(.3); pg.fill('#fenin', FEN_IT); pg.click('#fenAna'); time.sleep(5)
+    check('al salir se dejan de hacer consultas', len(SENT)==n+1)
+    check('la pantalla nueva no recibe mensajes viejos', pg.evaluate("App.session.msgs.length")==0 and pg.evaluate("document.querySelector('#mafeed').hidden"))
     # Pregunta libre
     n=len(SENT); pg.fill('#maQ','¿Qué plan tengo aquí?'); pg.press('#maQ','Enter'); m=wait_msg(pg, 60000)
     check('pregunta libre: se muestra la pregunta y la respuesta', pg.evaluate("App.session.msgs[1].label")=='Tú' and m['text']=='Explicación IA de prueba.')
@@ -138,8 +168,19 @@ with sync_playwright() as p:
     # Error de la IA: queda la explicación del motor
     ctx.unroute('**/*'); ctx.route('**/*', lambda r: r.fulfill(status=401,headers=CORS,content_type='application/json',body=json.dumps({"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}})) if 'api.anthropic.com' in r.request.url else handle4(r))
     pg.click('#maPos'); m=wait_msg(pg, 60000)
-    check('si la IA falla, explica el motor y avisa', 'Mueven' in m['text'] and 'invalid x-api-key' in (m.get('note') or ''))
+    check('si la IA falla, explica el motor y avisa sin mostrar el error crudo', 'Mueven' in m['text'] and 'la clave no es válida' in (m.get('note') or '') and 'x-api-key' not in (m.get('note') or ''))
+    check('el error original queda para los ajustes', 'invalid x-api-key' in pg.evaluate("ClaudeAI.lastError"))
     ctx.unroute('**/*'); ctx.route('**/*',handle4)
+
+    # --- Posiciones imposibles al importar: al editor ---
+    for fen, msg, name in [('4k3/8/8/8/8/8/8/8 w - - 0 1','Falta el rey blanco','FEN sin rey: abre el editor'),
+                           ('4k3/8/8/8/8/8/4Q3/4K3 w - - 0 1','está en jaque pero mueven','jaque del bando que no mueve: abre el editor')]:
+        pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+        pg.fill('#fenin', fen); pg.click('#fenAna'); time.sleep(.5)
+        check(name, pg.evaluate("App.session instanceof EditorSession") and msg in pg.inner_text('#edprob'))
+    pg.evaluate("App.posTab='importar'; switchTab('positions')"); time.sleep(.3)
+    pg.fill('#fenin', '4k3/8/8/8/8/8/8/4K3 w KQkq - 0 1'); pg.click('#fenAna'); time.sleep(.5)
+    check('enroques imposibles se quitan al importar', pg.evaluate("App.session instanceof AnalysisSession && App.game.fen()")=='4k3/8/8/8/8/8/8/4K3 w - - 0 1')
 
     # --- Captura ---
     target='rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 0 1'
@@ -210,6 +251,11 @@ with sync_playwright() as p:
     check('volver a la partida', pg.evaluate("App.session.vars.length")==0 and pg.evaluate("App.session.ply")==5)
     pg.click('.sq[data-sq="g8"]'); pg.click('.sq[data-sq="f6"]'); time.sleep(.2)
     check('si la jugada coincide con la partida, sigue en ella', pg.evaluate("App.session.ply")==6 or pg.evaluate("App.session.vars.length")==1)
+    ai_on(pg, False); pg.click('#controls button:has-text("Final")'); time.sleep(.3)
+    check('al final de una partida con mate se ofrece "¿Qué tal Nd5#?"', pg.is_visible('#maMine') and pg.inner_text('#maMine')=='¿Qué tal Nd5#?')
+    pg.click('#maMine'); m=wait_msg(pg, 60000); print('  ', m['text'][:140])
+    check('y explica la jugada que dio mate', 'Nd5#' in m['text'] and 'No pude' not in m['text'])
+    ai_on(pg)
 
     # Archivo PGN con dos partidas (lo que descarga Compartir): se usa la primera
     import tempfile
