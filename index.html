@@ -86,6 +86,32 @@ html[data-theme=cuero]{
   --onText:#241D17; --textHover:#FFFFFF; --rowline:#352B23; --cur:#43372C;
   --evalbg:#43372C; --evalfill:#F1E9DD; --veil:rgba(40,33,27,.8); --frame:#1A1511;
 }
+/* Paletas Medianoche, Cacao y Ciruela (seis tonos cada una, del más oscuro al más claro). Fondo: tono 1; superficies: tonos 1 a 3;
+   texto: tono 6; secundario y acento: tono 5. Contraste medido contra el fondo: texto >= 12:1, secundario >= 7:1, tenue >= 5.2:1. */
+html[data-theme=medianoche]{
+  --bg:#111522; --raise:#192032; --line:#1E263B; --line2:#29344D;
+  --text:#DCE3EF; --muted:#98A9C4; --faint:#798BA7;
+  --accent:#98A9C4; --accentHover:#DCE3EF; --onAccent:#111522; --accentText:#B0BDD3; --accentSoft:rgba(152,169,196,.14);
+  --good:#8DB79A; --bad:#D27F72; --warn:#D2B063; --orange:#D69563;
+  --onText:#111522; --textHover:#FFFFFF; --rowline:#161C2C; --cur:#303D59;
+  --evalbg:#303D59; --evalfill:#DCE3EF; --veil:rgba(17,21,34,.82); --frame:#0B0E16;
+}
+html[data-theme=cacao]{
+  --bg:#211B1A; --raise:#302523; --line:#382A28; --line2:#503935;
+  --text:#E8D8CE; --muted:#C1A094; --faint:#AB887D;
+  --accent:#C1A094; --accentHover:#E8D8CE; --onAccent:#211B1A; --accentText:#CFB4A8; --accentSoft:rgba(193,160,148,.14);
+  --good:#9DB57F; --bad:#D58468; --warn:#D7AE62; --orange:#D9925A;
+  --onText:#211B1A; --textHover:#FFFFFF; --rowline:#2A2120; --cur:#60433D;
+  --evalbg:#60433D; --evalfill:#E8D8CE; --veil:rgba(33,27,26,.82); --frame:#151211;
+}
+html[data-theme=ciruela]{
+  --bg:#17151C; --raise:#231F2A; --line:#292531; --line2:#3A3543;
+  --text:#E2DDE7; --muted:#AAA2B3; --faint:#908899;
+  --accent:#AAA2B3; --accentHover:#E2DDE7; --onAccent:#17151C; --accentText:#BEB7C5; --accentSoft:rgba(170,162,179,.14);
+  --good:#8DB27F; --bad:#CF7B6B; --warn:#CDAA62; --orange:#D4905E;
+  --onText:#17151C; --textHover:#FFFFFF; --rowline:#1E1B24; --cur:#45404F;
+  --evalbg:#45404F; --evalfill:#E2DDE7; --veil:rgba(23,21,28,.82); --frame:#0F0E12;
+}
 /* Fuentes opcionales: van en fonts/ y solo se descargan cuando el preset activo las usa */
 html[data-font=moderna]{--fBody:'Manrope',system-ui,sans-serif;--fHead:'Manrope',system-ui,sans-serif}
 html[data-font=libro]{--fBody:'Literata',Georgia,serif;--fHead:'Literata',Georgia,serif}
@@ -101,11 +127,18 @@ html[data-board=oliva]{--sqL:#E4E2C8;--sqD:#8F9965}
 html[data-board=tinta]{--sqL:#D9DEE6;--sqD:#6F7F99}
 html[data-board=coral]{--sqL:#EBDACF;--sqD:#B0806E}
 html[data-board=contraste]{--sqL:#FFFFFF;--sqD:#5E5E5E}
+html[data-board=medianoche]{--sqL:#DCE3EF;--sqD:#7688A4}
+html[data-board=cacao]{--sqL:#E8D8CE;--sqD:#A9867A}
+html[data-board=ciruela]{--sqL:#E2DDE7;--sqD:#8E8596}
 /* Texturas de lila (los autores de lila y pirouetti, AGPLv3+; ver board/LICENSE.md). El JPG solo se pide con el tablero activo. */
 html[data-board=arce]{--sqL:#E8CFA0;--sqD:#B78A55}
 html[data-board=veteado]{--sqL:#D9B98C;--sqD:#8E6440}
 /* Resaltes más marcados en los tableros nuevos, donde el amarillo de siempre se pierde (medido en tests/apariencia_contraste.py) */
 html[data-board=arena],html[data-board=oliva],html[data-board=tinta],html[data-board=arce],html[data-board=veteado]{--hlLast:rgba(150,170,30,.55);--hlSel:rgba(35,95,55,.6)}
+/* Paletas: última jugada en dorado (complementa azul, café y violeta) y selección con el tono 2 de cada paleta (medidos en tests/apariencia_contraste.py) */
+html[data-board=medianoche]{--hlLast:rgba(214,178,80,.6);--hlSel:rgba(30,38,59,.35)}
+html[data-board=cacao]{--hlLast:rgba(214,178,80,.6);--hlSel:rgba(56,42,40,.35)}
+html[data-board=ciruela]{--hlLast:rgba(214,178,80,.6);--hlSel:rgba(41,37,49,.35)}
 /* Tableros de antes: solo se refuerza el resalte que no llegaba a ΔE00 8 (ver tests/apariencia_contraste.py) */
 html[data-board=madera],html[data-board=nogal]{--hlLast:rgba(185,165,80,.6)}
 html[data-board=club]{--hlSel:rgba(75,110,60,.6)}
@@ -4828,12 +4861,14 @@ function renderProgressHome(){
 }
 /* ---------- Apariencia ---------- */
 const LOOK = {
-  theme:[['carbon','Carbón','#242322','#E7E3DC'],['papel','Papel','#F3F3F0','#1E1E1C'],['pizarra','Pizarra','#1F252B','#E2E7EB'],['cuero','Cuero','#28211B','#EEE5D8'],['arcade','Arcade','#1a1c2c','#ffcd75']],
+  theme:[['carbon','Carbón','#242322','#E7E3DC'],['papel','Papel','#F3F3F0','#1E1E1C'],['pizarra','Pizarra','#1F252B','#E2E7EB'],['cuero','Cuero','#28211B','#EEE5D8'],['arcade','Arcade','#1a1c2c','#ffcd75'],
+    ['medianoche','Medianoche','#111522','#DCE3EF'],['cacao','Cacao','#211B1A','#E8D8CE'],['ciruela','Ciruela','#17151C','#E2DDE7']],
   font:[['clasica','Clásica',"'Source Serif 4',Georgia,serif","'Source Sans 3',sans-serif"],['moderna','Moderna',"'Manrope',sans-serif","'Manrope',sans-serif"],['libro','Libro',"'Literata',Georgia,serif","'Literata',Georgia,serif"],['tecnica','Técnica',"'IBM Plex Mono',monospace","'IBM Plex Sans',sans-serif"],['pixel','Pixel',"'Press Start 2P',monospace","'Pixelify Sans',sans-serif"]],
   // Tableros: [id, nombre, casilla clara, casilla oscura, textura en board/ si la hay]
   board:[['piedra','Gris piedra','#D3D0C9','#8F8B83'],['madera','Madera','#EED8B5','#B08660'],['nogal','Nogal','#D6B48E','#86593B'],['glaciar','Glaciar','#DCE3E8','#7E99AC'],['club','Club','#E7E9D6','#7D9971'],
     ['arena','Arena','#ECDAB9','#AE8A68'],['oliva','Oliva','#E4E2C8','#8F9965'],['tinta','Tinta','#D9DEE6','#6F7F99'],['coral','Coral','#EBDACF','#B0806E'],['contraste','Contraste','#FFFFFF','#5E5E5E'],
-    ['arce','Arce','#E8CFA0','#B78A55','board/maple.jpg'],['veteado','Veteado','#D9B98C','#8E6440','board/wood4.jpg'],['arcade','Arcade','#f4f4f4','#3b5dc9']],
+    ['arce','Arce','#E8CFA0','#B78A55','board/maple.jpg'],['veteado','Veteado','#D9B98C','#8E6440','board/wood4.jpg'],['arcade','Arcade','#f4f4f4','#3b5dc9'],
+    ['medianoche','Medianoche','#DCE3EF','#7688A4'],['cacao','Cacao','#E8D8CE','#A9867A'],['ciruela','Ciruela','#E2DDE7','#8E8596']],
   // Piezas: [id, nombre, carpeta en piece/ si no van embebidas]
   pieces:[['cburnett','Clásicas'],['merida','Merida'],['celtic','Celtic'],['mpchess','Minimal'],['chessnut','Chessnut'],['pixel','Pixel'],['rhosgfx','Retro'],
     ['spatial','Spatial','piece/spatial/'],['fantasy','Fantasy','piece/fantasy/'],['shapes','Shapes','piece/shapes/'],['firi','Firi','piece/firi/'],['pirouetti','Pirouetti','piece/pirouetti/'],['letter','Letras','piece/letter/']],
@@ -4841,7 +4876,7 @@ const LOOK = {
 };
 const LOOK_DEFAULT = {theme:'carbon', font:'clasica', board:'piedra', pieces:'cburnett', style:'plano'};
 const LOOK_GROUPS = {
-  board:[['Colores',['piedra','madera','nogal','glaciar','club','arena','oliva','tinta','coral','contraste']],['Texturas',['arce','veteado']],['Retro',['arcade']]],
+  board:[['Colores',['piedra','madera','nogal','glaciar','club','arena','oliva','tinta','coral','contraste','medianoche','cacao','ciruela']],['Texturas',['arce','veteado']],['Retro',['arcade']]],
   pieces:[['Clásicas',['cburnett','merida','celtic','spatial','fantasy']],['Modernas',['mpchess','chessnut','shapes','firi','pirouetti','letter']],['Retro',['pixel','rhosgfx']]]
 };
 const lookOpt = (kind, id) => LOOK[kind].find(o => o[0] === id);
@@ -4853,7 +4888,11 @@ const PRESETS = [
   {id:'club', n:'Club', d:'Verde de torneo y letra técnica para estudiar.', theme:'papel', font:'tecnica', board:'club', pieces:'chessnut', style:'plano'},
   {id:'relieve', n:'Relieve', d:'Botones y tablero con volumen, como un juego físico.', modes:{oscuro:'carbon', claro:'papel'}, font:'clasica', board:'madera', pieces:'cburnett', style:'relieve'},
   {id:'bits', n:'8 bits', d:'Todo retro: colores, letra, piezas y tablero pixel.', theme:'arcade', font:'pixel', board:'arcade', pieces:'pixel', style:'bits'},
-  {id:'arcade', n:'Arcade', d:'Colores arcade con piezas Retro, sin letra pixel.', theme:'arcade', font:'tecnica', board:'arcade', pieces:'rhosgfx', style:'plano'}
+  {id:'arcade', n:'Arcade', d:'Colores arcade con piezas Retro, sin letra pixel.', theme:'arcade', font:'tecnica', board:'arcade', pieces:'rhosgfx', style:'plano'},
+  // Paletas de seis tonos (oct 2026). nuevo: no existían en el formato viejo, así que la migración no los propone.
+  {id:'medianoche', n:'Medianoche', d:'Azules profundos, tranquilo para jugar de noche.', theme:'medianoche', font:'moderna', board:'medianoche', pieces:'mpchess', style:'plano', nuevo:true},
+  {id:'cacao', n:'Cacao', d:'Cafés suaves y letra de libro, cálido sin brillo.', theme:'cacao', font:'libro', board:'cacao', pieces:'merida', style:'plano', nuevo:true},
+  {id:'ciruela', n:'Ciruela', d:'Grises con tono violeta, elegante y discreto.', theme:'ciruela', font:'clasica', board:'ciruela', pieces:'cburnett', style:'plano', nuevo:true}
 ];
 const PREF_DEFAULT = {preset:'clasico', mode:'oscuro'};
 function presetById(id){ return PRESETS.find(p => p.id === id); }
@@ -4872,11 +4911,11 @@ function migrateLook(old){
 function migratePreset(l){
   const pref = (preset, mode) => ({preset, mode: mode || 'oscuro'});
   const modeOf = () => l.theme === 'papel' ? 'claro' : 'oscuro';
-  for(const p of PRESETS) for(const m of (p.modes ? Object.keys(p.modes) : [null])){ const pl = presetLook(p, m); if(Object.keys(pl).every(k => pl[k] === l[k])) return pref(p.id, m); }
+  for(const p of PRESETS.filter(p => !p.nuevo)) for(const m of (p.modes ? Object.keys(p.modes) : [null])){ const pl = presetLook(p, m); if(Object.keys(pl).every(k => pl[k] === l[k])) return pref(p.id, m); }
   if(l.style === 'bits' || l.font === 'pixel' || l.pieces === 'pixel') return pref('bits');
   if(l.theme === 'arcade' || l.board === 'arcade' || l.pieces === 'rhosgfx') return pref('arcade');
   if(l.style === 'relieve') return pref('relieve', modeOf());
-  const cands = PRESETS.filter(p => !p.modes).map(p => ({id:p.id, look:presetLook(p)}));
+  const cands = PRESETS.filter(p => !p.modes && !p.nuevo).map(p => ({id:p.id, look:presetLook(p)}));
   cands.push({id:'clasico', look:presetLook(presetById('clasico'), 'oscuro')}, {id:'clasico', look:presetLook(presetById('clasico'), 'claro')});
   const sc = c => (c.look.board === l.board ? 3 : 0) + (c.look.theme === l.theme ? 3 : 0) + (c.look.pieces === l.pieces ? 2 : 0) + (c.look.font === l.font ? 1 : 0);
   const max = Math.max(...cands.map(sc)), top = [...new Set(cands.filter(c => sc(c) === max).map(c => c.id))];

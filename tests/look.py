@@ -10,13 +10,13 @@ with sync_playwright() as p:
     ck(any(u.endswith('SourceSans3-latin.woff2') for u in REQ), 'Source Sans 3 autoalojada')
     ck(not [u for u in REQ if 'Manrope' in u or 'PressStart' in u], 'las fuentes de otros presets no se descargan con Clásico')
     pg.click('#lookBtn'); time.sleep(.3)
-    ck(pg.locator('.presets[role=radiogroup] .preset[role=radio]').count()==8, '8 tarjetas de preset')
+    ck(pg.locator('.presets[role=radiogroup] .preset[role=radio]').count()==11, '11 tarjetas de preset')
     ck(pg.locator('.preset[aria-checked=true]').get_attribute('data-p')=='clasico', 'Clásico elegido por defecto')
     ck(pg.locator('#preset8').count()==0 and pg.locator('.opt').count()==0, 'sin botón Todo en 8 bits ni grupos sueltos')
     ck(pg.locator('#lookReset').inner_text()=='Volver a Clásico', 'botón Volver a Clásico')
     ck(pg.locator('[data-m]').count()==2, 'Clásico muestra el selector de modo')
     names=pg.evaluate("[...document.querySelectorAll('.preset .pt b')].map(x=>x.textContent)")
-    ck(names==['Clásico','Madera','Pizarra','Cuero','Club','Relieve','8 bits','Arcade'], 'nombres '+str(names))
+    ck(names==['Clásico','Madera','Pizarra','Cuero','Club','Relieve','8 bits','Arcade','Medianoche','Cacao','Ciruela'], 'nombres '+str(names))
     pg.click('[data-m=claro]'); ck(pg.evaluate("document.documentElement.dataset.theme")=='papel', 'modo Claro pone Papel')
     pg.click('.preset[data-p=cuero]')
     ck(pg.evaluate("JSON.stringify(S.settings.look)")=='{"preset":"cuero","mode":"claro"}', 'se guarda solo {preset, mode}')
@@ -25,11 +25,16 @@ with sync_playwright() as p:
     ck(pg.evaluate("document.activeElement.dataset.p")=='cuero', 'el foco queda en la tarjeta elegida')
     pg.keyboard.press('ArrowDown'); ck(pg.evaluate("[document.activeElement.dataset.p, S.settings.look.preset]")==['club','club'], 'flecha abajo elige el siguiente')
     pg.keyboard.press('ArrowUp'); pg.keyboard.press('ArrowUp'); ck(pg.evaluate("S.settings.look.preset")=='pizarra', 'flecha arriba elige el anterior')
-    pg.keyboard.press('End'); ck(pg.evaluate("S.settings.look.preset")=='arcade', 'Fin va al último')
+    pg.keyboard.press('End'); ck(pg.evaluate("S.settings.look.preset")=='ciruela', 'Fin va al último')
+    pg.click('.preset[data-p=arcade]'); time.sleep(.2)
     # Cuero (Literata) ya se aplicó y Arcade usa la letra «tecnica» (IBM Plex), que ahora tiene su regla html[data-font=tecnica].
     time.sleep(.4); fr=[u for u in REQ if u.endswith('.woff2')]
     ck(any('Literata' in u for u in fr) and any('IBMPlex' in u for u in fr) and all('/fonts/' in u for u in fr) and not [u for u in REQ if 'fonts.g' in u], 'fuentes de los estilos desde fonts/ del repo '+str([u.split('/')[-1] for u in fr]))
     ck('IBM Plex Sans' in pg.evaluate("getComputedStyle(document.body).fontFamily") and 'IBM Plex Mono' in pg.evaluate("getComputedStyle(document.querySelector('h2')||document.body).getPropertyValue('--fHead')"), 'Arcade aplica la letra técnica a la interfaz')
+    # Paletas nuevas: cada una aplica su tema, tablero, piezas y letra, con sus colores
+    for pid, th, bd, pc, ft, bg in [('medianoche','medianoche','medianoche','mpchess','moderna','rgb(17, 21, 34)'),('cacao','cacao','cacao','merida','libro','rgb(33, 27, 26)'),('ciruela','ciruela','ciruela','cburnett','clasica','rgb(23, 21, 28)')]:
+        pg.click('.preset[data-p=%s]'%pid); time.sleep(.2)
+        ck(pg.evaluate("[document.documentElement.dataset.theme,document.documentElement.dataset.board,document.documentElement.dataset.pieces,document.documentElement.dataset.font]")==[th,bd,pc,ft] and pg.evaluate("getComputedStyle(document.body).backgroundColor")==bg, pid+': tema, tablero, piezas, letra y fondo')
     pg.click('#lookReset'); ck(pg.evaluate("S.settings.look.preset")=='clasico', 'Volver a Clásico')
     pg.click('.preset[data-p=relieve]'); pg.reload(); pg.wait_for_function("Engine.ready",timeout=60000)
     ck(pg.evaluate("[document.documentElement.dataset.style,document.documentElement.dataset.theme]")==['relieve','papel'], 'se conserva tras recargar (Relieve claro)')

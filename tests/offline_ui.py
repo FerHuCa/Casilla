@@ -73,7 +73,7 @@ with sync_playwright() as p:
     check('con red vuelve todo', not pg.locator('#load').is_disabled() and 'off' not in pg.get_attribute('#pill','class') and pg.locator('#offBar').count()==0)
     # Todos los presets de Apariencia con la barra (escritorio)
     offline(ctx, True); pg.wait_for_function("!Net.on",timeout=5000)
-    for pr in ['clasico','madera','pizarra','cuero','club','relieve','bits','arcade']:
+    for pr in ['clasico','madera','pizarra','cuero','club','relieve','bits','arcade','medianoche','cacao','ciruela']:
         pg.evaluate("S.settings.look={preset:'%s',mode:'oscuro'};applyLook();switchTab('games')"%pr); time.sleep(.3)
         shot(pg,'temas/1-5b-%s'%pr,1280)
     pg.evaluate("S.settings.look={preset:'clasico',mode:'oscuro'};applyLook()")

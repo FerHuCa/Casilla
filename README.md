@@ -153,7 +153,7 @@ No pide contraseña: solo lee tus datos públicos. Tus partidas en Chess.com ya 
 Al abrir una partida ves cada jugada marcada como imprecisión, error o error grave, tu precisión aproximada y tus errores clasificados: pieza colgada, táctica no vista, mate no visto, permitió mate o error posicional. El botón **Evaluación a fondo** abre la misma evaluación completa que recibes al terminar una partida en la app.
 
 ### Apariencia
-El botón **Apariencia** abre un panel con 8 estilos completos. Cada uno combina tema, tablero, piezas, letra y estilo de botones, y el cambio se ve al instante:
+El botón **Apariencia** abre un panel con 11 estilos completos. Cada uno combina tema, tablero, piezas, letra y estilo de botones, y el cambio se ve al instante:
 - **Clásico** (por defecto): sobrio, tablero gris piedra y piezas clásicas. Tiene modo claro u oscuro.
 - **Madera:** papel claro, tablero de madera, piezas Merida y letra de libro.
 - **Pizarra:** oscuro y frío, tablero glaciar, piezas Minimal y letra moderna.
@@ -162,9 +162,14 @@ El botón **Apariencia** abre un panel con 8 estilos completos. Cada uno combina
 - **Relieve:** botones que se hunden, paneles con profundidad y tablero con marco. Tiene modo claro u oscuro.
 - **8 bits:** todo retro, con colores, letra, piezas y tablero pixel.
 - **Arcade:** colores arcade con piezas Retro, sin letra pixel.
+- **Medianoche:** azules profundos, tablero azul a juego, piezas Minimal y letra moderna.
+- **Cacao:** cafés suaves, tablero cacao, piezas Merida y letra de libro.
+- **Ciruela:** grises con tono violeta, tablero a juego y piezas clásicas.
+
+Medianoche, Cacao y Ciruela salen de paletas de seis tonos: fondo, paneles, bordes, texto y botones usan solo esos tonos, y la última jugada se marca en dorado.
 
 Debajo de los estilos puedes cambiar por separado el **Tablero** y las **Piezas**. La opción que trae el estilo lleva la marca «Del estilo».
-- Tableros de color: Gris piedra, Madera, Nogal, Glaciar, Club, Arena, Oliva, Tinta, Coral y Contraste (pensado para quien ve poco contraste). Texturas: Arce y Veteado. Retro: Arcade.
+- Tableros de color: Gris piedra, Madera, Nogal, Glaciar, Club, Arena, Oliva, Tinta, Coral, Contraste (pensado para quien ve poco contraste), Medianoche, Cacao y Ciruela. Texturas: Arce y Veteado. Retro: Arcade.
 - Piezas clásicas: Clásicas, Merida, Celtic, Spatial y Fantasy. Modernas: Minimal, Chessnut, Shapes, Firi, Pirouetti y Letras. Retro: Pixel y Retro.
 
 Si cambias el tablero o las piezas, el estilo queda marcado como «Personalizado» y aparece **Volver a [estilo]**, que quita solo esos cambios. La letra, los colores y el modo siguen viniendo del estilo. Elegir otro estilo descarta la personalización. Solo se descargan las piezas y la textura que usas (y las miniaturas al abrir el panel); quedan guardadas para usarlas sin conexión.

@@ -43,7 +43,7 @@ with sync_playwright() as p:
     pg.click('#lookBtn'); time.sleep(.8)
     ck(pieces_of(REQ)==sorted(SETS) and any('/board/' in u for u in REQ), 'al abrir Apariencia se cargan las miniaturas', pieces_of(REQ))
     ck(pg.locator('#look .lk-custom').count()==0 and pg.locator('#lookUndo').count()==0, 'sin personalizar no hay tarjeta ni «Volver a»')
-    ck(pg.locator('.lk-opt[data-k=board]').count()==13 and pg.locator('.lk-opt[data-k=pieces]').count()==13, '13 tableros y 13 sets de piezas')
+    ck(pg.locator('.lk-opt[data-k=board]').count()==16 and pg.locator('.lk-opt[data-k=pieces]').count()==13, '16 tableros y 13 sets de piezas')
     subs=pg.evaluate("[...document.querySelectorAll('#look .lk-sub')].map(x=>x.textContent)")
     ck(subs==['Modo','Colores','Texturas','Retro','Clásicas','Modernas','Retro'], 'grupos del mock', subs)
     marks=pg.evaluate("[...document.querySelectorAll('.lk-opt')].filter(b=>b.querySelector('.d')).map(b=>b.dataset.k+':'+b.dataset.v+':'+b.querySelector('.d').textContent)")
