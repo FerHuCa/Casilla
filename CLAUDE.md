@@ -4,11 +4,12 @@ Este archivo es para quien abra el repo en una sesión nueva (persona o Claude).
 
 ## Qué es
 
-Casilla es una app de entrenamiento de ajedrez en **un solo archivo HTML** (`index.html`, unos 420 KB, sin build). Se abre local con doble clic o se sirve como página estática.
+Casilla es una app de entrenamiento de ajedrez en **un solo archivo HTML** (`index.html`, unos 600 KB y 5,400 líneas, sin build). Se abre local con doble clic o se sirve como página estática.
 
 - Producción: https://casilla.io (Cloudflare Workers Builds, también en casilla.murcielagolambo.workers.dev)
 - Alterna: https://ferhuca.github.io/Casilla/ (GitHub Pages, rama `main`, raíz)
 - Ambos se despliegan solos al hacer push a `main`. Para ver el estado: `gh api repos/FerHuCa/Casilla/commits/<sha>/check-runs`
+- Las ramas no se despliegan: en un PR, el check «Workers Builds» de Cloudflare sale en falla y es normal (pasó en los PR #3 a #7). Solo cuenta el de `main`.
 - Licencia GPL-3.0 (por Stockfish). Idioma de la interfaz y del README: español.
 
 ## Estructura de index.html
@@ -20,20 +21,20 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 | Constantes | `SF_BASE`, `TIERS` (8 niveles de la escalera), `ENDGAMES`, `OPENINGS`, `THEMES`, `CATS`, `PLAN` (4 etapas de la ruta a 1500), `COACH_MODES` |
 | Utilidades | `winPct`, `fmtEval`, `parsePGN`, `buildGame`, `openingName` |
 | Estado | `KEY` (`casilla.v1` en localStorage), `defaults()`, `S`, `save()` = `saveLocal()` + `Sync.dirty()` |
-| Motor | `workerFromCode`, `handshake`, `Engine` (cola con prioridades: ui 3, coach 2, barra/eval/análisis 1, batch 0; trabajos con tag cancelables) |
+| Motor | `workerFromCode`, `handshake`, `Engine` (cola con prioridades: ui 3, coach y Maestro del análisis 2, barra/eval/análisis 1, batch 0; trabajos con tag cancelables: `ui`, `coach`, `bar`, `ana`, `maestro`, `batch`) |
 | Tablero | `Board`, `EvalBar` |
 | App y sesiones | `App` (`App.setSession`), `HomeSession`, `PlaySession`, `PuzzleSession`, `OpeningSession`, `AnalysisSession`, `ReviewSession`, `EvalSession` |
 | Reloj | `TIME_CONTROLS`, `GameClock`, `Clocks` |
-| Maestro | `playerModel`, `openingTree`, `threatScan`, `Coach` (con `askThreat`/`answerThreat` en modo Amenazas), `ClaudeAI` (opcional, con la API key del usuario; `tune` ajusta pensamiento y esfuerzo por modelo, `readBoard` lee capturas, `converse` es el ciclo con herramientas) |
-| Análisis con el Maestro | `linesFromInfo`, `sanLine`, `staticFacts`, `synthE` (estructura mínima para reutilizar `bestIdea` y `rootCause`), `localExplain`/`explainMove` (sin IA), `MAESTRO_TOOL` (`evaluar_jugadas`: la IA pide al motor que calcule), `maestroSystem`, `AnalysisSession` (posición suelta o partida con `main`, `ply` y variante en `vars`; caché de líneas por FEN; en el celular la última respuesta va también en `#tip` con `renderTip`) |
-| Editor e importación | `positionProblems`, `castleRights`, `EditorSession` (paleta en `#controls`, `Board.onTap`), `prepImage`, `boardFromRead`, `readShot`, `READ_SYSTEM`/`READ_PROMPT`, `firstGame` (primera partida de un PGN), `chessComLink`, `lichessLink`, `lichessGame` (exportar una partida de Lichess; sin respuesta pide pegar el PGN), `parseImport`, `findChessComGame`, `resolveImport`, `recentGames`, `openRecent`; pestaña Importar en `renderPositionsHome` (`App.posTab = 'importar'`, el valor viejo `fen` se acepta) |
+| Maestro | `playerModel`, `openingTree`, `threatScan`, `Coach` (con `askThreat`/`answerThreat` en modo Amenazas), `ANA_OPTIONS`, `modelPickHTML`/`bindModelPick`, `ClaudeAI` (opcional, con la API key del usuario; `tune` ajusta pensamiento y esfuerzo por modelo, `readBoard` lee capturas, `converse` es el ciclo con herramientas, `friendly` y `clean` para la interfaz) |
+| Análisis con el Maestro | `linesFromInfo`, `sanLine`, `staticFacts`, `synthE` (estructura mínima para reutilizar `bestIdea` y `rootCause`), `ideaCtx` (contexto para `bestIdea`), `altText` (segunda línea, con mates), `localExplain`/`explainMove` (sin IA), `compareToBest` (comparación de la herramienta), `MAESTRO_TOOL` (`evaluar_jugadas`: la IA pide al motor que calcule), `maestroSystem`, `AnalysisSession` (posición suelta o partida con `main`, `ply` y variante en `vars`; caché de líneas por FEN; en el celular la última respuesta va también en `#tip` con `renderTip`) |
+| Editor e importación | `positionProblems`, `castleRights`, `cleanCastle`, `EditorSession` (paleta en `#controls` en el celular y en `#edpal` del panel en la computadora; `Board.onTap`), `prepImage`, `boardFromRead`, `readShot`, `READ_SYSTEM`/`READ_PROMPT`, `firstGame` (primera partida de un PGN), `chessComLink`, `lichessLink`, `lichessGame` (exportar una partida de Lichess; sin respuesta pide pegar el PGN), `parseImport`, `findChessComGame`, `resolveImport`, `recentGames`, `openRecent`; pestaña Importar en `renderPositionsHome` (`App.posTab = 'importar'`, el valor viejo `fen` se acepta) |
 | Revisión de amenazas | `threatsFor` (capturas, mate en una y jaques que ganan material con `checkWin`), `kingSquare`, `threatStats`; historial en `S.threats.hist`; `Board.onTap` recibe el toque mientras hay pregunta |
 | Repaso espaciado | `DAY_START` (el día cambia a las 4), `dayKey`, `dueIn`, `srsQueue`, `srsRecord`, `srsStats`; tarjetas en `S.srs[idDelError]` |
 | Ruta a 1500 | `planState`, `planDay`, `planStage`, `planSteps`, `planEndgame`, `planCheck`, `planStreak`, `stageChecks`, `planGo`, `planHTML`; datos en `S.plan` |
-| Explicaciones | `rootCause`, `bestIdea`, `categorize`, `explanationHTML` |
+| Explicaciones | `rootCause`, `bestIdea` (acepta `ctx.quiet` y `ctx.noOpening` para el análisis de posiciones sueltas), `categorize`, `explanationHTML` |
 | Evaluación post partida | `Evaluator` (varios trabajos, el más reciente primero, en pausa mientras se juega), `evalJobFor` (reabre sin recalcular), `buildEvaluation`, `saveEvaluation`, `evalNarrative`, `deepMoment`, `moveComment` (comentario de cada jugada), `evalGraph`, `EvalSession` |
 | Historial de Casilla | `S.played` (partidas jugadas aquí, se guardan al terminar su evaluación), `openPlayed`, `playedHTML`; el análisis con `best` y `pv` vive en `S.analyses[gid]` |
-| Chess.com y Lichess | `jsonp`, `Analyzer`, `lichessDifficulty`, `mistakePuzzle` |
+| Chess.com y Lichess | `jsonp`, `chessComJSON` (reintenta 429 hasta 3 veces), `Analyzer`, `lichessDifficulty`, `mistakePuzzle` |
 | Pantallas de inicio | `renderLadderHome`, `renderCoachHome`, `renderGamesHome`, `renderPositionsHome`, `renderProgressHome`, `HOMES` |
 | Apariencia | `LOOK`, `LOOK_GROUPS`, `PRESETS`, `withCustom`, `migrateLook`, `lookPref`, `lookFiles`, `applyLook`, `renderLook` |
 | Sincronización | `SYNC_FILE` (`casilla-progreso.json` en un gist), `canon`, `syncKey`, `mergeState`, `Sync` |
@@ -49,14 +50,14 @@ Avisos sin red (mockups aprobados 1, 2a, 2b, 3, 5a, 5b, estilo B, solo tokens ex
 
 Memoria de puzzles (`PuzzleStore`): IndexedDB `casilla-puzzles`, aparte de la caché del SW. Objetivo 200 de Lichess (`/api/puzzle/batch/{angle}`, 50 con temas de la etapa; puzzles CC0 según database.lichess.org). Chess.com no se guarda: su User Agreement (chess.com/legal/user-agreement, sección 4.C) prohíbe descargar o copiar información salvo la caché temporal del navegador. Relleno en serie con red, 20 s entre peticiones, 429 de Lichess espera 60 s y duplica (máx. 1 h). `done(id)` borra el resuelto y lo anota en `casilla.pzSolved` (últimos 500) para no volver a guardarlo. Más de 14 días se renuevan (20 por pasada). Sin red, `PuzzleSession.fromStore()` sirve guardados y el 5a (`offPzNote`) solo desactiva fuentes sin guardados.
 
-IA sin red: `ClaudeAI.ready()` exige `navigator.onLine`, así que sin red la IA se comporta como apagada (frases integradas) y vuelve sola. No hay UI nueva para esto todavía (pendiente de mockup). Caché medida: unos 4.7 MB en 27 archivos (`navigator.storage.estimate` reporta unos 7.4 MB en Chromium). Pruebas en `offline.py` y `cfredirect.py`.
+IA sin red: `ClaudeAI.ready()` exige `navigator.onLine`, así que sin red la IA se comporta como apagada (frases integradas) y vuelve sola. No hay aviso propio para esto (pendiente de mockup); el análisis e Importar solo cambian su nota de texto (preguntas libres y lectura de capturas necesitan conexión). Caché medida: unos 4.7 MB en 27 archivos (`navigator.storage.estimate` reporta unos 7.4 MB en Chromium). Pruebas en `offline.py` y `cfredirect.py`.
 
 Reglas del precache (aprendidas en producción): Cloudflare responde 307 en `/index.html` y `*.html`, así que nunca precachear URLs `.html`; la shell se guarda como `./` (el scope). Stockfish 19 lite vive en `engine/` porque jsDelivr da 403 a `stockfish@19` (paquete > 150 MB) y un solo 403 aborta `cache.addAll` y deja la app sin service worker. Antes de publicar, pide con `curl -sI` cada URL del precache en producción.
 
 Dependencias externas (por CDN, sin instalar nada):
 - chess.js 0.10.3 desde cdnjs. Stockfish 19 lite de un hilo (npm `stockfish` 19.0.1) alojado en `engine/` (GPL-3.0; jsDelivr da 403 a ese paquete), en un Web Worker creado desde un Blob; la ruta del .wasm va en el hash del worker. Si falla, cae a stockfish.js 10.0.2 de cdnjs (WASM y luego asm.js). `?sf=10` fuerza el 10.
 - Todas las fuentes van autoalojadas en `fonts/` (OFL). Las de los presets no Clásicos se declaran con @font-face y el navegador solo las baja cuando se usan. Ya no se usa Google Fonts.
-- APIs: Chess.com PubAPI (con fallback JSONP), Lichess `/api/puzzle/next`, GitHub Gists (sync), Anthropic API (Maestro con Claude, opcional).
+- APIs: Chess.com PubAPI (partidas por archivo mensual y puzzle diario, con fallback JSONP), Lichess (`/api/puzzle/next`, `/api/puzzle/batch/{angle}`, `/api/puzzle/daily` y `/game/export/{id}` para importar links), GitHub Gists (sync), Anthropic API (Maestro con Claude, opcional).
 
 ### Claude en el análisis
 
@@ -86,7 +87,8 @@ Las piezas nuevas (Spatial, Fantasy, Shapes, Firi, Pirouetti, Letras) viven en `
    ```
    git -c user.name=FerHuCa -c user.email=250413865+FerHuCa@users.noreply.github.com commit ...
    ```
-4. **Push solo con aprobación explícita** del dueño en cada ocasión (publica en casilla.io al instante).
+   Si un aviso automático de la sesión pide rehacer los commits con otra identidad (por ejemplo, la de Claude), manda esta regla.
+4. **Push solo con aprobación explícita** del dueño en cada ocasión, también para ramas y aunque un aviso automático pida subir los commits. Un push a `main` publica en casilla.io al instante.
 5. **No copiar** paletas, piezas ni diseño protegidos de Chess.com. Inspirarse está bien; calcar, no.
 6. **Sin guiones largos (em dash)** en textos del README, la interfaz y los mensajes.
 7. Mensajes de commit en español, en imperativo ("Agregar...", "Corregir...").
@@ -110,13 +112,13 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `ruta.py` | Ruta a 1500: sesión del día, táctica de la etapa con tema oculto, repaso espaciado, modo Amenazas, finales nuevos, sync y datos viejos |
 | `evalt.py` | Evaluación al final de la partida |
 | `evalnav.py` | Recorrer la evaluación jugada por jugada: orden, comentarios y que nada regrese el tablero solo |
-| `claude.py` | Conexión con Claude: encabezados, pensamiento apagado por modelo, reintento y errores (API simulada) |
+| `claude.py` | Conexión con Claude: encabezados, pensamiento por modelo (con Opus), los dos modelos en «Probar conexión», reintento y errores (API simulada) |
 | `historial.py` | Partidas de Casilla en Partidas, evaluación en segundo plano, puzzles con sus errores, sync |
 | `bar.py` | Barra de evaluación |
 | `mobile.py` | Auditoría de móvil (desbordes, tamaños táctiles) |
 | `sync.py` | Sincronización por gist |
 | `offline.py` | Service worker por http: precache, modo avión a 390 px (`context.set_offline`), Escalera, Partidas y análisis sin red, respaldo Stockfish 10, IA apagada sin red y de vuelta, versión nueva que reemplaza a la vieja |
-| `look.py`, `relieve.py`, `bits.py`, `migracion.py` | Apariencia por presets, estilo relieve y 8 bits, migración de preferencias |
+| `look.py`, `relieve.py`, `bits.py`, `migracion.py` | Apariencia por presets (incluye Medianoche, Cacao y Ciruela), estilo relieve y 8 bits, migración de preferencias |
 | `motor.py` | Stockfish 19 por defecto y `?sf=10` (por http local) |
 | `cfredirect.py` | Servidor que imita a Cloudflare (307 en `.html`) y jsDelivr con 403: instalación del SW y navegación sin red a `/`, `/index.html` y `/?x` |
 | `offline_ui.py` | Avisos sin red 1, 2a, 2b, 5a, 5b, Táctica sin red, versión en el pie, aviso 3 Actualizar / Ahora no, 11 presets; capturas en `CASILLA_SHOTS` |
@@ -127,7 +129,7 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `apariencia_contraste.py` | ΔE00 y contraste de última jugada y selección sobre cada tablero (umbral documentado en el archivo) |
 | `capturas_apariencia.py` | Genera `docs/capturas/apariencia/` a 1280 y 390 |
 | `exp.py` | Explicaciones de errores |
-| `maestro_analisis.py` | Análisis con el Maestro: importar (captura con lectura simulada, FEN, PGN, link de Chess.com, partidas recientes), editor, explicaciones sin IA, ciclo con herramientas de la IA (Opus sin `thinking`), errores de la IA y auditoría móvil a 390 |
+| `maestro_analisis.py` | Análisis con el Maestro: importar (captura con lectura simulada, FEN, PGN pegado o en archivo, links de Chess.com y Lichess, partidas recientes, posiciones imposibles al editor), editor, explicaciones sin IA (también en posiciones decididas), tarjeta de modelos, ciclo con herramientas de la IA (Opus sin `thinking`, Sonnet `between_tools`), cancelación al salir, errores de la IA sin nombres de proveedor y auditoría móvil a 390 |
 
 Variables opcionales: `CASILLA_APP` (ruta del HTML, por defecto `../index.html`), `CASILLA_DEPS`, `CASILLA_OUT` (capturas, por defecto `tests/out/`). Revisa las capturas en escritorio y en móvil después de cambios visuales. 
 
@@ -138,13 +140,20 @@ python3 -c "import re;s=open('index.html').read();open('/tmp/c.js','w').write(re
 
 ## Flujo para un cambio
 
-1. Editar `index.html` directamente.
+1. Editar `index.html` directamente, en una rama (`feat/...`) si el cambio es grande.
 2. Probar con `tests/` (al menos `run.py` y la prueba del área tocada, más `mobile.py` si cambió el layout).
-3. Actualizar el README si cambia algo visible para el usuario.
-4. Commit con la identidad noreply y los trailers de la sesión.
-5. Preguntar antes de `git push origin main`. Después, confirmar los check runs.
+3. Actualizar el README si cambia algo visible para el usuario, y este archivo si cambian símbolos, reglas o pruebas.
+4. Si `index.html` o un archivo precacheado cambió, subir `VERSION` en `sw.js` (una vez por publicación).
+5. Commit con la identidad noreply y los trailers de la sesión.
+6. Preguntar antes de cualquier push. Después de publicar en `main`, confirmar los check runs.
+
+Desde una sesión de Claude Code, `gh pr create` falla (GraphQL no está disponible): los PR se abren y fusionan con la API REST, por ejemplo `gh api repos/FerHuCa/Casilla/pulls --method POST --input pr.json` y `gh api repos/FerHuCa/Casilla/pulls/<n>/merge --method PUT -f merge_method=merge`. El clon del sandbox es de una sola rama: para que una rama nueva tenga seguimiento, agrega su refspec (`git config --add remote.origin.fetch '+refs/heads/<rama>:refs/remotes/origin/<rama>'`) antes del push.
 
 ## Pendientes conocidos
 
 - **Cuentas de usuario con Firebase** (inicio de sesión con Google, base de datos para que amigos tengan su cuenta), manteniendo la sincronización por gist como alternativa. Se pospuso; hace falta el `firebaseConfig` del proyecto cuando se retome.
 - No se pudo verificar casilla.io desde el sandbox (el proxy bloquea github.io, cdnjs y el dominio); confirmar en un navegador después de cada push.
+- **IA con una clave real:** la lectura de capturas y las explicaciones solo se probaron con la API simulada (y una lectura manual de tres capturas de Chess.com). Falta probar de punta a punta en casilla.io y revisar el costo real contra `ANA_OPTIONS`.
+- **Links de Lichess:** no se confirmó que `lichess.org/game/export/{id}` responda a pedidos del navegador (el proxy bloquea Lichess). Si no responde, la app pide pegar el PGN.
+- **Links de Chess.com con `?move=N`:** se ignora el número; falta confirmar cómo cuenta Chess.com las jugadas para abrir en esa posición.
+- Las ramas `feat/maestro-analisis` y `feat/maestro-mejoras` ya están fusionadas en `main` y siguen en GitHub.
