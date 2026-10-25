@@ -3991,6 +3991,15 @@ class AnalysisSession{
       (m.text ? '<div>' + esc(m.text) + '</div>' : '') + (m.line ? '<p class="line">' + esc(m.line) + '</p>' : '') + (m.note ? '<p class="line">' + esc(m.note) + '</p>' : '') +
       (m.at && !m.pending && (m.fen !== cur || (m.arrows && m.arrows.length)) ? '<div class="row"><button class="btn small" data-show="' + m.id + '">Ver en el tablero</button></div>' : '') + '</div>').join('');
     $$('[data-show]', box).forEach(b => b.onclick = () => { const m = this.msgs.find(x => x.id === b.dataset.show); if(!m) return; this.ply = m.at.ply; this.vars = m.at.vars.slice(); this.rebuild(); this.update(); Board.arrows = (m.arrows || []).slice(); Board.drawArrows(); revealBoard(); });
+    this.renderTip();
+  }
+  // En el celular la última respuesta del Maestro aparece también debajo del tablero, mientras siga en esa posición
+  renderTip(){
+    const t = $('#tip'); if(!t || App.session !== this) return;
+    const m = this.msgs.find(x => x.label === 'Maestro');
+    if(!m || m.fen !== App.game.fen()){ t.hidden = true; return; }
+    t.className = 'tip'; t.hidden = false;
+    t.innerHTML = '<b>Maestro' + (m.ai ? ' (IA)' : '') + ':</b> ' + esc(m.pending || m.text);
   }
   async ask(kind, question){
     const g = App.game, fen = g.fen(), tok = App.token;
