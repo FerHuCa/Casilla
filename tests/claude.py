@@ -25,6 +25,9 @@ with sync_playwright() as p:
     pg.goto(APP); pg.wait_for_function("Engine.ready",timeout=60000)
     pg.click('.tab[data-tab=coach]'); time.sleep(.4)
     pg.check('#aion'); pg.fill('#aikey','sk-ant-prueba'); pg.select_option('#aimodel','claude-haiku-5-5')
+    # El modelo de análisis igual al de comentarios: la prueba hace una sola llamada
+    check('modelo de análisis por defecto: Opus 5.5', pg.evaluate("document.querySelector('#aimodel2').value") == 'claude-opus-5-5')
+    pg.select_option('#aimodel2','claude-haiku-5-5')
     def test():
         n=len(SENT); pg.click('#aitest'); pg.wait_for_function("!document.querySelector('#aist').textContent.includes('Probando')",timeout=10000); time.sleep(.2)
         return pg.inner_text('#aist'), SENT[n:]
@@ -34,9 +37,16 @@ with sync_playwright() as p:
     check('Haiku: sin pensamiento previo', body.get('thinking') == {'type':'disabled'})
     check('Haiku: encabezados de la API', h.get('x-api-key') == 'sk-ant-prueba' and h.get('anthropic-version') == '2023-06-01' and h.get('anthropic-dangerous-direct-browser-access') == 'true')
     check('modelo enviado', body.get('model') == 'claude-haiku-5-5')
-    pg.select_option('#aimodel','claude-sonnet-5-5'); out, calls = test(); h, body = calls[-1]
+    pg.select_option('#aimodel','claude-sonnet-5-5'); pg.select_option('#aimodel2','claude-sonnet-5-5'); out, calls = test(); h, body = calls[-1]
     check('Sonnet: conexión correcta', 'Conexión correcta con claude-sonnet-5-5' in out)
     check('Sonnet: between_tools', body.get('thinking') == {'type':'between_tools'})
+    # Opus 5.5 para análisis: la prueba revisa los dos modelos; Opus no acepta apagar el pensamiento
+    pg.select_option('#aimodel2','claude-opus-5-5'); out, calls = test()
+    print(' ', out)
+    ob = [c[1] for c in calls if c[1]['model'] == 'claude-opus-5-5']
+    check('prueba ambos modelos si son distintos', len(calls) == 2 and 'claude-opus-5-5 también responde' in out)
+    check('Opus: sin "thinking", esfuerzo bajo y espacio para pensar', ob and 'thinking' not in ob[0] and ob[0].get('output_config') == {'effort':'low'} and ob[0]['max_tokens'] >= 4000)
+    pg.select_option('#aimodel2','claude-sonnet-5-5')
     MODE['v']='reject'; out, calls = test()
     print(' ', out, [c[1].get('thinking') for c in calls], [c[1]['max_tokens'] for c in calls])
     check('si rechaza el ajuste, reintenta sin él y con más espacio', len(calls) == 2 and 'thinking' not in calls[1][1] and calls[1][1]['max_tokens'] >= 2048 and 'Conexión correcta' in out)

@@ -77,8 +77,29 @@ La etapa se elige sola según tu nivel estimado, o la eliges tú. Cada etapa mue
 
 **Comentarios con Claude (opcional):** sin configurar nada, el maestro comenta con frases armadas a partir de Stockfish. Si pegas tu propia clave de la API de Anthropic en la pestaña Maestro, Claude reescribe cada comentario y la evaluación final en lenguaje natural.
 - Claude solo redacta. Las jugadas, las líneas y las evaluaciones siempre vienen de Stockfish.
-- Recomendado: **Claude Haiku 5.5**, que cuesta menos de un centavo de dólar por partida. **Claude Sonnet 5.5** da explicaciones algo más finas y cuesta varias veces más.
+- Hay dos modelos que eliges por separado: uno para comentar tus partidas y otro para el análisis con el Maestro y la lectura de capturas.
+- Para comentar partidas se recomienda **Claude Haiku 5.5**, que cuesta menos de un centavo de dólar por partida. **Claude Sonnet 5.5** da explicaciones algo más finas y cuesta varias veces más.
+- Para analizar posiciones y leer capturas el valor inicial es **Claude Opus 5.5**, el que mejor ubica las piezas en una imagen. Cada lectura o explicación cuesta unos centavos de dólar con Opus o Sonnet y menos de un centavo con Haiku.
+- **Probar conexión** revisa los dos modelos.
 - Cada persona que use la app necesita su propia clave. Puedes obtenerla en https://console.anthropic.com/settings/keys
+
+### Análisis con el Maestro
+Abre cualquier posición o partida y pídele al Maestro que te la explique. Se llega desde **Posiciones > Importar**, desde **Analizar una posición** en la pestaña Maestro, desde **Maestro** al revisar una partida de Chess.com y desde cualquier botón **Analizar** de la app.
+
+**Traer una posición (Posiciones > Importar):**
+- **Desde una captura:** sube una captura de pantalla del tablero (de Chess.com, Lichess o un libro) o, en la computadora, pégala con Ctrl+V. La IA reconoce las piezas, qué bando está abajo y, si se ve, a quién le toca (por el texto de la pantalla o por la última jugada resaltada). Después se abre el editor con tu captura al lado. Necesita la IA activada.
+- **Pegar FEN, PGN o link:** en Chess.com usa **Compartir** (en la app: **Opciones > Compartir partida**) y copia el link de la partida o descarga su PGN. Con un PGN o un link recorres toda la partida. La API pública de Chess.com no permite pedir una partida por su link, así que la app la busca en el archivo mensual de un jugador: si es tuya y ya cargaste tus partidas, se abre al instante; si no, te pide el usuario de uno de los dos jugadores.
+- **Tus partidas recientes:** las últimas jugadas en Casilla o cargadas de Chess.com. Si ya están evaluadas, se abren justo después de tu primer error.
+- **Armar a mano** o **Editar:** abre el editor de posición.
+
+**Editor de posición:** elige una pieza debajo del tablero y toca la casilla; toca la misma pieza otra vez para quitarla o usa **Borrar**. Ajusta a quién le toca y los enroques. Las casillas marcadas en azul son las que la IA no pudo leer con seguridad. El editor avisa si falta un rey, hay un peón en la primera u octava fila o el bando que no mueve está en jaque, y no deja analizar hasta corregirlo.
+
+**El análisis:** el motor muestra sus tres mejores líneas y la flecha de la mejor jugada. Puedes mover piezas de ambos colores para probar ideas; en una partida, una jugada distinta abre una variante y **Volver a la partida** regresa. Debajo, el Maestro tiene tres botones:
+- **Explicar posición:** quién está mejor y por qué, la idea de la mejor jugada y el plan.
+- **¿Por qué ...?:** por qué el motor prefiere su jugada y por qué las otras son peores.
+- **¿Qué tal ...?:** evalúa la última jugada del tablero (tuya o de la partida): si fue buena, un error o un error grave, cuál es la respuesta del rival y qué era mejor.
+
+Con la IA activada, el Maestro escribe en lenguaje natural y puedes hacerle **preguntas libres** sobre la posición. Antes de mencionar una jugada o variante que no viene en el análisis, la IA le pide al motor que la calcule, así que las líneas y evaluaciones siempre son del motor. Sin la IA, o sin conexión, explica con frases armadas a partir del motor y las preguntas libres no están disponibles. **Ver en el tablero** regresa a la posición de una explicación y muestra su flecha.
 
 ### Evaluación al final de cada partida
 Al terminar una partida de la escalera, contra el maestro o desde una posición, Stockfish revisa todas las jugadas de ambos lados. Tarda de 20 a 30 segundos y mientras tanto puedes seguir en la pantalla de resultado. Si sales o empiezas otra partida, la evaluación no se pierde: sigue en segundo plano (se pausa mientras juegas) y te avisa cuando termina. Después, **Ver evaluación completa** muestra:
@@ -111,7 +132,7 @@ El tema **Recomendado para ti** elige puzzles según tus errores más frecuentes
 - **Finales:** diez finales clásicos contra Stockfish a máxima fuerza, cada uno con un objetivo: dar mate, ganar o entablar. Incluye la regla del cuadrado, las casillas clave, Lucena, Philidor y el mate de alfil y caballo. Los que forman parte de la ruta a 1500 indican su etapa.
 - **Aperturas:** doce líneas principales, como la Italiana, la Española, la Siciliana Najdorf, la Caro-Kann y el Gambito de Dama. El rival juega la teoría y tú debes recordar tus jugadas; al terminar puedes seguir la partida contra el motor. También aparecen tus aperturas más jugadas en Chess.com.
 - **De mis partidas:** tus errores más frecuentes agrupados por tipo. Puedes resolverlos como puzzle o volver a jugar desde esa posición.
-- **FEN:** pega cualquier posición para jugarla o analizarla.
+- **Importar:** trae una posición o partida desde una captura, una FEN, un PGN, un link de Chess.com o tus partidas recientes para analizarla con el Maestro o jugarla contra el motor. Ver [Análisis con el Maestro](#análisis-con-el-maestro).
 
 ### Partidas
 **Jugadas en Casilla:** cada partida de la escalera, contra el maestro o desde una posición entra a esta lista cuando termina su evaluación, con el resultado, tu precisión y tus errores. Tócala para ver otra vez la evaluación completa, al instante y sin volver a calcularla. Sus errores ya están en tus puzzles de **Mis errores**.
@@ -194,7 +215,7 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
 - **Chess.com:** la app solo lee la API pública con tu nombre de usuario. No pide contraseña ni puede modificar nada en tu cuenta.
 - **Lichess:** se piden puzzles de forma anónima.
 - **GitHub:** solo si activas la sincronización. Tu progreso se guarda en un gist secreto de tu cuenta.
-- **Anthropic:** solo si activas Claude. Se envían las posiciones y los datos de Stockfish de cada comentario, junto con tu nivel estimado y tus errores más comunes. La clave va directo de tu navegador a Anthropic.
+- **Anthropic:** solo si activas Claude. Se envían las posiciones y los datos de Stockfish de cada comentario o análisis, tus preguntas al Maestro, las capturas que subes para leer y tu nivel estimado con tus errores más comunes. Las capturas no se guardan en la app ni en los respaldos. La clave va directo de tu navegador a Anthropic.
 - Nada más sale de tu navegador. Cada persona que abre la app empieza de cero y nadie ve el progreso de otros.
 
 ## Si algo no funciona
@@ -207,6 +228,8 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
 - **Los puzzles no cargan:** Lichess o Chess.com pueden estar temporalmente sin respuesta. Prueba otra fuente o pulsa Reintentar.
 - **La sincronización falla:** en Progreso aparece el motivo. Lo más común es un token vencido o sin permiso **gist**; crea uno nuevo con el enlace de arriba y pégalo en **Nuevo token de GitHub**.
 - **Claude no responde:** en la pestaña Maestro pulsa **Probar conexión**; el mensaje dice el motivo. Lo más común es una clave mal copiada o una cuenta de Anthropic sin saldo. Mientras tanto, el maestro sigue comentando con sus frases integradas.
+- **La captura se leyó mal:** corrige las piezas en el editor antes de analizar; las casillas en azul son las dudosas. Ayuda una captura donde el tablero se vea completo y grande, sin flechas ni menús encima. Opus 5.5 lee mejor que Haiku.
+- **No encuentra una partida por su link:** escribe el usuario del otro jugador o, más rápido, pega el PGN de la partida (está en **Compartir** de Chess.com).
 - **La evaluación tarda:** es normal en partidas largas o en equipos lentos. Puedes salir y volver; si empiezas otra partida, la evaluación anterior se cancela.
 - **Ves una versión vieja de la app:** con internet la app se actualiza sola al abrirla; si aun así ves la anterior, recarga forzando con Ctrl+Shift+R, o Cmd+Shift+R en Mac. En el celular, cierra la pestaña o el ícono de la pantalla de inicio y vuelve a abrirlo.
 - **En el celular no ves el resultado o la explicación:** están en el panel debajo del tablero; desliza hacia abajo.
