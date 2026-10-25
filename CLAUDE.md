@@ -24,7 +24,9 @@ Todo vive en el mismo archivo: CSS arriba, HTML del layout y un solo `<script>` 
 | Tablero | `Board`, `EvalBar` |
 | App y sesiones | `App` (`App.setSession`), `HomeSession`, `PlaySession`, `PuzzleSession`, `OpeningSession`, `AnalysisSession`, `ReviewSession`, `EvalSession` |
 | Reloj | `TIME_CONTROLS`, `GameClock`, `Clocks` |
-| Maestro | `playerModel`, `openingTree`, `threatScan`, `Coach` (con `askThreat`/`answerThreat` en modo Amenazas), `ClaudeAI` (opcional, con la API key del usuario) |
+| Maestro | `playerModel`, `openingTree`, `threatScan`, `Coach` (con `askThreat`/`answerThreat` en modo Amenazas), `ClaudeAI` (opcional, con la API key del usuario; `tune` ajusta pensamiento y esfuerzo por modelo, `readBoard` lee capturas, `converse` es el ciclo con herramientas) |
+| Análisis con el Maestro | `linesFromInfo`, `sanLine`, `staticFacts`, `synthE` (estructura mínima para reutilizar `bestIdea` y `rootCause`), `localExplain`/`explainMove` (sin IA), `MAESTRO_TOOL` (`evaluar_jugadas`: la IA pide al motor que calcule), `maestroSystem`, `AnalysisSession` (posición suelta o partida con `main`, `ply` y variante en `vars`; caché de líneas por FEN) |
+| Editor e importación | `positionProblems`, `castleRights`, `EditorSession` (paleta en `#controls`, `Board.onTap`), `prepImage`, `boardFromRead`, `readShot`, `READ_SYSTEM`/`READ_PROMPT`, `chessComLink`, `parseImport`, `findChessComGame`, `resolveImport`, `recentGames`, `openRecent`; pestaña Importar en `renderPositionsHome` (`App.posTab = 'importar'`, el valor viejo `fen` se acepta) |
 | Revisión de amenazas | `threatsFor` (capturas, mate en una y jaques que ganan material con `checkWin`), `kingSquare`, `threatStats`; historial en `S.threats.hist`; `Board.onTap` recibe el toque mientras hay pregunta |
 | Repaso espaciado | `DAY_START` (el día cambia a las 4), `dayKey`, `dueIn`, `srsQueue`, `srsRecord`, `srsStats`; tarjetas en `S.srs[idDelError]` |
 | Ruta a 1500 | `planState`, `planDay`, `planStage`, `planSteps`, `planEndgame`, `planCheck`, `planStreak`, `stageChecks`, `planGo`, `planHTML`; datos en `S.plan` |
@@ -55,6 +57,15 @@ Dependencias externas (por CDN, sin instalar nada):
 - chess.js 0.10.3 desde cdnjs. Stockfish 19 lite de un hilo (npm `stockfish` 19.0.1) alojado en `engine/` (GPL-3.0; jsDelivr da 403 a ese paquete), en un Web Worker creado desde un Blob; la ruta del .wasm va en el hash del worker. Si falla, cae a stockfish.js 10.0.2 de cdnjs (WASM y luego asm.js). `?sf=10` fuerza el 10.
 - Todas las fuentes van autoalojadas en `fonts/` (OFL). Las de los presets no Clásicos se declaran con @font-face y el navegador solo las baja cuando se usan. Ya no se usa Google Fonts.
 - APIs: Chess.com PubAPI (con fallback JSONP), Lichess `/api/puzzle/next`, GitHub Gists (sync), Anthropic API (Maestro con Claude, opcional).
+
+### Claude en el análisis
+
+- Dos modelos: `model` (comentarios en partida, por defecto Haiku 5.5) y `anaModel` (análisis y capturas, por defecto Opus 5.5). Ambos viven en `S.settings.claude`, que nunca se sincroniza.
+- Opus 5.5 rechaza `thinking: disabled` y `between_tools`: se manda sin `thinking`, con `output_config.effort` bajo y `max_tokens` con espacio para pensar. Haiku usa `disabled` y Sonnet `between_tools`. Opus y Sonnet rechazan `tool_choice` forzado; al llegar al límite de consultas se manda `tool_choice: none`.
+- En el ciclo con herramientas, el contenido de la respuesta (incluidos los bloques de pensamiento) se devuelve sin cambios.
+- La captura se lee como cuadrícula tal como se ve (filas de arriba a abajo) más qué bando está abajo; `boardFromRead` la convierte a casillas. La lectura puede fallar: el editor siempre se abre para revisar.
+- La API pública de Chess.com no da partidas por número: `findChessComGame` recorre el archivo mensual de un jugador del más nuevo al más viejo y corta cuando los números de partidas en vivo del mes ya son menores.
+- Las capturas no se guardan en `S`.
 
 ### Apariencia
 
@@ -111,6 +122,7 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `apariencia_contraste.py` | ΔE00 y contraste de última jugada y selección sobre cada tablero (umbral documentado en el archivo) |
 | `capturas_apariencia.py` | Genera `docs/capturas/apariencia/` a 1280 y 390 |
 | `exp.py` | Explicaciones de errores |
+| `maestro_analisis.py` | Análisis con el Maestro: importar (captura con lectura simulada, FEN, PGN, link de Chess.com, partidas recientes), editor, explicaciones sin IA, ciclo con herramientas de la IA (Opus sin `thinking`), errores de la IA y auditoría móvil a 390 |
 
 Variables opcionales: `CASILLA_APP` (ruta del HTML, por defecto `../index.html`), `CASILLA_DEPS`, `CASILLA_OUT` (capturas, por defecto `tests/out/`). Revisa las capturas en escritorio y en móvil después de cambios visuales. 
 
