@@ -14,7 +14,7 @@
      Al activarse una versión nueva, lo ya guardado de piece/ y board/ pasa a la caché nueva antes de borrar la vieja,
      para que el set activo siga sin red tras actualizar.
    Sube VERSION en cada cambio de sw.js o de los archivos precacheados. */
-const VERSION = '2026-10-25.3';
+const VERSION = '2026-10-28.1';
 const CACHE = 'casilla-' + VERSION;
 const SF10 = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/';
 const LOCAL = [
