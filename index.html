@@ -818,6 +818,19 @@ footer a{color:inherit}
   .off-bar{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:baseline;padding:var(--sp-2) var(--sp-4)}
   .off-bar .x{grid-column:2;justify-self:end}
 }
+/* Comentarios con IA (mockups 1a-1f, 2a, 2b y 3 aprobados el 28 oct 2026) */
+.cl-box{border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin:14px 0}
+.cl-box h3{margin-top:0}
+.cl-meta{font-size:13px;color:var(--muted);margin-top:10px}
+.cl-err{border-left:3px solid var(--muted);padding:10px 14px;margin:14px 0;background:var(--accentSoft)}
+.cl-err b{display:block;margin-bottom:4px}
+.cl-moment{padding:10px 0;border-top:1px solid var(--line)}
+.cl-moment .mv{font-weight:600}
+.cl-load .prog i{display:block;height:100%;width:38%;background:var(--accent);animation:clmove 1.6s ease-in-out infinite alternate}
+@keyframes clmove{from{margin-left:0}to{margin-left:62%}}
+@media (prefers-reduced-motion:reduce){ .cl-load .prog i{animation:none} }
+.cl-spend{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:14px;margin:8px 0}
+.cl-spend span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -2086,7 +2099,7 @@ const READ_PROMPT = [
   'Formato de la respuesta:',
   '{"tablero": true, "abajo": "w", "filas": ["8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres", "8 caracteres"], "mueven": null, "ultima": null, "dudas": []}'
 ].join('\n');
-const CLAUDE_MODELS = [['claude-haiku-5-5','Claude Haiku 5.5: rápido y económico'],['claude-sonnet-5-5','Claude Sonnet 5.5: explicaciones más finas'],['claude-opus-5-5','Claude Opus 5.5: el más preciso, cuesta más']];
+const CLAUDE_MODELS = [['claude-haiku-5-5','Haiku 5.5: rápido y económico'],['claude-sonnet-5-5','Sonnet 5.5: explicaciones más finas'],['claude-opus-5-5','Opus 5.5: el más preciso, cuesta más']];
 // Opciones para el análisis y la lectura de capturas. Costo aproximado por uso (captura leída o explicación), en dólares,
 // con los precios por millón de tokens de Anthropic (oct 2026): Haiku 5.5 0.10/0.50, Sonnet 5.5 2/10, Opus 5.5 4/20,
 // y unos 3 a 6 mil tokens de entrada y 0.5 a 3 mil de salida (contando el pensamiento) por uso.
@@ -2143,6 +2156,7 @@ const ClaudeAI = {
       const ra = +(r.headers.get('retry-after') || 0); await sleep(Math.min(10, ra > 0 ? ra : 2) * 1000); ({r, d} = await send());
     }
     if(!r.ok){ const e = new Error(msg()); e.status = r.status; e.kind = d.error && d.error.type; throw e; }
+    AISpend.add(body.model, d.usage);
     return d;
   },
   // Sin Markdown ni guiones largos aunque el modelo los use
@@ -2230,8 +2244,230 @@ const ClaudeAI = {
       }catch(e){ this.lastError = e.message; console.warn('Claude', e); }
       m.aiPending = false; coach.renderFeed();
     });
+  },
+  // Qué se puede distinguir cuando falla una consulta hecha desde el navegador (docs/claude-partidas.md):
+  // - fetch lanza TypeError sin status: el navegador no da detalles. Puede ser falta de red, una respuesta bloqueada por CORS
+  //   (llega sin Access-Control-Allow-Origin, por ejemplo si la organización no permite el acceso directo desde el navegador
+  //   y la API no manda los encabezados) o una extensión. Si navigator.onLine es false se trata como sin conexión.
+  // - 401 con error.type authentication_error: la clave no es válida, venció o fue revocada.
+  // - 401 o 403 con otro tipo o mensaje (permission_error, CORS deshabilitado por la organización con cuerpo legible):
+  //   la clave existe pero no sirve para esta consulta; se muestra un mensaje distinto al de clave inválida.
+  // - AbortError: lo canceló la persona. kind 'formato': la respuesta no traía el JSON pedido.
+  errorKind(e){
+    if(!e) return 'otro';
+    if(e.name === 'AbortError') return 'cancel';
+    if(e.kind === 'formato') return 'formato';
+    if(!e.status){ if(!this.online()) return 'sinred'; return e.name === 'TypeError' ? 'bloqueo' : 'otro'; }
+    if(e.status === 401 && e.kind === 'authentication_error') return 'keymala';
+    if(e.status === 401 || e.status === 403) return 'permiso';
+    return 'otro';
   }
 };
+
+/* ---------- Comentario de partida y ejercicios de tus errores con IA ---------- */
+// Tarifas en US$ por millón de tokens: [entrada, escritura de caché de 5 min, lectura de caché, salida].
+// Fuente, revisada el 28 oct 2026: https://platform.claude.com/docs/en/about-claude/pricing y https://www.anthropic.com/pricing
+// (Haiku 5.5: tarifa para prompts de hasta 100K tokens). Si cambian, actualiza también ANA_OPTIONS y el README.
+const AI_PRICES = {'claude-haiku-5-5':[0.10, 0.125, 0.01, 0.50], 'claude-sonnet-5-5':[2, 2.50, 0.10, 10], 'claude-opus-5-5':[4, 5, 0.20, 20]};
+const AI_NAMES = {'claude-haiku-5-5':'Haiku 5.5', 'claude-sonnet-5-5':'Sonnet 5.5', 'claude-opus-5-5':'Opus 5.5'};
+function aiModelName(id){ return AI_NAMES[id] || 'el modelo elegido'; }
+function usageCost(model, u){
+  const p = AI_PRICES[model]; if(!p || !u) return 0;
+  return ((u.input_tokens || 0) * p[0] + (u.cache_creation_input_tokens || 0) * p[1] + (u.cache_read_input_tokens || 0) * p[2] + (u.output_tokens || 0) * p[3]) / 1e6;
+}
+function fmtUSD(x){ return x > 0 && x < .005 ? 'menos de US$0.01' : 'US$' + (x || 0).toFixed(2); }
+// Contador aproximado de gasto, solo de este navegador (no va en S ni en el gist). Suma el usage de cada respuesta.
+const AISpend = {
+  KEY:'casilla.aiGasto',
+  get(){ const z = {games:0, ex:0, inTok:0, outTok:0, usd:0}; try{ return Object.assign(z, JSON.parse(localStorage.getItem(this.KEY) || '{}')); }catch(e){ return z; } },
+  put(s){ try{ localStorage.setItem(this.KEY, JSON.stringify(s)); }catch(e){} },
+  add(model, u){ if(!u) return; const s = this.get(); s.inTok += (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0); s.outTok += u.output_tokens || 0; s.usd += usageCost(model, u); this.put(s); },
+  count(kind){ const s = this.get(); if(kind === 'game') s.games++; else s.ex++; this.put(s); },
+  reset(){ try{ localStorage.removeItem(this.KEY); }catch(e){} }
+};
+// Tarjeta del mockup 3 en Maestro, debajo de la conexión
+function spendHTML(){
+  const g = AISpend.get(); if(!ClaudeAI.cfg().key && !g.usd && !g.games && !g.ex) return '';
+  const k = n => n >= 1000 ? (n / 1000).toFixed(1) + ' mil' : String(n), m = GameAI.model(), p = AI_PRICES[m] || [];
+  return '<div class="cl-box" id="spend"><h3>Gasto aproximado en este navegador</h3><div class="cl-spend"><span>Partidas comentadas</span><span>' + g.games + '</span><span>Ejercicios con pista</span><span>' + g.ex + '</span>' +
+    '<span>Tokens (entrada / salida)</span><span>' + k(g.inTok) + ' / ' + k(g.outTok) + '</span><span><b>Total aproximado</b></span><span><b>' + fmtUSD(g.usd) + '</b></span></div>' +
+    '<p class="note">Se calcula con el uso que reporta la API y la tarifa por millón de tokens guardada en Casilla (' + aiModelName(m) + ': US$' + p[0] + ' entrada, US$' + p[3] + ' salida). Cuenta todas las consultas con IA de este navegador. No incluye otros dispositivos; el gasto real está en la consola de tu proveedor de IA.</p>' +
+    '<div class="row"><button class="btn small" id="spendReset">Reiniciar contador</button><a href="https://console.anthropic.com/usage" target="_blank" rel="noopener">Ver gasto real en la consola</a></div></div>';
+}
+function clipText(s, n){ s = ClaudeAI.clean(String(s || '')); if(s.length <= n) return s; const c = s.slice(0, n); return c.slice(0, Math.max(c.lastIndexOf(' '), n - 40)) + '…'; }
+// Etiqueta de una jugada como en los mockups: 5.exd5 para blancas, 5…Nxd5 para negras
+function moveTag(fen, san){ const p = fen.split(' '); return (+p[5] || 1) + (p[1] === 'w' ? '.' : '…') + san; }
+const GameAI = {
+  // Partidas completas: Sonnet 5.5 por defecto. settings.claude.gameModel (sin control en la interfaz) lo cambia, p. ej. Haiku en pruebas.
+  model(){ return ClaudeAI.cfg().gameModel || 'claude-sonnet-5-5'; },
+  hasKey(){ return !!ClaudeAI.cfg().key; },
+  jobs:{}, exJobs:{},
+  // Bloque fijo de instrucciones: va primero y con cache_control para que las consultas siguientes lo lean de la caché
+  SYSTEM:[
+    'Eres el comentarista de partidas de Casilla, una aplicación para aprender ajedrez. Tu único trabajo es redactar. Todas las jugadas, evaluaciones, mejores jugadas y líneas salen del motor de ajedrez y ya vienen en los datos que te paso.',
+    '',
+    'Reglas:',
+    '1. No inventes jugadas, variantes, evaluaciones ni amenazas. Solo menciona jugadas que aparecen en los datos: la partida, la mejor jugada del motor o las líneas que te doy. Si los datos no bastan para explicar un error, explica el principio general sin dar jugadas nuevas y di que el motor prefiere la otra jugada.',
+    '2. Escribe en español de México, tuteando al jugador ("jugaste", "tu rey"). Sin saludos, sin relleno, sin Markdown, sin listas, sin emojis y sin guiones largos.',
+    '3. Escribe las jugadas en notación algebraica tal como vienen (Nf3, exd5, O-O, Qxf7+). Para nombrar una jugada usa el número y la jugada: 5.exd5 para blancas y 5…Nxd5 para negras.',
+    '4. Las evaluaciones vienen en peones desde el punto de vista de las blancas: +1.5 es ventaja blanca, -1.5 ventaja negra, M3 o -M3 es mate en 3. Tradúcelas a palabras ("ventaja clara", "posición igualada", "posición perdida") y no copies los números salvo que ayuden.',
+    '5. Habla de ideas concretas: piezas atacadas o sin defensa, casillas débiles, el rey expuesto, el desarrollo, las columnas abiertas. Nada de frases vagas como "jugaste mal" o "había que tener cuidado".',
+    '6. Adapta la explicación al nivel del jugador que te indico. Para nivel inicial usa ideas básicas y palabras simples; para niveles altos sé más concreto con la línea.',
+    '7. Responde solo con un objeto JSON válido, sin texto antes ni después y sin bloques de código. Usa comillas dobles y escapa las comillas internas.',
+    '',
+    'Hay dos tareas. La primera línea del mensaje dice cuál.',
+    '',
+    'Tarea "partida": recibes la partida en PGN con la evaluación del motor después de cada jugada y la lista de errores del jugador, cada uno con su id. Devuelve:',
+    '{"resumen": ["párrafo", "párrafo"], "errores": [{"id": "id del error", "comentario": "texto", "pista": "texto"}]}',
+    'resumen: de uno a tres párrafos cortos, en total no más de 120 palabras. Cuenta cómo se decidió la partida, cuál fue el momento clave y qué conviene entrenar.',
+    'errores: un elemento por cada error de la lista, con el mismo id. comentario: de una a tres frases, no más de 60 palabras: por qué la jugada de la partida fue un error y qué idea tenía la mejor jugada del motor. pista: una frase de no más de 25 palabras para resolver ese error como ejercicio; orienta sin decir la jugada, la pieza que mueve ni la casilla de destino.',
+    '',
+    'Tarea "ejercicio": recibes un solo error de una partida del jugador. Devuelve:',
+    '{"pista": "texto", "explicacion": "texto"}',
+    'pista: igual que en la tarea anterior. explicacion: de dos a cuatro frases, no más de 80 palabras. Nombra la mejor jugada del motor, explica su idea y qué falló de la jugada de la partida.'
+  ].join('\n'),
+  system(){ return [{type:'text', text:this.SYSTEM, cache_control:{type:'ephemeral'}}]; },
+  // Respuesta de la IA a objeto: tolera bloques de código, texto alrededor y comas finales
+  parse(txt){
+    const bad = () => { const e = new Error('La IA respondió en un formato inesperado.'); e.kind = 'formato'; return e; };
+    const t = String(txt || '').replace(/```(?:json)?/gi, ''), a = t.indexOf('{'), z = t.lastIndexOf('}');
+    if(a < 0 || z <= a) throw bad();
+    const s = t.slice(a, z + 1);
+    try{ return JSON.parse(s); }catch(e){}
+    try{ return JSON.parse(s.replace(/,\s*([}\]])/g, '$1').replace(/[“”]/g, '"')); }catch(e){ throw bad(); }
+  },
+  sev(an, m){ const t = an && an.tags && an.tags[m.ply - 1]; return t === '??' || (!t && m.drop >= 30) ? 'Error grave' : 'Error'; },
+  lines(m){
+    if(!m.exp) return {};
+    const out = {};
+    try{
+      const gB = new Chess(m.fen); gB.move(uciObj(m.best)); out.linea_mejor = numberedLine(m.fen, [m.bestSan].concat(pvToSan(gB.fen(), m.exp.bestPv, 5)));
+      const gP = new Chess(m.fen); gP.move(uciObj(m.playedUci)); out.linea_partida = numberedLine(m.fen, [m.played].concat(pvToSan(gP.fen(), m.exp.refPv, 5)));
+    }catch(e){}
+    return out;
+  },
+  errorData(an, m){
+    const w = (an && an.w) || [], ev = v => typeof v === 'number' ? fmtEval(v) : 's/d';
+    return Object.assign({id:String(m.ply), jugada:moveTag(m.fen, m.played), tipo:this.sev(an, m), categoria:m.cat, fase:m.phase, fen:m.fen,
+      eval_antes:ev(w[m.ply - 1]), eval_despues:ev(w[m.ply]), mejor_del_motor:moveTag(m.fen, m.bestSan)}, this.lines(m));
+  },
+  // g: {gid, start, sans, info:{color, rating, opp, oppRating, result, tc, date, opening, title}}
+  gamePrompt(g, an){
+    const c = new Chess(g.start), w = an.w || [], toks = [];
+    g.sans.forEach((san, i) => { const p = c.fen().split(' '); const m = c.move(san, {sloppy:true}); if(!m) return; if(p[1] === 'w') toks.push(p[5] + '.'); else if(!i) toks.push(p[5] + '...'); toks.push(m.san + (typeof w[i + 1] === 'number' ? ' {' + fmtEval(w[i + 1]) + '}' : '')); });
+    const I = g.info || {}, me = I.color === 'w' ? 'blancas' : 'negras';
+    const hd = [['White', I.color === 'w' ? 'Tú' : I.opp], ['Black', I.color === 'b' ? 'Tú' : I.opp], ['Result', I.result || '*'], ['TimeControl', I.tc || '-'], ['Date', I.date || '-']];
+    if(g.start !== START_FEN) hd.push(['FEN', g.start]);
+    return 'Tarea: partida\n' +
+      'Jugador: juega con ' + me + (I.rating ? ', rating aproximado ' + I.rating : '') + '. Rival: ' + (I.opp || 'desconocido') + (I.oppRating ? ' (' + I.oppRating + ')' : '') + '. Resultado para el jugador: ' + (I.res || 'sin dato') + '.' + (I.opening ? ' Apertura: ' + I.opening + '.' : '') + '\n\n' +
+      'Partida (PGN con la evaluación del motor tras cada jugada):\n' + hd.map(([k, v]) => '[' + k + ' "' + String(v).replace(/"/g, "'") + '"]').join('\n') + '\n\n' + toks.join(' ') + ' ' + (I.result || '*') + '\n\n' +
+      'Errores del jugador según el motor (' + (an.mistakes || []).length + '):\n' + JSON.stringify((an.mistakes || []).map(m => this.errorData(an, m)), null, 1);
+  },
+  exercisePrompt(m){
+    const an = S.analyses[m.gid];
+    return 'Tarea: ejercicio\nEl jugador juega con ' + (m.color === 'w' ? 'blancas' : 'negras') + (m.opp ? ' contra ' + m.opp : '') + '. Nivel: unos ' + playerModel().elo + ' puntos.\n' +
+      'Error:\n' + JSON.stringify(this.errorData(an, m), null, 1);
+  },
+  // Una sola llamada: resumen y un comentario (más la pista del ejercicio) por cada error. La IA solo redacta.
+  async comment(g){
+    const gid = g.gid, an = S.analyses[gid]; if(!an) return;
+    const job = this.jobs[gid] = {state:'loading', ctl:new AbortController()}; this.paint(gid);
+    const model = this.model();
+    try{
+      if(!this.hasKey()){ const e = new Error('sin clave'); e.kind = 'sinkey'; throw e; }
+      if(!ClaudeAI.online()) throw new TypeError('sin conexión');
+      const n = (an.mistakes || []).length;
+      const body = ClaudeAI.tune({model, system:this.system(), messages:[{role:'user', content:this.gamePrompt(g, an)}]}, 'short', Math.min(4000, 700 + 260 * n));
+      const d = await ClaudeAI.post(body, job.ctl.signal);
+      const j = this.parse(ClaudeAI.textOf(d, true));
+      const summary = (Array.isArray(j.resumen) ? j.resumen : [j.resumen]).map(x => clipText(x, 900)).filter(Boolean).slice(0, 3);
+      const errs = {}; (Array.isArray(j.errores) ? j.errores : []).forEach(x => { if(x && x.id != null) errs[String(x.id)] = x; });
+      if(!summary.length && !Object.keys(errs).length) throw this.parse('');
+      const cur = S.analyses[gid]; if(!cur) return;
+      const usage = d.usage ? {input_tokens:d.usage.input_tokens || 0, output_tokens:d.usage.output_tokens || 0, cache_creation_input_tokens:d.usage.cache_creation_input_tokens || 0, cache_read_input_tokens:d.usage.cache_read_input_tokens || 0} : null;
+      const at = Date.now();
+      cur.cx = {summary, model, at, usage, usd:usageCost(model, usage)};
+      (cur.mistakes || []).forEach(m => { const x = errs[String(m.ply)]; if(!x) return; const text = clipText(x.comentario, 700), hint = clipText(x.pista, 300); if(text || hint) m.cx = {hint, text, model, at}; });
+      AISpend.count('game'); ClaudeAI.lastError = null; save();
+      if(this.jobs[gid] === job) delete this.jobs[gid];
+    }catch(e){
+      if(this.jobs[gid] !== job) return;
+      if(e.name === 'AbortError') delete this.jobs[gid];
+      else { job.state = 'error'; job.err = e; if(e.kind !== 'sinkey') ClaudeAI.lastError = e.message; console.warn('IA', e); }
+    }
+    this.paint(gid);
+  },
+  cancel(gid){ const j = this.jobs[gid]; if(j && j.ctl) j.ctl.abort(); delete this.jobs[gid]; this.paint(gid); },
+  remove(gid){
+    const an = S.analyses[gid]; if(!an) return;
+    delete an.cx; (an.mistakes || []).forEach(m => { delete m.cx; }); save(); this.paint(gid);
+  },
+  // Pista y explicación de un error suelto (ejercicio de Mis errores). Se guardan en m.cx.
+  exercise(m){
+    if(this.exJobs[m.id]) return this.exJobs[m.id];
+    const model = this.model();
+    const run = (async () => {
+      const body = ClaudeAI.tune({model, system:this.system(), messages:[{role:'user', content:this.exercisePrompt(m)}]}, 'short', 600);
+      const d = await ClaudeAI.post(body);
+      const j = this.parse(ClaudeAI.textOf(d, true)), hint = clipText(j.pista, 300), text = clipText(j.explicacion, 900);
+      if(!hint && !text) throw this.parse('');
+      m.cx = {hint, text, model, at:Date.now()}; AISpend.count('ex'); ClaudeAI.lastError = null; save();
+      return m.cx;
+    })();
+    this.exJobs[m.id] = run;
+    run.catch(e => { ClaudeAI.lastError = e.message; }).finally(() => { delete this.exJobs[m.id]; });
+    return run;
+  },
+  costText(){ const m = this.model(); return {'claude-haiku-5-5':'menos de 1 centavo de dólar', 'claude-opus-5-5':'menos de 10 centavos de dólar'}[m] || 'menos de 5 centavos de dólar'; },
+  errHTML(gid, e){
+    const k = e.kind === 'sinkey' ? 'sinkey' : ClaudeAI.errorKind(e), on = ClaudeAI.online();
+    const keyBtn = t => '<button class="btn primary" id="clKey">' + t + '</button>', retry = p => '<button class="btn ' + (p ? 'primary' : 'small') + '" id="clGo">Reintentar</button>';
+    const T = {
+      sinkey:['Falta tu clave de IA', 'Para comentar con IA, pega tu clave de la API en Maestro, sección «Comentarios con IA». Se guarda solo en este navegador.', keyBtn('Ir a la clave') + '<a href="' + AI_KEY_GUIDE + '" target="_blank" rel="noopener">Cómo obtener una clave</a>'],
+      keymala:['El servicio de IA rechazó la clave', 'La clave no es válida, venció o fue revocada (error 401). Revisa que la copiaste completa o crea una nueva en la consola de tu proveedor de IA.', keyBtn('Revisar la clave') + retry()],
+      permiso:['El servicio de IA no dio permiso', 'La clave existe, pero no se puede usar para esta consulta (error ' + (e.status || 403) + '). Puede que tu organización no permita usar la clave desde el navegador o que no tenga acceso a este modelo. Revisa los permisos en la consola de tu proveedor de IA.', keyBtn('Revisar la clave') + retry()],
+      bloqueo:['No se pudo conectar con el servicio de IA', 'El navegador no recibió una respuesta que pudiera leer. Puede ser la red, una extensión que bloquea la consulta o que tu organización no permite usar la clave desde el navegador.', retry(true) + '<button class="btn small" id="clKey">Revisar la clave</button>'],
+      sinred:['Sin conexión', 'La IA necesita internet. El análisis del motor y los momentos clave siguen disponibles; puedes comentar la partida cuando vuelva la red.', '<button class="btn primary" id="clGo"' + (on ? '' : ' disabled') + '>Reintentar</button>' + (on ? '' : '<span class="note">Se activa al volver la conexión.</span>')],
+      formato:['La IA respondió en un formato inesperado', 'No se guardó nada. Puedes intentarlo otra vez.', retry(true)],
+      otro:['La IA no pudo comentar la partida', 'Motivo: ' + esc(ClaudeAI.friendly(e)) + '.', retry(true)]
+    }[k] || null;
+    const t = T || ['La IA no pudo comentar la partida', '', retry(true)];
+    return '<div class="cl-box"><h3>Comentario de la IA</h3><div class="cl-err" role="alert"><b>' + t[0] + '</b>' + t[1] + '</div><div class="row">' + t[2] + '</div></div>';
+  },
+  html(gid){
+    const an = S.analyses[gid]; if(!an) return '';
+    const job = this.jobs[gid];
+    if(job && job.state === 'loading') return '<div class="cl-box cl-load" aria-busy="true"><h3>Comentario de la IA</h3><p>La IA está leyendo la partida y el análisis del motor.</p><div class="prog"><i></i></div><p class="note">Suele tardar entre 10 y 20 segundos. Puedes seguir revisando la partida mientras tanto.</p><div class="row"><button class="btn small" id="clCancel">Cancelar</button></div></div>';
+    // Sin red se muestra el aviso 1f en lugar de un error anterior; al volver la red queda el botón
+    if(!an.cx && !ClaudeAI.online()){ if(job && job.err && job.err.kind !== 'sinkey') delete this.jobs[gid]; if(!(job && job.err && job.err.kind === 'sinkey')) return this.errHTML(gid, new TypeError('sin conexión')); }
+    if(job && job.state === 'error') return this.errHTML(gid, job.err);
+    if(an.cx){
+      const ms = (an.mistakes || []).filter(m => m.cx && m.cx.text);
+      return '<div class="cl-box"><h3>Comentario de la IA</h3>' + (an.cx.summary || []).map(p => '<p>' + esc(p) + '</p>').join('') +
+        ms.map(m => '<div class="cl-moment"><span class="mv">' + esc(moveTag(m.fen, m.played)) + '</span> <span class="note">' + this.sev(an, m) + '</span><p>' + esc(m.cx.text) + '</p><button class="btn small" data-clgo="' + m.ply + '">Ver en el tablero</button></div>').join('') +
+        '<p class="cl-meta">Escrito por IA a partir del análisis del motor; el texto puede tener errores. Las jugadas y evaluaciones son del motor.' + (an.cx.usage ? ' Costo aprox. de este comentario: ' + fmtUSD(an.cx.usd || 0) + '.' : '') + '</p>' +
+        '<div class="row"><button class="btn small" id="clAgain">Volver a comentar</button><button class="btn small" id="clDel">Borrar comentario</button></div></div>';
+    }
+    return '<div class="cl-box"><h3>Comentario de la IA</h3><p class="note">La IA redacta un resumen y comenta los momentos clave a partir del análisis del motor. Usa tu clave; costo aproximado: ' + this.costText() + ' con ' + aiModelName(this.model()) + '.</p><div class="row" style="margin-top:14px"><button class="btn primary" id="clGo">Comentar partida con IA</button></div></div>';
+  },
+  // Repinta el bloque si la partida está en pantalla (ReviewSession con #clbox)
+  paint(gid){
+    const box = $('#clbox'), s = App.session; if(!box || box.dataset.gid !== gid || !(s instanceof ReviewSession)) return;
+    box.innerHTML = this.html(gid);
+    const go = $('#clGo', box); if(go) go.onclick = () => this.comment(s.aiGame());
+    const ag = $('#clAgain', box); if(ag) ag.onclick = () => this.comment(s.aiGame());
+    const cn = $('#clCancel', box); if(cn) cn.onclick = () => this.cancel(gid);
+    const dl = $('#clDel', box); if(dl) dl.onclick = () => this.remove(gid);
+    const ky = $('#clKey', box); if(ky) ky.onclick = () => { delete this.jobs[gid]; goToAIKey(); };
+    $$('[data-clgo]', box).forEach(b => b.onclick = () => { s.go(+b.dataset.clgo); revealBoard(); });
+  }
+};
+// Guía corta para conseguir la clave (README)
+const AI_KEY_GUIDE = 'https://github.com/FerHuCa/Casilla#clave-de-ia';
+function goToAIKey(){
+  switchTab('coach');
+  setTimeout(() => { const k = $('#aikey'); if(k){ k.scrollIntoView({block:'center'}); k.focus(); } }, 50);
+}
 
 /* =========================================================
    Evaluación al final de la partida
@@ -2567,11 +2803,13 @@ function saveEvaluation(d, E){
   const mistakes = E.per.filter(p => p.color === uc && p.drop >= 20 && p.before > -600 && E.best[p.i]).map(p => ({
     id:d.gid + '#' + (p.i+1), gid:d.gid, ply:p.i+1, fen:E.fens[p.i], played:p.san, playedUci:p.uci, best:E.best[p.i], bestSan:p.bestSan,
     drop:Math.round(p.drop), before:p.before, cat:categorize(E, p.i), phase:p.phase, date, opp:d.opp, color:uc}));
-  const prevExp = {}; ((S.analyses[d.gid] || {}).mistakes || []).forEach(m => { if(m.exp) prevExp[m.id] = m.exp; });
-  mistakes.forEach(m => { if(prevExp[m.id]) m.exp = prevExp[m.id]; });
+  const prevExp = {}, prevCx = {}; ((S.analyses[d.gid] || {}).mistakes || []).forEach(m => { if(m.exp) prevExp[m.id] = m.exp; if(m.cx) prevCx[m.id] = m.cx; });
+  mistakes.forEach(m => { if(prevExp[m.id]) m.exp = prevExp[m.id]; if(prevCx[m.id]) m.cx = prevCx[m.id]; });
+  const prevGameCx = (S.analyses[d.gid] || {}).cx;
   // best y pv permiten reabrir la evaluación completa sin volver a calcularla
   S.analyses[d.gid] = {v:1, src:d.kind, acc:E.userAcc || 0, w:E.W, tags, cnt:E.cnt, mistakes, mt:S.settings.evalTime || 450, deep:true,
     best:E.fens.map((f, i) => E.best[i] || null), pv:E.fens.map((f, i) => (E.pv[i] || []).slice(0, 10))};
+  if(prevGameCx) S.analyses[d.gid].cx = prevGameCx;
   // Las partidas jugadas en Casilla entran al historial cuando su evaluación termina
   if(d.kind !== 'chesscom'){
     const rec = {id:d.gid, src:'casilla', kind:d.kind || 'partida', title:d.title || '', opp:d.opp || '', user:uc, start:d.startFen, sans:E.moves.map(m => m.san),
@@ -2587,7 +2825,7 @@ function descFromPlayed(rec){
 const KIND_NAME = {escalera:'Escalera', maestro:'Contra el maestro', partida:'Partida'};
 // mi: índice de una jugada para abrir directo en ella (por ejemplo, el error de un puzzle)
 function openPlayed(rec, mi){
-  const job = evalJobFor(descFromPlayed(rec)), s = new EvalSession(job, {backLabel:'Mis partidas', back:()=>switchTab('games')});
+  const job = evalJobFor(descFromPlayed(rec)), s = new EvalSession(job, {backLabel:'Partidas', back:()=>switchTab('games')});
   if(mi !== undefined && mi >= 0 && mi < (rec.sans || []).length){ s.ply = mi; s.focus = mi; s.open = -1; s.wantMoment = mi; }
   App.tab = 'games'; $$('.tab').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === 'games'));
   App.setSession(s);
@@ -3232,14 +3470,14 @@ function renderCoachHome(){
     '<h3>Analizar con el Maestro</h3>' +
     '<p class="note">Sube una captura del tablero, pega una partida o el link de Chess.com, o elige una de tus partidas. El Maestro te explica la posición y por qué el motor prefiere cada jugada, y puedes preguntarle lo que quieras.</p>' +
     '<button class="btn wide" id="cana">Analizar una posición</button>' +
-    '<h3>Comentarios con Claude (opcional)</h3>' +
-    '<p class="note">Sin esto, el maestro comenta con frases armadas a partir del motor. Con tu clave de la API de Anthropic, Claude reescribe cada comentario en lenguaje natural. La clave se guarda solo en este navegador, se envía directo a Anthropic y no se incluye en los respaldos. Con Haiku cuesta menos de un centavo de dólar por partida.</p>' +
-    '<label class="check"><input type="checkbox" id="aion"' + (ai.on ? ' checked' : '') + '> <span>Usar Claude para los comentarios</span></label>' +
+    '<h3>Comentarios con IA (opcional)</h3>' +
+    '<p class="note">Sin esto, el maestro comenta con frases armadas a partir del motor. Con tu clave de la API, la IA reescribe cada comentario en lenguaje natural. La clave se guarda solo en este navegador, se envía directo al proveedor de IA y no se incluye en los respaldos. Con Haiku cuesta menos de un centavo de dólar por partida.</p>' +
+    '<label class="check"><input type="checkbox" id="aion"' + (ai.on ? ' checked' : '') + '> <span>Usar IA para los comentarios</span></label>' +
     '<div class="field"><span class="lbl">Clave de la API</span><input type="password" id="aikey" value="' + esc(ai.key) + '" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></div>' +
     '<div class="field"><span class="lbl">Modelo para comentar tus partidas</span><select id="aimodel">' + CLAUDE_MODELS.map(([v,l]) => '<option value="' + v + '"' + (ai.model === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
-    '<div class="field"><span class="lbl">Modelo para analizar posiciones y leer capturas</span><select id="aimodel2">' + ANA_OPTIONS.map(o => '<option value="' + o.id + '"' + (ClaudeAI.anaModel() === o.id ? ' selected' : '') + '>Claude ' + o.model + ': ' + o.name.toLowerCase() + ', ' + o.cost + '</option>').join('') + '</select>' +
+    '<div class="field"><span class="lbl">Modelo para analizar posiciones y leer capturas</span><select id="aimodel2">' + ANA_OPTIONS.map(o => '<option value="' + o.id + '"' + (ClaudeAI.anaModel() === o.id ? ' selected' : '') + '>' + o.model + ': ' + o.name.toLowerCase() + ', ' + o.cost + '</option>').join('') + '</select>' +
       '<p class="note" style="margin-top:6px">' + (ai.anaModel ? '' : 'Todavía no eliges: mientras, el análisis usa el mismo modelo que los comentarios. ') + 'Costo aproximado en dólares por cada captura leída o explicación, con tu clave. Para leer capturas se recomienda Opus 5.5; Haiku puede equivocarse más.</p></div>' +
-    '<div class="row"><button class="btn small" id="aitest">Probar conexión</button><a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Obtener una clave</a></div><p class="note" id="aist" style="margin-top:8px">' + (ClaudeAI.lastError ? 'Último error de Claude: ' + esc(ClaudeAI.lastError) : '') + '</p>';
+    '<div class="row"><button class="btn small" id="aitest">Probar conexión</button><a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Obtener una clave</a></div><p class="note" id="aist" style="margin-top:8px">' + (ClaudeAI.lastError ? 'Último error de la IA: ' + esc(ClaudeAI.lastError) : '') + '</p>' + spendHTML();
   const root = side();
   const prefs = () => S.settings.coachPrefs;
   bindSeg(root, 'cmode', v => { prefs().mode = v; save(); renderCoachHome(); });
@@ -3251,18 +3489,19 @@ function renderCoachHome(){
   $('#cgo').onclick = () => startCoachGame();
   $('#cbar').onchange = e => { S.settings.showBar = e.target.checked; save(); };
   // El modelo de análisis solo se guarda cuando la persona lo elige
-  const saveAI = () => { const c = {on:$('#aion').checked, key:$('#aikey').value.trim(), model:$('#aimodel').value}; const a = $('#aimodel2').dataset.set ? $('#aimodel2').value : ClaudeAI.cfg().anaModel; if(a) c.anaModel = a; S.settings.claude = c; save(); };
+  const saveAI = () => { const c = Object.assign({}, S.settings.claude, {on:$('#aion').checked, key:$('#aikey').value.trim(), model:$('#aimodel').value}); const a = $('#aimodel2').dataset.set ? $('#aimodel2').value : ClaudeAI.cfg().anaModel; if(a) c.anaModel = a; S.settings.claude = c; save(); };
   $('#aion').onchange = saveAI; $('#aikey').onchange = saveAI; $('#aimodel').onchange = saveAI; $('#aimodel2').onchange = () => { $('#aimodel2').dataset.set = '1'; saveAI(); };
   $('#cana').onclick = () => { App.posTab = 'importar'; switchTab('positions'); };
+  const sr = $('#spendReset'); if(sr) sr.onclick = () => { AISpend.reset(); renderCoachHome(); };
   $('#aitest').onclick = async () => {
     saveAI(); const out = $('#aist');
     if(!ClaudeAI.cfg().key){ out.textContent = 'Pega primero tu clave.'; return; }
     out.textContent = 'Probando…';
     try{
       const c = ClaudeAI.cfg(), t = await ClaudeAI.ask('Responde solo con la palabra: listo', 'Prueba de conexión', 20);
-      let msg = 'Conexión correcta con ' + c.model + ' (respondió: ' + t + ').';
+      let msg = 'Conexión correcta con ' + aiModelName(c.model) + ' (respondió: ' + t + ').';
       const am = ClaudeAI.anaModel();
-      if(am !== c.model){ try{ await ClaudeAI.ask('Responde solo con la palabra: listo', 'Prueba de conexión', 20, am); msg += ' ' + am + ' también responde.'; }catch(e2){ msg += ' Pero ' + am + ' falló: ' + e2.message; } }
+      if(am !== c.model){ try{ await ClaudeAI.ask('Responde solo con la palabra: listo', 'Prueba de conexión', 20, am); msg += ' ' + aiModelName(am) + ' también responde.'; }catch(e2){ msg += ' Pero ' + aiModelName(am) + ' falló: ' + e2.message; } }
       out.textContent = msg;
     }
     catch(e){ out.textContent = 'No se pudo conectar: ' + e.message; }
@@ -3581,15 +3820,51 @@ class PuzzleSession{
   }
   controls(){
     const p = this.p; if(!p) return;
+    // Con pista de la IA disponible, la pista va en el panel («Ver pista») y no se repite la del motor
     setControls([
-      !p.done && {label:'Pista', on:()=>this.hint()},
+      !p.done && !this.aiHintOK() && {label:'Pista', on:()=>this.hint()},
       !p.done && {label:'Ver solución', on:()=>this.reveal()},
-      {label:'Siguiente puzzle', primary:p.done && !this.planReached(), on:()=>this.next()},
+      {label:p.src === 'mine' && App.puzzleSource === 'mine' && !this.opt.plan ? 'Siguiente error' : 'Siguiente puzzle', primary:p.done && !this.planReached(), on:()=>this.next()},
       this.opt.plan && {label:'Volver al Maestro', primary:p.done && this.planReached(), on:()=>switchTab('coach')},
       {label:'Analizar', on:()=>{ const fen=p.fen; App.setSession(new AnalysisSession({fen, title:'Análisis del puzzle', backLabel:'Puzzles', back:()=>switchTab('puzzles')})); }},
     ]);
   }
   hint(){ const p = this.p; if(!p || p.done) return; const u = p.solution[p.idx]; Board.marks = {[u.slice(0,2)]:'hint'}; Board.render(); this.fail(true); }
+  // Pista de la IA para Mis errores: guardada en m.cx (del comentario de la partida o de una consulta suelta)
+  aiHintOK(){ const p = this.p, m = p && p.src === 'mine' && p.mistake; if(!m) return false; return !!(m.cx && m.cx.hint) || (GameAI.hasKey() && ClaudeAI.online() && !p.aiErr); }
+  async aiHint(){
+    const p = this.p; if(!p || p.src !== 'mine') return;
+    const m = p.mistake;
+    // Ver la pista cuenta como ayuda, igual que la pista del motor
+    if(!p.done) this.fail(true);
+    if(m.cx && m.cx.hint){ p.aiHint = true; this.renderInfo(); return; }
+    p.aiLoading = true; this.renderInfo();
+    try{ await GameAI.exercise(m); if(this.p !== p || App.session !== this) return; p.aiHint = true; }
+    catch(e){ if(this.p !== p || App.session !== this) return; p.aiErr = ClaudeAI.friendly(e); this.controls(); }
+    p.aiLoading = false; this.renderInfo();
+  }
+  // Al terminar, la explicación de la IA se pide sola si la IA está activada (como los comentarios del Maestro)
+  async aiExplain(){
+    const p = this.p; if(!p || p.src !== 'mine' || p.aiAsked) return;
+    const m = p.mistake; if((m.cx && m.cx.text) || !ClaudeAI.ready()) return;
+    p.aiAsked = true; p.aiLoading = true; this.renderInfo();
+    try{ await GameAI.exercise(m); }catch(e){ p.aiErr = ClaudeAI.friendly(e); }
+    if(this.p !== p || App.session !== this) return;
+    p.aiLoading = false; this.renderInfo();
+  }
+  aiHTML(){
+    const p = this.p, m = p.mistake, cx = m.cx || {};
+    let h = '';
+    const box = (t, body) => '<div class="cl-box"><h3>' + t + '</h3>' + body + '</div>';
+    if(cx.hint && (p.aiHint || p.done)) h += box('Pista de la IA', '<p>' + esc(cx.hint) + '</p>');
+    else if(!p.done && this.aiHintOK() && !p.aiLoading) h += '<div class="row"><button class="btn small" id="aiHint">Ver pista</button></div>';
+    if(p.done && cx.text) h += box('Explicación de la IA', '<p>' + esc(cx.text) + '</p><p class="cl-meta">' + (cx.hint ? 'Pista y explicación escritas por IA' : 'Explicación escrita por IA') + '; la solución la valida el motor. El texto puede tener errores.</p>');
+    if(p.aiLoading) h += '<p class="note">' + (p.done ? 'La IA está escribiendo la explicación…' : 'La IA está preparando la pista…') + '</p>';
+    else if(p.aiErr && !(p.done ? cx.text : cx.hint)) h += '<p class="note">La IA no respondió (' + esc(p.aiErr) + ').' + (p.done ? '' : ' Puedes usar la pista del motor.') + '</p>';
+    const c = p.done && p.counted && S.srs && S.srs[m.id];
+    if(c){ const d = Math.max(1, Math.round((c.due - Date.now()) / DAY)); h += '<p class="note" style="margin-top:14px">Entra al repaso espaciado: volverá ' + (d === 1 ? 'mañana' : 'en ' + d + ' días') + '.</p>'; }
+    return h;
+  }
   async onUserMove(mv){
     const p = this.p; if(!p || p.done || App.busy) return;
     const expected = p.solution[p.idx];
@@ -3648,9 +3923,10 @@ class PuzzleSession{
   }
   async explain(){
     const p = this.p; if(!p || p.src !== 'mine') return;
+    this.aiExplain();
     p.expLoading = true; this.renderInfo();
     const exp = await explainMistake(p.mistake);
-    if(this.p !== p) return;
+    if(this.p !== p || App.session !== this) return;
     p.expLoading = false; p.exp = exp; this.renderInfo();
     if(exp && isMobile()){ const st = $('#status'); if(st && !/abajo/.test(st.textContent)) st.textContent = st.textContent + ' Desliza hacia abajo para ver la explicación.'; }
   }
@@ -3704,6 +3980,7 @@ class PuzzleSession{
     if(p.src === 'mine' && p.mistake && (S.played || []).some(g => g.id === p.mistake.gid)) h += '<div class="row"><button class="btn small" id="pzGame">Ver la partida</button></div>';
     h += '</div>';
     if(p.counted) h += '<div class="result ' + (p.delta >= 0 ? 'good' : 'bad') + '"><strong>' + (p.delta >= 0 ? '+' : '') + p.delta + ' de rating</strong>' + (p.delta >= 0 ? 'Puzzle resuelto al primer intento.' : 'Fallaste o pediste ayuda.') + '</div>';
+    if(p.src === 'mine' && p.mistake) h += this.aiHTML();
     if(p.src === 'mine' && p.done){
       if(p.exp) h += explanationHTML(p.mistake, p.exp);
       else if(p.expLoading || p.exp === undefined) h += '<p class="note">El motor está preparando la explicación…</p>';
@@ -3715,6 +3992,7 @@ class PuzzleSession{
     const sb = $('#seeBest'); if(sb) sb.onclick = () => this.showLine('best');
     const bk = $('#seeBack'); if(bk) bk.onclick = () => this.backToPosition();
     const er = $('#expRetry'); if(er) er.onclick = () => this.explain();
+    const ah = $('#aiHint'); if(ah) ah.onclick = () => this.aiHint();
   }
   renderSide(){
     const pr = errorProfile();
@@ -4489,6 +4767,12 @@ class ReviewSession{
   }
   exit(){ window.removeEventListener('keydown', this.keys); Engine.cancel('ana'); }
   get an(){ return S.analyses[this.rec.id]; }
+  // Datos de la partida para comentarla con IA
+  aiGame(){
+    const r = this.rec, w = this.user === 'w', res = gameResult(r);
+    return {gid:r.id, start:this.b.start, sans:this.b.moves.map(m => m.san), info:{color:this.user, rating:w ? r.wr : r.br, opp:w ? r.black : r.white, oppRating:w ? r.br : r.wr,
+      result:this.b.headers.Result || '*', res:res === 'w' ? 'ganó' : res === 'l' ? 'perdió' : 'tablas', tc:r.tc, date:r.end ? new Date(r.end * 1000).toISOString().slice(0, 10) : '', opening:openingName(r)}};
+  }
   go(p){
     this.ply = Math.max(0, Math.min(this.b.fens.length - 1, p));
     App.game = new Chess(this.b.fens[this.ply]);
@@ -4523,9 +4807,10 @@ class ReviewSession{
   renderSide(){
     const r = this.rec, an = this.an, res = gameResult(r);
     const opp = this.user === 'w' ? r.black + ' (' + r.br + ')' : r.white + ' (' + r.wr + ')';
-    side().innerHTML = '<button class="back" id="bk">← Mis partidas</button>' +
+    side().innerHTML = '<button class="back" id="bk">← Partidas</button>' +
       '<h2>vs ' + esc(opp) + '</h2><p class="lede">' + (res==='w'?'Ganaste':res==='l'?'Perdiste':'Tablas') + ' con ' + colorName(this.user) + ', ' + esc(r.tc) + ', ' + fmtDate(r.end) + '. ' + esc(openingName(r)) + '.</p>' +
       (an ? '<div class="stats compact"><div class="stat"><span class="big">' + an.acc + '%</span><span>Precisión aprox.</span></div><div class="stat"><span class="big">' + an.cnt.blunder + '</span><span>Errores graves</span></div><div class="stat"><span class="big">' + an.cnt.mistake + '</span><span>Errores</span></div><div class="stat"><span class="big">' + an.cnt.inacc + '</span><span>Imprecisiones</span></div></div>' +
+        '<div id="clbox" data-gid="' + esc(r.id) + '"></div>' +
         ((an.mistakes||[]).length ? '<h3>Momentos clave</h3><ul class="list">' + an.mistakes.map((m,i) => '<li class="item"><div class="t">Jugada ' + Math.ceil(m.ply/2) + ': ' + esc(m.played) + '</div><div class="s">' + esc(m.cat) + ', ' + esc(m.phase.toLowerCase()) + '. Mejor: ' + esc(m.bestSan) + '</div><div class="row"><button class="btn small" data-go="'+m.ply+'">Ver</button><button class="btn small" data-pz="'+i+'">Resolver</button></div></li>').join('') + '</ul>' : '<p class="note">Sin errores ni errores graves. Bien jugada.</p>')
        : '<div class="row"><button class="btn primary" id="anOne">Analizar esta partida</button></div><div class="prog" id="anProg" hidden><i></i></div>') +
       '<div class="row" style="margin-top:12px"><button class="btn small" id="deep">Evaluación a fondo</button><a href="' + esc(r.id) + '" target="_blank" rel="noopener">Abrir en Chess.com</a></div>' +
@@ -4534,6 +4819,7 @@ class ReviewSession{
     $('#deep').onclick = () => { const job = evalJobFor(gameDescFromRec(r)); App.setSession(new EvalSession(job, {backLabel:'Partida', back:()=>App.setSession(new ReviewSession(r))})); };
     $$('[data-go]').forEach(b => b.onclick = () => { this.go(+b.dataset.go); revealBoard(); });
     $$('[data-pz]').forEach(b => b.onclick = () => { const m = an.mistakes[+b.dataset.pz]; App.setSession(new PuzzleSession(mistakePuzzle(m))); App.tab='puzzles'; $$('.tab').forEach(x=>x.setAttribute('aria-selected', x.dataset.tab==='puzzles')); });
+    if(an) GameAI.paint(r.id);
     const one = $('#anOne'); if(one) one.onclick = async () => {
       one.disabled = true; const pg = $('#anProg'); pg.hidden = false; const tok = App.token;
       if(!(await Engine.whenReady())) return;
@@ -4601,6 +4887,9 @@ const Analyzer = {
         drop:Math.round(drop), before, cat, phase:phaseOf(b.fens[i], i), date:rec.end, opp, color:uc});
     }
     const a = {v:1, acc:accN ? Math.round(accSum/accN) : 0, w:W, tags, cnt, mistakes, mt:movetime};
+    // Los comentarios con IA se conservan al volver a analizar
+    const prev = S.analyses[rec.id];
+    if(prev){ const cx = {}; (prev.mistakes || []).forEach(m => { if(m.cx) cx[m.id] = m.cx; }); mistakes.forEach(m => { if(cx[m.id]) m.cx = cx[m.id]; }); if(prev.cx) a.cx = prev.cx; }
     S.analyses[rec.id] = a; save();
     return a;
   },
@@ -5049,8 +5338,11 @@ function mergeState(L, Rin){
     const hasL = x => x && Array.isArray(x.best);
     let pick = a && b ? ((b.deep && !a.deep) || (b.deep && a.deep && !hasL(a) && hasL(b)) ? b : a) : (a || b);
     pick = JSON.parse(JSON.stringify(pick));
-    const exps = {}; [a, b].forEach(x => ((x && x.mistakes) || []).forEach(m => { if(m.exp) exps[m.id] = m.exp; }));
-    (pick.mistakes || []).forEach(m => { if(!m.exp && exps[m.id]) m.exp = exps[m.id]; });
+    const exps = {}, cxs = {}; [a, b].forEach(x => ((x && x.mistakes) || []).forEach(m => { if(m.exp) exps[m.id] = m.exp; if(m.cx && (!cxs[m.id] || (m.cx.at || 0) > (cxs[m.id].at || 0))) cxs[m.id] = m.cx; }));
+    (pick.mistakes || []).forEach(m => { if(!m.exp && exps[m.id]) m.exp = exps[m.id]; if(cxs[m.id]) m.cx = JSON.parse(JSON.stringify(cxs[m.id])); });
+    // Comentario de la partida con IA: el más reciente de los dos
+    const gcx = [a, b].map(x => x && x.cx).filter(Boolean).sort((x, y) => (y.at || 0) - (x.at || 0))[0];
+    if(gcx) pick.cx = JSON.parse(JSON.stringify(gcx));
     out.analyses[k] = pick;
   }
   out.endgames = Object.assign({}, R.endgames || {}, L.endgames || {});
@@ -5320,6 +5612,7 @@ const Net = {
     const ses = App.session;
     if(ses instanceof HomeSession && (ses.tab === 'coach' || ses.tab === 'games')) HOMES[ses.tab]();
     else if(ses instanceof PuzzleSession){ ses.renderSide(); if(!ses.p) ses.next(); }
+    else if(ses instanceof ReviewSession) GameAI.paint(ses.rec.id);
     else if(ses && ses.coach && ses.coach.renderTip) ses.coach.renderTip();
   },
   start(){
