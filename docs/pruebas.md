@@ -17,7 +17,8 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `ruta.py` | Ruta a 1500: sesión del día, táctica de la etapa con tema oculto, repaso espaciado, modo Amenazas, finales nuevos, sync y datos viejos |
 | `evalt.py` | Evaluación al final de la partida |
 | `evalnav.py` | Recorrer la evaluación jugada por jugada: orden, comentarios y que nada regrese el tablero solo |
-| `claude.py` | Conexión con Claude: encabezados, pensamiento por modelo (con Opus), los dos modelos en «Probar conexión», reintento y errores (API simulada) |
+| `claude.py` | Conexión con Claude: encabezados, pensamiento por modelo (con Opus), los dos modelos en «Probar conexión», reintento y errores (API simulada). Revisa que «Claude», «Anthropic» y «Stockfish» no se vean en ninguna pestaña, incluida la sección de la clave (opciones, title, aria-label, placeholder); solo el crédito del pie |
+| `claude_partidas.py` | Comentario de partida con IA y ejercicios de Mis errores (API simulada, 1280 y 390): estados 1a a 1f, 2a, 2b y 3, 401/403/CORS/sin red/sin JSON, `cache_control`, `cx` guardado y sincronizado, re-análisis, gasto aproximado y sin nombres de proveedor visibles; capturas en `docs/capturas/claude-partidas/` |
 | `historial.py` | Partidas de Casilla en Partidas, evaluación en segundo plano, puzzles con sus errores, sync |
 | `bar.py` | Barra de evaluación |
 | `mobile.py` | Auditoría de móvil (desbordes, tamaños táctiles) |
