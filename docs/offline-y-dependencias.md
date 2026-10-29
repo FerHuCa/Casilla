@@ -30,4 +30,6 @@ Dependencias externas (por CDN, sin instalar nada):
 - La captura se lee como cuadrícula tal como se ve (filas de arriba a abajo) más qué bando está abajo; `boardFromRead` la convierte a casillas. La lectura puede fallar: el editor siempre se abre para revisar.
 - La API pública de Chess.com no da partidas por número: `findChessComGame` recorre el archivo mensual de un jugador del más nuevo al más viejo y corta cuando los números de partidas en vivo del mes ya son menores.
 - Las capturas no se guardan en `S`.
+- Comentario de partida y ejercicios de tus errores con IA: ver `docs/claude-partidas.md` (modelo Sonnet 5.5, `cx`, prompt caching, gasto aproximado y qué errores se pueden distinguir). Sin red, el bloque muestra el aviso 1f.
+- En la interfaz no se ven los nombres «Claude», «Anthropic» ni «Stockfish» (solo el crédito del pie); se dice «IA», «proveedor de IA» y «el motor».
 

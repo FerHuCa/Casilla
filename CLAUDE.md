@@ -36,4 +36,5 @@ Chequeo rápido de sintaxis:
 - `docs/offline-y-dependencias.md`: service worker, precache, CDNs, memoria de puzzles y Claude en el análisis.
 - `docs/apariencia.md`: presets, tableros, piezas y contraste.
 - `docs/pruebas.md`: qué cubre cada prueba de `tests/`.
+- `docs/claude-partidas.md`: comentario de partida y ejercicios de tus errores con IA (`cx`, caché, gasto, errores de clave).
 - `docs/pendientes.md`: pendientes conocidos.

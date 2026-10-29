@@ -26,7 +26,7 @@ Dirección alternativa: https://ferhuca.github.io/Casilla/
 
 ### Sin conexión
 
-Después de abrir casilla.io (o la dirección de GitHub Pages) una vez con internet, la app queda guardada en tu navegador y abre sin señal, por ejemplo en modo avión. Sin conexión puedes jugar contra el motor en la Escalera, analizar posiciones, revisar y analizar las partidas que ya cargaste en Partidas y resolver puzzles guardados. Con red, la app guarda en segundo plano 200 puzzles de Lichess en tu navegador (50 de ellos con los temas de tu etapa de la Ruta), sin ráfagas y respetando los límites de su API. Los de Chess.com no se guardan porque sus condiciones de uso no permiten copiar su contenido fuera de la caché temporal del navegador. Los que resuelves se borran y se reponen al volver la red. Sin conexión, Puzzles y la Táctica de la etapa usan esos guardados; solo se desactiva lo que no esté guardado (Chess.com siempre, y Lichess mientras no haya guardados). Lo demás que depende de internet no funciona hasta que vuelva la red: cargar partidas nuevas de Chess.com, la sincronización y los comentarios de Claude. Un aviso arriba lo indica y la píldora dice «Sin conexión». El maestro sigue jugando con sus frases integradas y Claude vuelve solo al reconectar. Cuando hay una versión nueva, la app pregunta «Hay una versión nueva.» con **Actualizar** (recarga ya) y **Ahora no** (se aplica la próxima vez que abras Casilla). El pie de página muestra la versión instalada. El modo sin conexión no aplica si abres `index.html` con doble clic.
+Después de abrir casilla.io (o la dirección de GitHub Pages) una vez con internet, la app queda guardada en tu navegador y abre sin señal, por ejemplo en modo avión. Sin conexión puedes jugar contra el motor en la Escalera, analizar posiciones, revisar y analizar las partidas que ya cargaste en Partidas y resolver puzzles guardados. Con red, la app guarda en segundo plano 200 puzzles de Lichess en tu navegador (50 de ellos con los temas de tu etapa de la Ruta), sin ráfagas y respetando los límites de su API. Los de Chess.com no se guardan porque sus condiciones de uso no permiten copiar su contenido fuera de la caché temporal del navegador. Los que resuelves se borran y se reponen al volver la red. Sin conexión, Puzzles y la Táctica de la etapa usan esos guardados; solo se desactiva lo que no esté guardado (Chess.com siempre, y Lichess mientras no haya guardados). Lo demás que depende de internet no funciona hasta que vuelva la red: cargar partidas nuevas de Chess.com, la sincronización y los comentarios con IA. Un aviso arriba lo indica y la píldora dice «Sin conexión». El maestro sigue jugando con sus frases integradas y Claude vuelve solo al reconectar. Cuando hay una versión nueva, la app pregunta «Hay una versión nueva.» con **Actualizar** (recarga ya) y **Ahora no** (se aplica la próxima vez que abras Casilla). El pie de página muestra la versión instalada. El modo sin conexión no aplica si abres `index.html` con doble clic.
 
 Para mover una pieza, arrástrala, o toca la pieza y luego la casilla de destino. Al coronar, elige la pieza en el selector que aparece sobre el tablero.
 
@@ -75,7 +75,7 @@ La etapa se elige sola según tu nivel estimado, o la eliges tú. Cada etapa mue
 - **Partida seria:** sin ayudas. Los errores se repasan al final y el resultado cuenta para tu rating con el maestro.
 - Los errores de cada partida se guardan en tus puzzles de **Mis errores**.
 
-**Comentarios con Claude (opcional):** sin configurar nada, el maestro comenta con frases armadas a partir de Stockfish. Si pegas tu propia clave de la API de Anthropic en la pestaña Maestro, Claude reescribe cada comentario y la evaluación final en lenguaje natural.
+**Comentarios con IA (opcional):** sin configurar nada, el maestro comenta con frases armadas a partir de Stockfish. Si pegas tu propia clave de la API de Anthropic (Claude) en la pestaña Maestro, sección «Comentarios con IA (opcional)», la IA reescribe cada comentario en lenguaje natural. El comentario de una partida completa nunca se pide solo: lo pides con **Comentar partida con IA**. En la app se habla de «la IA» y «el motor», sin nombres de proveedor. Para conseguir la clave, ve a [Clave de IA](#clave-de-ia).
 - Claude solo redacta. Las jugadas, las líneas y las evaluaciones siempre vienen de Stockfish.
 - Hay dos modelos que eliges por separado: uno para comentar tus partidas y otro para el análisis con el Maestro y la lectura de capturas.
 - Para comentar partidas se recomienda **Claude Haiku 5.5**, que cuesta menos de un centavo de dólar por partida. **Claude Sonnet 5.5** da explicaciones algo más finas y cuesta varias veces más.
@@ -85,7 +85,18 @@ La etapa se elige sola según tu nivel estimado, o la eliges tú. Cada etapa mue
   - **Preciso (Claude Opus 5.5):** de 5 a 8 centavos. Recomendado si subes capturas.
   Son estimaciones con los precios de Anthropic; el costo real depende de cuánto piense el modelo.
 - **Probar conexión** revisa los dos modelos.
-- Cada persona que use la app necesita su propia clave. Puedes obtenerla en https://console.anthropic.com/settings/keys
+- Cada persona que use la app necesita su propia clave. Puedes obtenerla en https://platform.claude.com/settings/keys
+- **Gasto aproximado:** debajo de la clave, Maestro muestra cuántas partidas comentaste, cuántos ejercicios tuvieron pista, los tokens y un total aproximado en dólares. Se calcula en tu navegador con el uso que reporta la API y las tarifas guardadas en Casilla; no incluye otros dispositivos. El gasto real está en la consola de Anthropic (**Ver gasto real en la consola**, https://platform.claude.com/cost). **Reiniciar contador** lo pone en cero.
+
+#### Clave de IA
+
+1. Entra a https://platform.claude.com con tu cuenta (o la que te compartió quien administra la organización) y abre **API keys**.
+2. Pulsa **Create key**, ponle un nombre (por ejemplo «Casilla, mi celular») y, si te deja, elige un workspace con límite de gasto y una fecha de vencimiento.
+3. Copia la clave completa (empieza con `sk-ant-`). Solo se muestra una vez.
+4. En Casilla, abre **Maestro**, baja a **Comentarios con IA (opcional)**, pégala en **Clave de la API** y pulsa **Probar conexión**.
+5. La clave se queda solo en ese navegador: no se sincroniza ni va en los respaldos. Pégala en cada navegador donde quieras usar la IA.
+
+Si **Probar conexión** o una partida dice que el servicio rechazó la clave (error 401), revisa que la copiaste completa o crea otra. Si dice que no dio permiso (error 403, o 401 por la configuración de la organización), la clave existe pero no puede usarse desde el navegador o para ese modelo: revísalo en la consola. Nunca compartas tu clave por correo ni en un grupo; si se filtra, revócala en la consola.
 
 ### Análisis con el Maestro
 Abre cualquier posición o partida y pídele al Maestro que te la explique. Se llega desde **Posiciones > Importar**, desde **Analizar una posición** en la pestaña Maestro, desde **Maestro** al revisar una partida de Chess.com y desde cualquier botón **Analizar** de la app.
@@ -111,7 +122,7 @@ Con la IA activada, el Maestro escribe en lenguaje natural y puedes hacerle **pr
 Al terminar una partida de la escalera, contra el maestro o desde una posición, Stockfish revisa todas las jugadas de ambos lados. Tarda de 20 a 30 segundos y mientras tanto puedes seguir en la pantalla de resultado. Si sales o empiezas otra partida, la evaluación no se pierde: sigue en segundo plano (se pausa mientras juegas) y te avisa cuando termina. Después, **Ver evaluación completa** muestra:
 - **Resumen:** tu precisión y la de tu rival, tus errores graves, errores e imprecisiones, y una gráfica de la evaluación con tus errores marcados. Toca un punto para ir a ese momento.
 - **Jugada a jugada:** con **Siguiente**, las flechas del teclado o tocando una jugada de la lista, recorres la partida una jugada a la vez. Cada jugada, tuya o de tu rival, trae su comentario: si fue la mejor, teoría, buena, imprecisión, error, error grave, oportunidad perdida o si permite mate; qué hizo (captura, jaque, ataque o amenaza nueva); cómo cambió la evaluación desde tu lado; y, si no fue la mejor, cuál era y por qué. En el celular el comentario aparece debajo del tablero.
-- **Comentario del maestro:** cómo saliste de la apertura, el momento decisivo, oportunidades que no aprovechaste, tu precisión por fase y si apareció tu patrón de error más frecuente.
+- **Comentario de la IA:** arriba dice de dónde viene la partida (por ejemplo «Jugada en Casilla · Contra el maestro · fecha», con la apertura si se reconoce, o «Desde una posición»). Sin comentario muestra el **comentario del maestro (sin IA)**: cómo saliste de la apertura, el momento decisivo, oportunidades que no aprovechaste, tu precisión por fase y si apareció tu patrón de error más frecuente. Con tu clave, **Comentar partida con IA** funciona igual que en las partidas de Chess.com (resumen, un comentario por error, **Volver a comentar**, **Borrar comentario**) y deja **Repasar estos errores como puzzles** dentro del bloque. Nunca se pide solo.
 - **Momentos clave, explicados a fondo:**
   1. Qué pasó.
   2. De dónde viene el error: una amenaza que ya existía, la pieza que defendía y moviste, una casilla atacada, el escudo de tu rey o una pieza que quedó pasiva.
@@ -128,7 +139,7 @@ Las explicaciones detectan bien amenazas previas, piezas sin defensa, ataques do
 ### Puzzles
 - **Lichess:** puzzles por tema (mate en 2, ataque doble, clavada, finales y más) ajustados a tu nivel.
 - **Chess.com:** puzzles diarios de su archivo.
-- **Mis errores:** posiciones de tus propias partidas donde fallaste, tanto de Chess.com como de las que juegas en Casilla. Al terminar cada uno ves qué jugaste en la partida, de dónde vino el error y la idea de la mejor jugada. Si el error es de una partida jugada aquí, **Ver la partida** abre su evaluación en ese momento.
+- **Mis errores:** posiciones de tus propias partidas donde fallaste, tanto de Chess.com como de las que juegas en Casilla. Al terminar cada uno ves qué jugaste en la partida, de dónde vino el error y la idea de la mejor jugada. Si el error es de una partida jugada aquí, **Ver la partida** abre su evaluación en ese momento. Con tu clave de IA, **Ver pista** muestra una pista escrita por la IA antes de resolver (cuenta como ayuda, igual que la pista del motor) (se anota como ayuda al terminar: no suma rating) y al terminar **Ver explicación de la IA** la pide; nunca se consulta sola. Si comentaste la partida con IA, la pista y la explicación ya están guardadas y no se vuelve a consultar. El ejercicio siempre se resuelve contra la mejor jugada del motor y sigue en el repaso espaciado.
 - **Repaso:** tus errores con repaso espaciado. Si aciertas al primer intento, la posición vuelve en 1, 3, 7, 14 y 30 días; si fallas, vuelve al día siguiente. Entran hasta 10 errores nuevos por día, los más costosos primero. Cualquier puzzle de Mis errores cuenta para este calendario.
 - **Combinado:** mezcla Lichess, Chess.com y tus errores.
 
@@ -151,6 +162,8 @@ El tema **Recomendado para ti** elige puzzles según tus errores más frecuentes
 No pide contraseña: solo lee tus datos públicos. Tus partidas en Chess.com ya son públicas por defecto, así que no tienes que cambiar nada.
 
 Al abrir una partida ves cada jugada marcada como imprecisión, error o error grave, tu precisión aproximada y tus errores clasificados: pieza colgada, táctica no vista, mate no visto, permitió mate o error posicional. El botón **Evaluación a fondo** abre la misma evaluación completa que recibes al terminar una partida en la app.
+
+**Comentario de la IA (opcional, con tu clave):** arriba de Momentos clave, **Comentar partida con IA** envía en una sola consulta la partida con las evaluaciones del motor y tus errores. La IA escribe un resumen y un comentario por cada error, con **Ver en el tablero** para ir a esa jugada. La IA solo redacta: las jugadas y evaluaciones son del motor, y el texto puede tener errores. Usa Sonnet 5.5 y cuesta menos de 5 centavos de dólar por partida; el costo aproximado de cada comentario aparece debajo. Puedes cancelar mientras escribe, **Volver a comentar** o **Borrar comentario**. El comentario se guarda con el análisis (se conserva si vuelves a analizar la partida) y se sincroniza; la clave no. **Borrar comentario** también se sincroniza: otro dispositivo con el comentario viejo no lo trae de vuelta. Si falta la clave, la clave no sirve o no hay conexión, el bloque lo dice y te lleva a la clave.
 
 ### Apariencia
 El botón **Apariencia** abre un panel con 11 estilos completos. Cada uno combina tema, tablero, piezas, letra y estilo de botones, y el cambio se ve al instante:
@@ -226,7 +239,7 @@ Para evitar todo esto, activa la [sincronización](#sincronizar-entre-computador
 - **Chess.com:** la app solo lee la API pública con tu nombre de usuario. No pide contraseña ni puede modificar nada en tu cuenta.
 - **Lichess:** se piden puzzles de forma anónima y, si pegas el link de una partida, su PGN.
 - **GitHub:** solo si activas la sincronización. Tu progreso se guarda en un gist secreto de tu cuenta.
-- **Anthropic:** solo si activas Claude. Se envían las posiciones y los datos de Stockfish de cada comentario o análisis, tus preguntas al Maestro, las capturas que subes para leer y tu nivel estimado con tus errores más comunes. Las capturas no se guardan en la app ni en los respaldos. La clave va directo de tu navegador a Anthropic.
+- **Anthropic:** solo si activas Claude. Se envían las posiciones y los datos de Stockfish de cada comentario o análisis, tus preguntas al Maestro, las capturas que subes para leer y tu nivel estimado con tus errores más comunes. Si comentas una partida con IA, se envían sus jugadas con las evaluaciones del motor, el rival, el resultado y tus errores. Las capturas no se guardan en la app ni en los respaldos. La clave va directo de tu navegador a Anthropic.
 - Nada más sale de tu navegador. Cada persona que abre la app empieza de cero y nadie ve el progreso de otros.
 
 ## Si algo no funciona

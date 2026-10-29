@@ -38,13 +38,13 @@ with sync_playwright() as p:
     check('Haiku: encabezados de la API', h.get('x-api-key') == 'sk-ant-prueba' and h.get('anthropic-version') == '2023-06-01' and h.get('anthropic-dangerous-direct-browser-access') == 'true')
     check('modelo enviado', body.get('model') == 'claude-haiku-5-5')
     pg.select_option('#aimodel','claude-sonnet-5-5'); pg.select_option('#aimodel2','claude-sonnet-5-5'); out, calls = test(); h, body = calls[-1]
-    check('Sonnet: conexión correcta', 'Conexión correcta con claude-sonnet-5-5' in out)
+    check('Sonnet: conexión correcta', 'Conexión correcta con Sonnet 5.5' in out)
     check('Sonnet: between_tools', body.get('thinking') == {'type':'between_tools'})
     # Opus 5.5 para análisis: la prueba revisa los dos modelos; Opus no acepta apagar el pensamiento
     pg.select_option('#aimodel2','claude-opus-5-5'); out, calls = test()
     print(' ', out)
     ob = [c[1] for c in calls if c[1]['model'] == 'claude-opus-5-5']
-    check('prueba ambos modelos si son distintos', len(calls) == 2 and 'claude-opus-5-5 también responde' in out)
+    check('prueba ambos modelos si son distintos', len(calls) == 2 and 'Opus 5.5 también responde' in out)
     check('Opus: sin "thinking", esfuerzo bajo y espacio para pensar', ob and 'thinking' not in ob[0] and ob[0].get('output_config') == {'effort':'low'} and ob[0]['max_tokens'] >= 4000)
     pg.select_option('#aimodel2','claude-sonnet-5-5')
     MODE['v']='reject'; out, calls = test()
@@ -57,15 +57,18 @@ with sync_playwright() as p:
     print(' ', out)
     check('clave inválida se reporta', 'No se pudo conectar: invalid x-api-key' in out)
     check('la clave no queda en el respaldo', pg.evaluate("(()=>{ const c = JSON.parse(JSON.stringify(S)); return !!(stripForSync(c).settings.claude); })()") is False)
-    # Opción B: Claude, Anthropic y Stockfish solo aparecen en los ajustes de IA (y Stockfish en el crédito del pie)
+    # Claude, Anthropic y Stockfish no aparecen en ningún texto visible, tampoco en la sección de la clave, las opciones de modelo,
+    # los resultados de «Probar conexión» ni los atributos title, aria-label y placeholder. Única excepción: el crédito del pie.
     import re as _re
     for tab in ['ladder','puzzles','positions','games','progress','coach']:
         pg.click(f'.tab[data-tab={tab}]'); time.sleep(.4)
+        if tab == 'coach': MODE['v']='ok'; test()
         txt=pg.evaluate("""(()=>{ const c = document.body.cloneNode(true); c.querySelectorAll('footer,script,style,#look').forEach(e=>e.remove());
-          const side = c.querySelector('#side'); if(side){ const h = [...side.querySelectorAll('h3')].find(x => /Comentarios con Claude/.test(x.textContent)); if(h){ let n = h; while(n){ const nx = n.nextSibling; n.remove(); n = nx; } } }
-          return c.innerText; })()""")
+          return c.innerText + ' ' + [...document.querySelectorAll('option,button,[title],[aria-label],[placeholder]')].filter(e => !e.closest('footer,#look'))
+            .map(e => (e.tagName==='OPTION' ? e.textContent : '') + ' ' + (e.title||'') + ' ' + (e.getAttribute('aria-label')||'') + ' ' + (e.placeholder||'')).join(' '); })()""")
         hits=_re.findall(r'(?i)claude|anthropic|stockfish', txt)
-        check(f'sin menciones de Claude/Anthropic/Stockfish fuera de los ajustes de IA ({tab})', not hits)
+        check(f'sin menciones de Claude/Anthropic/Stockfish visibles ({tab})', not hits)
+        if hits: print('   ', set(hits))
     check('crédito de Stockfish en el pie', 'Stockfish' in pg.inner_text('footer') and 'GPL' in pg.inner_text('footer'))
     b.close()
 print('\nRESULTADO:', 'todo bien' if not fails else 'fallas: ' + ', '.join(fails))
