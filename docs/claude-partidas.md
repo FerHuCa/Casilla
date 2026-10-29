@@ -1,5 +1,7 @@
 # Comentarios de partida y ejercicios de tus errores con IA
 
+Nota técnica (desarrollo). La guía para usuarios, sin nombres de proveedor ni de motor, está en [comentarios-ia.md](comentarios-ia.md).
+
 Rama `feat/claude-partidas`. Mockups aprobados el 28 oct 2026 (1a a 1f, 2a, 2b, 3 y móvil 1c), con los cambios de Fernando: pista detrás de «Ver pista», nota de autoría, gasto marcado «aproximado», «Volver a comentar» y «Borrar comentario», y ningún nombre de proveedor visible.
 
 ## Lo que ya funcionaba en main (7bda07f) para «Mis errores»
