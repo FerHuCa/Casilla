@@ -822,6 +822,8 @@ footer a{color:inherit}
 .cl-box{border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin:14px 0}
 .cl-box h3{margin-top:0}
 .cl-meta{font-size:13px;color:var(--muted);margin-top:10px}
+.cl-src{font-size:12px;color:var(--muted);margin:-6px 0 10px}
+.btn[hidden]{display:none}
 .cl-err{border-left:3px solid var(--muted);padding:10px 14px;margin:14px 0;background:var(--accentSoft)}
 .cl-err b{display:block;margin-bottom:4px}
 .cl-moment{padding:10px 0;border-top:1px solid var(--line)}
@@ -2292,8 +2294,17 @@ function spendHTML(){
   return '<div class="cl-box" id="spend"><h3>Gasto aproximado en este navegador</h3><div class="cl-spend"><span>Partidas comentadas</span><span>' + g.games + '</span><span>Ejercicios con pista</span><span>' + g.ex + '</span>' +
     '<span>Tokens (entrada / salida)</span><span>' + k(g.inTok) + ' / ' + k(g.outTok) + '</span><span><b>Total aproximado</b></span><span><b>' + fmtUSD(g.usd) + '</b></span></div>' +
     '<p class="note">Se calcula con el uso que reporta la API y la tarifa por millón de tokens guardada en Casilla (' + aiModelName(m) + ': US$' + p[0] + ' entrada, US$' + p[3] + ' salida). Cuenta todas las consultas con IA de este navegador. No incluye otros dispositivos; el gasto real está en la consola de tu proveedor de IA.</p>' +
-    '<div class="row"><button class="btn small" id="spendReset">Reiniciar contador</button><a href="https://console.anthropic.com/usage" target="_blank" rel="noopener">Ver gasto real en la consola</a></div></div>';
+    '<div class="row"><button class="btn small" id="spendReset">Reiniciar contador</button><a href="https://platform.claude.com/cost" target="_blank" rel="noopener">Ver gasto real en la consola</a></div></div>';
 }
+// Comentario con IA y su marca de borrado (cxDel = cuándo se borró). Al juntar copias gana lo más reciente:
+// el cx sobrevive solo si se escribió después del último borrado; si no, queda la marca para que no reviva.
+function cxPick(list){
+  let cx = null, del = 0;
+  list.forEach(x => { if(!x) return; if(x.cx && (!cx || (x.cx.at || 0) > (cx.at || 0))) cx = x.cx; if((x.cxDel || 0) > del) del = x.cxDel; });
+  if(cx && (cx.at || 0) <= del) cx = null;
+  return {cx, del};
+}
+function cxApply(dst, r){ delete dst.cx; delete dst.cxDel; if(r.cx) dst.cx = JSON.parse(JSON.stringify(r.cx)); else if(r.del) dst.cxDel = r.del; }
 function clipText(s, n){ s = ClaudeAI.clean(String(s || '')); if(s.length <= n) return s; const c = s.slice(0, n); return c.slice(0, Math.max(c.lastIndexOf(' '), n - 40)) + '…'; }
 // Etiqueta de una jugada como en los mockups: 5.exd5 para blancas, 5…Nxd5 para negras
 function moveTag(fen, san){ const p = fen.split(' '); return (+p[5] || 1) + (p[1] === 'w' ? '.' : '…') + san; }
@@ -2386,8 +2397,8 @@ const GameAI = {
       const cur = S.analyses[gid]; if(!cur) return;
       const usage = d.usage ? {input_tokens:d.usage.input_tokens || 0, output_tokens:d.usage.output_tokens || 0, cache_creation_input_tokens:d.usage.cache_creation_input_tokens || 0, cache_read_input_tokens:d.usage.cache_read_input_tokens || 0} : null;
       const at = Date.now();
-      cur.cx = {summary, model, at, usage, usd:usageCost(model, usage)};
-      (cur.mistakes || []).forEach(m => { const x = errs[String(m.ply)]; if(!x) return; const text = clipText(x.comentario, 700), hint = clipText(x.pista, 300); if(text || hint) m.cx = {hint, text, model, at}; });
+      cur.cx = {summary, model, at, usage, usd:usageCost(model, usage)}; delete cur.cxDel;
+      (cur.mistakes || []).forEach(m => { const x = errs[String(m.ply)]; if(!x) return; const text = clipText(x.comentario, 700), hint = clipText(x.pista, 300); if(text || hint){ m.cx = {hint, text, model, at}; delete m.cxDel; } });
       AISpend.count('game'); ClaudeAI.lastError = null; save();
       if(this.jobs[gid] === job) delete this.jobs[gid];
     }catch(e){
@@ -2400,7 +2411,9 @@ const GameAI = {
   cancel(gid){ const j = this.jobs[gid]; if(j && j.ctl) j.ctl.abort(); delete this.jobs[gid]; this.paint(gid); },
   remove(gid){
     const an = S.analyses[gid]; if(!an) return;
-    delete an.cx; (an.mistakes || []).forEach(m => { delete m.cx; }); save(); this.paint(gid);
+    // Marca de borrado en la partida y en cada error (también pistas de ejercicios): la sincronización la respeta
+    const at = Date.now();
+    delete an.cx; an.cxDel = at; (an.mistakes || []).forEach(m => { delete m.cx; m.cxDel = at; }); save(); this.paint(gid);
   },
   // Pista y explicación de un error suelto (ejercicio de Mis errores). Se guardan en m.cx.
   exercise(m){
@@ -2411,7 +2424,7 @@ const GameAI = {
       const d = await ClaudeAI.post(body);
       const j = this.parse(ClaudeAI.textOf(d, true)), hint = clipText(j.pista, 300), text = clipText(j.explicacion, 900);
       if(!hint && !text) throw this.parse('');
-      m.cx = {hint, text, model, at:Date.now()}; AISpend.count('ex'); ClaudeAI.lastError = null; save();
+      m.cx = {hint, text, model, at:Date.now()}; delete m.cxDel; AISpend.count('ex'); ClaudeAI.lastError = null; save();
       return m.cx;
     })();
     this.exJobs[m.id] = run;
@@ -2434,7 +2447,15 @@ const GameAI = {
     const t = T || ['La IA no pudo comentar la partida', '', retry(true)];
     return '<div class="cl-box"><h3>Comentario de la IA</h3><div class="cl-err" role="alert"><b>' + t[0] + '</b>' + t[1] + '</div><div class="row">' + t[2] + '</div></div>';
   },
-  html(gid){
+  // ctx (partidas jugadas en Casilla, 4a y 4b): {origin: línea de origen, local: comentario del maestro sin IA, train: botón de repaso}
+  html(gid, ctx){
+    ctx = ctx || {};
+    const out = this.inner(gid, ctx), an = S.analyses[gid];
+    if(!out || !(ctx.origin || ctx.local)) return out;
+    const loc = !an.cx && ctx.local && ctx.local.length ? ctx.local.map((t, i) => '<p class="note">' + (i ? '' : 'Comentario del maestro (sin IA): ') + esc(t) + '</p>').join('') : '';
+    return out.replace('<h3>Comentario de la IA</h3>', '<h3>Comentario de la IA</h3>' + (ctx.origin ? '<p class="cl-src">' + esc(ctx.origin) + '</p>' : '') + loc);
+  },
+  inner(gid, ctx){
     const an = S.analyses[gid]; if(!an) return '';
     const job = this.jobs[gid];
     if(job && job.state === 'loading') return '<div class="cl-box cl-load" aria-busy="true"><h3>Comentario de la IA</h3><p>La IA está leyendo la partida y el análisis del motor.</p><div class="prog"><i></i></div><p class="note">Suele tardar entre 10 y 20 segundos. Puedes seguir revisando la partida mientras tanto.</p><div class="row"><button class="btn small" id="clCancel">Cancelar</button></div></div>';
@@ -2446,20 +2467,26 @@ const GameAI = {
       return '<div class="cl-box"><h3>Comentario de la IA</h3>' + (an.cx.summary || []).map(p => '<p>' + esc(p) + '</p>').join('') +
         ms.map(m => '<div class="cl-moment"><span class="mv">' + esc(moveTag(m.fen, m.played)) + '</span> <span class="note">' + this.sev(an, m) + '</span><p>' + esc(m.cx.text) + '</p><button class="btn small" data-clgo="' + m.ply + '">Ver en el tablero</button></div>').join('') +
         '<p class="cl-meta">Escrito por IA a partir del análisis del motor; el texto puede tener errores. Las jugadas y evaluaciones son del motor.' + (an.cx.usage ? ' Costo aprox. de este comentario: ' + fmtUSD(an.cx.usd || 0) + '.' : '') + '</p>' +
-        '<div class="row"><button class="btn small" id="clAgain">Volver a comentar</button><button class="btn small" id="clDel">Borrar comentario</button></div></div>';
+        '<div class="row"><button class="btn small" id="clAgain">Volver a comentar</button><button class="btn small" id="clDel">Borrar comentario</button></div>' +
+        (ctx.train ? '<div class="row"><button class="btn small primary" id="clTrain">Repasar estos errores como puzzles</button></div>' : '') + '</div>';
     }
+    if(ctx.local) return '<div class="cl-box"><h3>Comentario de la IA</h3><p class="note">La IA puede escribir un comentario más completo a partir del análisis del motor. Usa tu clave; costo aproximado: ' + this.costText() + ' con ' + aiModelName(this.model()) + '.</p><div class="row" style="margin-top:14px"><button class="btn primary" id="clGo">Comentar partida con IA</button></div></div>';
     return '<div class="cl-box"><h3>Comentario de la IA</h3><p class="note">La IA redacta un resumen y comenta los momentos clave a partir del análisis del motor. Usa tu clave; costo aproximado: ' + this.costText() + ' con ' + aiModelName(this.model()) + '.</p><div class="row" style="margin-top:14px"><button class="btn primary" id="clGo">Comentar partida con IA</button></div></div>';
   },
-  // Repinta el bloque si la partida está en pantalla (ReviewSession con #clbox)
+  // Repinta el bloque si la partida está en pantalla (ReviewSession o EvalSession de una partida de Casilla, con #clbox)
   paint(gid){
-    const box = $('#clbox'), s = App.session; if(!box || box.dataset.gid !== gid || !(s instanceof ReviewSession)) return;
-    box.innerHTML = this.html(gid);
+    const box = $('#clbox'), s = App.session; if(!box || box.dataset.gid !== gid || !(s instanceof ReviewSession || s instanceof EvalSession)) return;
+    const ctx = s.aiCtx ? s.aiCtx() : {};
+    box.innerHTML = this.html(gid, ctx);
+    const tr = $('#clTrain', box); if(tr && ctx.onTrain) tr.onclick = ctx.onTrain;
+    // Con comentario, «Repasar estos errores como puzzles» vive dentro del bloque (4a): no se repite en «Qué entrenar»
+    const te = $('#trErr'); if(te && s.aiCtx) te.hidden = !!ctx.train;
     const go = $('#clGo', box); if(go) go.onclick = () => this.comment(s.aiGame());
     const ag = $('#clAgain', box); if(ag) ag.onclick = () => this.comment(s.aiGame());
     const cn = $('#clCancel', box); if(cn) cn.onclick = () => this.cancel(gid);
     const dl = $('#clDel', box); if(dl) dl.onclick = () => this.remove(gid);
     const ky = $('#clKey', box); if(ky) ky.onclick = () => { delete this.jobs[gid]; goToAIKey(); };
-    $$('[data-clgo]', box).forEach(b => b.onclick = () => { s.go(+b.dataset.clgo); revealBoard(); });
+    $$('[data-clgo]', box).forEach(b => b.onclick = () => { if(s.aiSee) s.aiSee(+b.dataset.clgo); else s.go(+b.dataset.clgo); revealBoard(); });
   }
 };
 // Guía corta para conseguir la clave (README)
@@ -2803,13 +2830,13 @@ function saveEvaluation(d, E){
   const mistakes = E.per.filter(p => p.color === uc && p.drop >= 20 && p.before > -600 && E.best[p.i]).map(p => ({
     id:d.gid + '#' + (p.i+1), gid:d.gid, ply:p.i+1, fen:E.fens[p.i], played:p.san, playedUci:p.uci, best:E.best[p.i], bestSan:p.bestSan,
     drop:Math.round(p.drop), before:p.before, cat:categorize(E, p.i), phase:p.phase, date, opp:d.opp, color:uc}));
-  const prevExp = {}, prevCx = {}; ((S.analyses[d.gid] || {}).mistakes || []).forEach(m => { if(m.exp) prevExp[m.id] = m.exp; if(m.cx) prevCx[m.id] = m.cx; });
-  mistakes.forEach(m => { if(prevExp[m.id]) m.exp = prevExp[m.id]; if(prevCx[m.id]) m.cx = prevCx[m.id]; });
-  const prevGameCx = (S.analyses[d.gid] || {}).cx;
+  const prevExp = {}, prevCx = {}; ((S.analyses[d.gid] || {}).mistakes || []).forEach(m => { if(m.exp) prevExp[m.id] = m.exp; if(m.cx || m.cxDel) prevCx[m.id] = m; });
+  mistakes.forEach(m => { if(prevExp[m.id]) m.exp = prevExp[m.id]; if(prevCx[m.id]) cxApply(m, cxPick([prevCx[m.id]])); });
+  const prevGame = S.analyses[d.gid];
   // best y pv permiten reabrir la evaluación completa sin volver a calcularla
   S.analyses[d.gid] = {v:1, src:d.kind, acc:E.userAcc || 0, w:E.W, tags, cnt:E.cnt, mistakes, mt:S.settings.evalTime || 450, deep:true,
     best:E.fens.map((f, i) => E.best[i] || null), pv:E.fens.map((f, i) => (E.pv[i] || []).slice(0, 10))};
-  if(prevGameCx) S.analyses[d.gid].cx = prevGameCx;
+  if(prevGame) cxApply(S.analyses[d.gid], cxPick([prevGame]));
   // Las partidas jugadas en Casilla entran al historial cuando su evaluación termina
   if(d.kind !== 'chesscom'){
     const rec = {id:d.gid, src:'casilla', kind:d.kind || 'partida', title:d.title || '', opp:d.opp || '', user:uc, start:d.startFen, sans:E.moves.map(m => m.san),
@@ -3143,8 +3170,8 @@ class EvalSession{
       '</div>' +
       '<div id="egraph" class="egwrap"></div><p class="note">Evaluación desde el lado de las blancas. Los puntos marcan tus errores: tócalos para ir a ese momento.</p>' +
       '<div class="mvwrap"><h3>Jugada a jugada</h3><div id="mvnote" class="mvnote"></div></div>' +
-      '<h3>Comentario del maestro</h3><div class="narr" id="narr">' + E.narr.map(t => '<p>' + esc(t) + '</p>').join('') + '</div>' +
-      (E.narrAI ? '' : (ClaudeAI.ready() ? '<p class="note" id="narrai">Escribiendo un comentario…</p>' : '')) +
+      // Partidas jugadas en Casilla con su análisis guardado: bloque «Comentario de la IA» con botón (4a, 4b). Sin comentario automático.
+      (this.aiOn() ? '<div id="clbox" data-gid="' + esc(d.gid) + '"></div>' : '<h3>Comentario del maestro</h3><div class="narr" id="narr">' + E.narr.map(t => '<p>' + esc(t) + '</p>').join('') + '</div>') +
       '<h3>Momentos clave</h3>' + (E.moments.length ? '<div class="moments">' + E.moments.map(m =>
         '<details class="moment ' + m.sev + '" data-i="' + m.i + '"' + (this.open === m.i ? ' open' : '') + '><summary>' + esc(m.title) + '</summary>' +
         m.sections.map(([h, body, raw]) => '<h4>' + esc(h) + '</h4>' + (raw ? body : '<p>' + esc(body) + '</p>')).join('') +
@@ -3152,7 +3179,7 @@ class EvalSession{
         '<div class="row"><button class="btn small" data-see="' + m.i + '">Ver en el tablero</button>' + (m.type !== 'good' ? '<button class="btn small" data-mine="' + m.i + '">Ver tu jugada</button>' : '') + '<button class="btn small" data-best="' + m.i + '">Ver la mejor línea</button></div></details>').join('') + '</div>'
         : '<p class="note">No hubo errores importantes. Buena partida.</p>') +
       '<h3>Qué entrenar</h3><div class="row">' +
-        (todayCats.length ? '<button class="btn small primary" id="trErr">Repasar estos errores como puzzles</button>' : '') +
+        (todayCats.length ? '<button class="btn small primary" id="trErr"' + (this.aiTrain() ? ' hidden' : '') + '>Repasar estos errores como puzzles</button>' : '') +
         (todayCats.length && CAT_THEME[todayCats[0]] ? '<button class="btn small" id="trTheme">Puzzles: ' + esc((THEMES.find(t => t[0] === CAT_THEME[todayCats[0]]) || [0,''])[1]) + '</button>' : '') +
         (weakPhase && weakPhase[0] === 'Final' ? '<button class="btn small" id="trEnd">Entrenar finales</button>' : '') +
         (o.again ? '<button class="btn small" id="trAgain">Jugar otra</button>' : '') +
@@ -3169,35 +3196,43 @@ class EvalSession{
     $$('[data-see]').forEach(b => b.onclick = () => { this.go(+b.dataset.see, {moment:+b.dataset.see}); revealBoard(); });
     $$('[data-mine]').forEach(b => b.onclick = () => this.showLine(+b.dataset.mine, 'mine'));
     $$('[data-best]').forEach(b => b.onclick = () => this.showLine(+b.dataset.best, 'best'));
-    const te = $('#trErr'); if(te) te.onclick = () => { App.mineFocus = todayCats; App.puzzleSource = 'mine'; switchTab('puzzles'); };
+    const te = $('#trErr'); if(te) te.onclick = () => this.trainErrors();
     const tt = $('#trTheme'); if(tt) tt.onclick = () => { App.puzzleTheme = CAT_THEME[todayCats[0]]; App.puzzleSource = 'lichess'; switchTab('puzzles'); };
     const tn = $('#trEnd'); if(tn) tn.onclick = () => { App.posTab = 'finales'; switchTab('positions'); };
     const ta = $('#trAgain'); if(ta) ta.onclick = () => o.again();
     if(this.ply !== null) this.go(this.ply, this.focus !== null ? {moment:this.focus} : undefined);
     else if(this.open !== null && this.open >= 0) this.go(this.open, {moment:this.open});
     else this.go(E.fens.length - 1);
-    this.claudeNarrative();
+    if(this.aiOn()) GameAI.paint(d.gid);
     if(this.open !== null && this.open >= 0) this.claudeMoment(this.open);
   }
+  // Comentario con IA de partidas jugadas en Casilla: mismo bloque y datos (S.analyses[gid].cx) que en Chess.com
+  aiOn(){ const d = this.job.desc; return d.kind !== 'chesscom' && !!d.gid && !!S.analyses[d.gid]; }
+  aiTrain(){ const E = this.job.result; return this.aiOn() && !!S.analyses[this.job.desc.gid].cx && !!Object.keys((E && E.todayCats) || {}).length; }
+  trainErrors(){ App.mineFocus = Object.keys(this.job.result.todayCats || {}); App.puzzleSource = 'mine'; switchTab('puzzles'); }
+  // Línea de origen: «Jugada en Casilla · Contra el maestro · fecha · apertura», «… · Desde una posición (o el título) · fecha», o KIND_NAME
+  aiOrigin(){
+    const d = this.job.desc, fromStart = posKey(d.startFen || START_FEN) === posKey(START_FEN);
+    const t = d.title && d.title !== KIND_NAME[d.kind] ? d.title : '';
+    const what = !fromStart ? (t || 'Desde una posición') : (KIND_NAME[d.kind] || 'Partida');
+    const op = fromStart ? (openingOf(d.sans || []) || d.opening || '') : '';
+    return ['Jugada en Casilla', what, d.date ? fmtDate(d.date) : ''].concat(op ? [op] : []).filter(Boolean).join(' · ');
+  }
+  aiCtx(){
+    const E = this.job.result;
+    return {origin:this.aiOrigin(), local:(E && E.narr) || [], train:this.aiTrain(), onTrain:() => this.trainErrors()};
+  }
+  aiGame(){
+    const d = this.job.desc, E = this.job.result || {}, res = d.result && d.result.res, opp = d.opp || 'Motor';
+    const op = posKey(d.startFen || START_FEN) === posKey(START_FEN) ? openingOf(d.sans || []) : null;
+    return {gid:d.gid, start:d.startFen || START_FEN, sans:d.sans || [], info:{color:d.user, opp, result:res === 'w' ? (d.user === 'w' ? '1-0' : '0-1') : res === 'l' ? (d.user === 'w' ? '0-1' : '1-0') : res === 'd' ? '1/2-1/2' : '*',
+      res:res === 'w' ? 'ganó' : res === 'l' ? 'perdió' : res === 'd' ? 'tablas' : 'sin terminar', tc:'-', date:d.date ? new Date(d.date * 1000).toISOString().slice(0, 10) : '', opening:op || d.opening || '',
+      rating:playerModel().elo}};
+  }
+  // «Ver en el tablero» del comentario: m.ply es la posición después del error; el momento es la jugada m.ply - 1
+  aiSee(ply){ const i = ply - 1; this.open = i; this.go(i, {moment:i}); }
   // Salir no cancela: la evaluación termina en segundo plano y la partida entra al historial
   back(){ this.o.back ? this.o.back() : switchTab(App.tab); }
-  claudeNarrative(){
-    const E = this.job.result; if(!ClaudeAI.ready() || E.narrAI || E.narrPending) return;
-    E.narrPending = true; const tok = App.token;
-    ClaudeAI.queue = ClaudeAI.queue.then(async () => {
-      try{
-        const facts = {resultado:E.desc.result, precision_tuya:E.userAcc, precision_rival:E.oppAcc, precision_por_fase:E.phaseAcc, errores:E.cnt, momentos:(E.moments || []).map(m => m.facts), comentario_base:E.narr};
-        const txt = await ClaudeAI.ask(ClaudeAI.system({prof:playerModel()}) + ' Ahora haces la evaluación final de la partida: escribe de tres a cinco párrafos cortos que cuenten cómo fue la partida, el momento decisivo, qué patrón se repite y qué entrenar. Usa solo los datos que te doy.',
-          'Datos de la partida: ' + JSON.stringify(facts), 700);
-        E.narrAI = txt;
-      }catch(e){ ClaudeAI.lastError = e.message; E.narrAIError = e.message; }
-      E.narrPending = false;
-      if(tok !== App.token) return;
-      const n = $('#narr'), s = $('#narrai');
-      if(E.narrAI && n) n.innerHTML = E.narrAI.split(/\n\s*\n/).map(p => '<p>' + esc(p.trim()) + '</p>').join('') + '<p class="note">Comentario escrito a partir del análisis del motor.</p>';
-      if(s) s.textContent = E.narrAI ? '' : 'No hubo respuesta: ' + (E.narrAIError || '');
-    });
-  }
   claudeMoment(i){
     const E = this.job.result, m = (E.moments || []).find(x => x.i === i);
     if(!m || m.ai || m.aiPending || !ClaudeAI.ready()) return;
@@ -3477,7 +3512,7 @@ function renderCoachHome(){
     '<div class="field"><span class="lbl">Modelo para comentar tus partidas</span><select id="aimodel">' + CLAUDE_MODELS.map(([v,l]) => '<option value="' + v + '"' + (ai.model === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
     '<div class="field"><span class="lbl">Modelo para analizar posiciones y leer capturas</span><select id="aimodel2">' + ANA_OPTIONS.map(o => '<option value="' + o.id + '"' + (ClaudeAI.anaModel() === o.id ? ' selected' : '') + '>' + o.model + ': ' + o.name.toLowerCase() + ', ' + o.cost + '</option>').join('') + '</select>' +
       '<p class="note" style="margin-top:6px">' + (ai.anaModel ? '' : 'Todavía no eliges: mientras, el análisis usa el mismo modelo que los comentarios. ') + 'Costo aproximado en dólares por cada captura leída o explicación, con tu clave. Para leer capturas se recomienda Opus 5.5; Haiku puede equivocarse más.</p></div>' +
-    '<div class="row"><button class="btn small" id="aitest">Probar conexión</button><a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Obtener una clave</a></div><p class="note" id="aist" style="margin-top:8px">' + (ClaudeAI.lastError ? 'Último error de la IA: ' + esc(ClaudeAI.lastError) : '') + '</p>' + spendHTML();
+    '<div class="row"><button class="btn small" id="aitest">Probar conexión</button><a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Obtener una clave</a></div><p class="note" id="aist" style="margin-top:8px">' + (ClaudeAI.lastError ? 'Último error de la IA: ' + esc(ClaudeAI.lastError) : '') + '</p>' + spendHTML();
   const root = side();
   const prefs = () => S.settings.coachPrefs;
   bindSeg(root, 'cmode', v => { prefs().mode = v; save(); renderCoachHome(); });
@@ -3835,18 +3870,19 @@ class PuzzleSession{
   async aiHint(){
     const p = this.p; if(!p || p.src !== 'mine') return;
     const m = p.mistake;
-    // Ver la pista cuenta como ayuda, igual que la pista del motor
-    if(!p.done) this.fail(true);
+    // Ver la pista cuenta como ayuda (no suma rating), pero se anota al terminar: el aviso «-20» no aparece antes de resolver (mockup 2a)
+    if(!p.done) p.helped = true;
     if(m.cx && m.cx.hint){ p.aiHint = true; this.renderInfo(); return; }
     p.aiLoading = true; this.renderInfo();
     try{ await GameAI.exercise(m); if(this.p !== p || App.session !== this) return; p.aiHint = true; }
     catch(e){ if(this.p !== p || App.session !== this) return; p.aiErr = ClaudeAI.friendly(e); this.controls(); }
     p.aiLoading = false; this.renderInfo();
   }
-  // Al terminar, la explicación de la IA se pide sola si la IA está activada (como los comentarios del Maestro)
+  // Explicación de la IA al terminar: solo con el botón «Ver explicación de la IA» (nunca se pide sola, cada consulta cuesta)
+  aiExplainOK(){ const p = this.p, m = p && p.src === 'mine' && p.mistake; return !!m && p.done && !(m.cx && m.cx.text) && GameAI.hasKey() && ClaudeAI.online() && !p.aiErr && !p.aiLoading; }
   async aiExplain(){
     const p = this.p; if(!p || p.src !== 'mine' || p.aiAsked) return;
-    const m = p.mistake; if((m.cx && m.cx.text) || !ClaudeAI.ready()) return;
+    const m = p.mistake; if((m.cx && m.cx.text) || !GameAI.hasKey()) return;
     p.aiAsked = true; p.aiLoading = true; this.renderInfo();
     try{ await GameAI.exercise(m); }catch(e){ p.aiErr = ClaudeAI.friendly(e); }
     if(this.p !== p || App.session !== this) return;
@@ -3858,6 +3894,7 @@ class PuzzleSession{
     const box = (t, body) => '<div class="cl-box"><h3>' + t + '</h3>' + body + '</div>';
     if(cx.hint && (p.aiHint || p.done)) h += box('Pista de la IA', '<p>' + esc(cx.hint) + '</p>');
     else if(!p.done && this.aiHintOK() && !p.aiLoading) h += '<div class="row"><button class="btn small" id="aiHint">Ver pista</button></div>';
+    if(this.aiExplainOK()) h += '<div class="row"><button class="btn small" id="aiExp">Ver explicación de la IA</button></div>';
     if(p.done && cx.text) h += box('Explicación de la IA', '<p>' + esc(cx.text) + '</p><p class="cl-meta">' + (cx.hint ? 'Pista y explicación escritas por IA' : 'Explicación escrita por IA') + '; la solución la valida el motor. El texto puede tener errores.</p>');
     if(p.aiLoading) h += '<p class="note">' + (p.done ? 'La IA está escribiendo la explicación…' : 'La IA está preparando la pista…') + '</p>';
     else if(p.aiErr && !(p.done ? cx.text : cx.hint)) h += '<p class="note">La IA no respondió (' + esc(p.aiErr) + ').' + (p.done ? '' : ' Puedes usar la pista del motor.') + '</p>';
@@ -3917,13 +3954,13 @@ class PuzzleSession{
   fail(soft){ const p = this.p; if(!p.failed){ p.failed = true; this.score(false); this.renderInfo(); } }
   solved(){
     const p = this.p; p.done = true; Board.movable = null; PuzzleStore.done(p.id);
-    if(!p.failed) this.score(true);
+    if(p.helped && !p.failed){ p.failed = true; this.score(false); }
+    else if(!p.failed) this.score(true);
     setStatus(p.failed ? 'Resuelto, pero no cuenta para tu rating.' : (p.alt ? 'Correcto: tu jugada es tan buena como la del motor.' : 'Correcto.'), 'good');
     this.renderInfo(); this.controls(); this.explain();
   }
   async explain(){
     const p = this.p; if(!p || p.src !== 'mine') return;
-    this.aiExplain();
     p.expLoading = true; this.renderInfo();
     const exp = await explainMistake(p.mistake);
     if(this.p !== p || App.session !== this) return;
@@ -3993,6 +4030,7 @@ class PuzzleSession{
     const bk = $('#seeBack'); if(bk) bk.onclick = () => this.backToPosition();
     const er = $('#expRetry'); if(er) er.onclick = () => this.explain();
     const ah = $('#aiHint'); if(ah) ah.onclick = () => this.aiHint();
+    const ae = $('#aiExp'); if(ae) ae.onclick = () => this.aiExplain();
   }
   renderSide(){
     const pr = errorProfile();
@@ -4889,7 +4927,7 @@ const Analyzer = {
     const a = {v:1, acc:accN ? Math.round(accSum/accN) : 0, w:W, tags, cnt, mistakes, mt:movetime};
     // Los comentarios con IA se conservan al volver a analizar
     const prev = S.analyses[rec.id];
-    if(prev){ const cx = {}; (prev.mistakes || []).forEach(m => { if(m.cx) cx[m.id] = m.cx; }); mistakes.forEach(m => { if(cx[m.id]) m.cx = cx[m.id]; }); if(prev.cx) a.cx = prev.cx; }
+    if(prev){ const cx = {}; (prev.mistakes || []).forEach(m => { if(m.cx || m.cxDel) cx[m.id] = m; }); mistakes.forEach(m => { if(cx[m.id]) cxApply(m, cxPick([cx[m.id]])); }); cxApply(a, cxPick([prev])); }
     S.analyses[rec.id] = a; save();
     return a;
   },
@@ -5338,11 +5376,10 @@ function mergeState(L, Rin){
     const hasL = x => x && Array.isArray(x.best);
     let pick = a && b ? ((b.deep && !a.deep) || (b.deep && a.deep && !hasL(a) && hasL(b)) ? b : a) : (a || b);
     pick = JSON.parse(JSON.stringify(pick));
-    const exps = {}, cxs = {}; [a, b].forEach(x => ((x && x.mistakes) || []).forEach(m => { if(m.exp) exps[m.id] = m.exp; if(m.cx && (!cxs[m.id] || (m.cx.at || 0) > (cxs[m.id].at || 0))) cxs[m.id] = m.cx; }));
-    (pick.mistakes || []).forEach(m => { if(!m.exp && exps[m.id]) m.exp = exps[m.id]; if(cxs[m.id]) m.cx = JSON.parse(JSON.stringify(cxs[m.id])); });
-    // Comentario de la partida con IA: el más reciente de los dos
-    const gcx = [a, b].map(x => x && x.cx).filter(Boolean).sort((x, y) => (y.at || 0) - (x.at || 0))[0];
-    if(gcx) pick.cx = JSON.parse(JSON.stringify(gcx));
+    const exps = {}, cxs = {}; [a, b].forEach(x => ((x && x.mistakes) || []).forEach(m => { if(m.exp) exps[m.id] = m.exp; (cxs[m.id] = cxs[m.id] || []).push(m); }));
+    (pick.mistakes || []).forEach(m => { if(!m.exp && exps[m.id]) m.exp = exps[m.id]; if(cxs[m.id]) cxApply(m, cxPick(cxs[m.id])); });
+    // Comentario de la partida con IA: el más reciente de los dos, salvo que se haya borrado después (cxDel)
+    cxApply(pick, cxPick([a, b]));
     out.analyses[k] = pick;
   }
   out.endgames = Object.assign({}, R.endgames || {}, L.endgames || {});
@@ -5613,6 +5650,7 @@ const Net = {
     if(ses instanceof HomeSession && (ses.tab === 'coach' || ses.tab === 'games')) HOMES[ses.tab]();
     else if(ses instanceof PuzzleSession){ ses.renderSide(); if(!ses.p) ses.next(); }
     else if(ses instanceof ReviewSession) GameAI.paint(ses.rec.id);
+    else if(ses instanceof EvalSession && ses.job.done && ses.aiOn()) GameAI.paint(ses.job.desc.gid);
     else if(ses && ses.coach && ses.coach.renderTip) ses.coach.renderTip();
   },
   start(){
