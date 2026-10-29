@@ -339,6 +339,20 @@ html.clocked{--bw:min(calc(100vh - 280px), calc(100vw - 540px), 680px)}
 .steps{padding-left:20px;margin:6px 0 4px;font-size:14px}
 .steps li{margin-bottom:6px}
 .catrow{display:grid;grid-template-columns:1fr auto;font-size:14px}
+/* Evidencia (Progreso) */
+.ev-top{border-top:1px solid var(--line);margin-top:8px}
+.ev-m{padding:10px 0;border-bottom:1px solid var(--line)}
+.ev-t{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:15px}
+.ev-c{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+.ev-c>div{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.ev-c b{font-family:var(--fHead);font-size:20px;font-weight:600}
+.ev-c .dim b{color:var(--muted);font-family:var(--fBody);font-size:15px;font-weight:400;padding:4px 0 3px}
+.ev-c .note{font-size:12px}
+.ev-h{margin-top:18px} .ev-h h3,.ev-sub{font-size:15px;margin:0} .ev-sub{margin-top:18px} .ev-goal{color:var(--good)}
+.ev-chart{width:100%;height:120px;display:block;margin:6px 0 2px;color:var(--muted)}
+.ev-lab{display:grid;grid-template-columns:repeat(4,1fr);text-align:center}
+.ev-r{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:baseline;font-size:14px;padding:5px 0;border-bottom:1px solid var(--line)}
+.ev-r .d{font-variant-numeric:tabular-nums} .ev-r .up{color:var(--bad)} .ev-r .down{color:var(--good)}
 
 /* jugadas */
 .moves{position:relative;list-style:none;margin:14px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;max-height:240px;overflow:auto;font-size:14px;border-top:1px solid var(--line)}
@@ -1052,7 +1066,8 @@ function defaults(){ return {
   username:'', ladder:{unlocked:1, rec:{}},
   puzzles:{rating:1200, hist:[], solved:0, failed:0, streak:0, best:0, seen:{}},
   games:[], played:[], analyses:{}, endgames:{}, openings:{}, settings:{movetime:400},
-  plan:{len:'corta', stage:'auto', days:{}}, srs:{}, threats:{hist:[]}
+  plan:{len:'corta', stage:'auto', days:{}}, srs:{}, threats:{hist:[]},
+  evid:{start:null, startAt:0, days:{}}
 }; }
 let S = (() => { try{ const raw = localStorage.getItem(KEY); if(raw){ return Object.assign(defaults(), JSON.parse(raw)); } }catch(e){} return defaults(); })();
 function save(){ saveLocal(); if(typeof Sync !== 'undefined') Sync.dirty(); }
@@ -1576,7 +1591,7 @@ class PlaySession{
       }
       if(o.vsCoach){
         const C = coachState(); const serious = !o.helps && !this.barUsed && !o.quiz;
-        C.rec[res]++;
+        C.rec[res]++; this.result.serious = serious;
         if(serious){
           if(C.rating === null) C.rating = o.playerElo;
           const exp = 1 / (1 + Math.pow(10, (o.coachElo - C.rating) / 400));
@@ -2075,7 +2090,7 @@ class Coach{
       const mistakes = bad.filter(v => v.best).map(v => ({id:gid + '#' + (v.ply+1), gid, ply:v.ply+1, fen:v.fen, played:v.san, playedUci:v.uci, best:v.best, bestSan:v.bestSan, drop:Math.round(v.drop), before:v.before, cat:v.cat, phase:phaseOf(v.fen, v.ply), date, opp, color:uc}));
       S.analyses[gid] = {v:1, src:'coach', acc:acc || 0, w:[], tags:{}, cnt:{inacc:ev.filter(v => v.drop >= 10 && v.drop < 20).length, mistake:ev.filter(v => v.drop >= 20 && v.drop < 30).length, blunder:ev.filter(v => v.drop >= 30).length}, mistakes};
     }
-    const C = coachState(); C.games.unshift({t:Date.now(), vs:this.vs, res:result.res || null, acc, errors:bad.length}); C.games = C.games.slice(0, 200);
+    const C = coachState(); C.games.unshift({t:Date.now(), vs:this.vs, res:result.res || null, acc, errors:bad.length, ser:!!(this.vs && result.serious)}); C.games = C.games.slice(0, 200);
     save();
   }
 }
@@ -3947,6 +3962,7 @@ class PuzzleSession{
     if(win){ P.solved++; P.streak++; P.best = Math.max(P.best, P.streak); } else { P.failed++; P.streak = 0; }
     P.hist.push(Object.assign({t:Date.now(), r:P.rating, ok:win, src:p.src}, p.st ? {st:p.st} : {})); if(P.hist.length > 300) P.hist.shift();
     P.seen[p.id] = win ? 1 : 0;
+    evidPuzzle(p.src, win);
     if(p.src === 'mine' && p.mistake) srsRecord(p.mistake, win);
     if(this.opt.plan){ const d = planDay(true); if(this.opt.plan.kind === 'rev') d.rev++; else d.pz++; if(planCheck()) toast('Sesión de hoy completa. Racha: ' + planStreak() + (planStreak() === 1 ? ' día.' : ' días.'), 4500); }
     save();
@@ -5158,6 +5174,149 @@ function sparkline(hist){
   const pts = vals.map((v,i) => (i/(vals.length-1)*100).toFixed(2) + ',' + (56 - (v-mn)/(mx-mn)*52).toFixed(2)).join(' ');
   return '<svg class="spark" viewBox="0 0 100 60" preserveAspectRatio="none" role="img" aria-label="Evolución del rating de puzzles"><polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg><p class="note">Últimos ' + vals.length + ' puzzles: de ' + vals[0] + ' a ' + vals[vals.length-1] + '.</p>';
 }
+/* ---------- Evidencia: prueba de 4 semanas (mockup aprobado, oct 2026) ----------
+   Todo sale de lo guardado: S.evid.days (por día: o = abrió la app, pn/pk = puzzles y aciertos al primer intento,
+   mn/mk = lo mismo en Mis errores), S.coach.games (ser = partida seria), S.analyses, S.played, S.games y S.plan.days.
+   No usa la red. La semana 1 es la línea base y se compara con la 2 y la 4. */
+const EVID_WEEKS = 4, EVID_KEEP = 60, EVID_FIELDS = ['o', 'pn', 'pk', 'mn', 'mk'];
+const EVID_MIN = {pz:10, games:3};
+function evidState(){
+  if(!S.evid || typeof S.evid !== 'object') S.evid = {start:null, startAt:0, days:{}};
+  if(!S.evid.days) S.evid.days = {};
+  return S.evid;
+}
+// Días como claves de dayKey(): se calculan a mediodía para no tropezar con el cambio de horario
+function dkDate(k){ const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d, 12); }
+function dkAdd(k, n){ const d = dkDate(k); d.setDate(d.getDate() + n); return dayKey(d.getTime()); }
+function dkDiff(a, b){ return Math.round((dkDate(b) - dkDate(a)) / DAY); }
+// Se guardan los últimos 60 días y, si hay prueba, todos sus 28 días aunque sean más viejos
+function evidPrune(E){
+  const ks = Object.keys(E.days || {}).sort(), keep = new Set(ks.slice(-EVID_KEEP));
+  const end = E.start ? dkAdd(E.start, EVID_WEEKS * 7 - 1) : null;
+  ks.forEach(k => { if(!keep.has(k) && !(end && k >= E.start && k <= end)) delete E.days[k]; });
+}
+function evidDay(k){ const E = evidState(); if(!E.days[k]) E.days[k] = {o:0, pn:0, pk:0, mn:0, mk:0}; return E.days[k]; }
+function evidTouch(){
+  const k = dayKey(), E = evidState();
+  if(E.days[k] && E.days[k].o) return;
+  evidDay(k).o = 1; evidPrune(E); save();
+}
+// Lo llama PuzzleSession.score, que guarda después
+function evidPuzzle(src, ok){
+  const d = evidDay(dayKey()); d.o = 1; d.pn++; if(ok) d.pk++;
+  if(src === 'mine'){ d.mn++; if(ok) d.mk++; }
+}
+const EVID_CATS = {hung:['Pieza colgada'], tac:['Táctica no vista'], mate:['Mate no visto', 'Permitió mate']};
+function evidStats(){
+  const E = evidState(); if(!E.start) return null;
+  const today = dayKey(), day = dkDiff(E.start, today) + 1, si = planStage();
+  const W = Array.from({length:EVID_WEEKS}, (x, i) => {
+    const from = dkAdd(E.start, 7 * i), to = dkAdd(E.start, 7 * i + 6);
+    return {w:i + 1, from, to, state:today < from ? 'pend' : today > to ? 'done' : 'cur', pn:0, pk:0, mn:0, mk:0, sg:0, se:0, op:0, ok:0, ag:0, hung:0, tac:0, mate:0};
+  });
+  const at = k => { if(!k) return null; const i = Math.floor(dkDiff(E.start, k) / 7); return i >= 0 && i < EVID_WEEKS ? W[i] : null; };
+  const pd = (S.plan || {}).days || {};
+  for(const k of new Set([...Object.keys(E.days), ...Object.keys(pd)])){
+    const x = at(k); if(!x) continue;
+    const d = E.days[k] || {}, done = !!(pd[k] && pd[k].ok);
+    x.pn += d.pn || 0; x.pk += d.pk || 0; x.mn += d.mn || 0; x.mk += d.mk || 0;
+    if(d.o || done){ x.op++; if(done) x.ok++; }
+  }
+  for(const g of coachState().games){ if(!g.ser) continue; const x = at(dayKey(g.t)); if(x){ x.sg++; x.se += g.errors || 0; } }
+  const pl = {}, gm = {}; (S.played || []).forEach(g => pl[g.id] = g.end); (S.games || []).forEach(g => gm[g.id] = g.end);
+  for(const gid in S.analyses){
+    const a = S.analyses[gid], m0 = (a.mistakes || [])[0], c = /^coach:(\d+)$/.exec(gid);
+    const sec = pl[gid] || gm[gid] || (m0 && m0.date) || (c ? +c[1] / 1000 : 0);
+    const x = sec ? at(dayKey(sec * 1000)) : null; if(!x) continue;
+    x.ag++;
+    for(const m of (a.mistakes || [])) for(const f in EVID_CATS) if(EVID_CATS[f].includes(m.cat)) x[f]++;
+  }
+  return {start:E.start, day, over:day > EVID_WEEKS * 7, end:dkAdd(E.start, EVID_WEEKS * 7 - 1), stage:si, errMax:PLAN[si].errMax, W};
+}
+const evidPct = (n, k) => n ? Math.round(100 * k / n) : null;
+const evidShort = k => dkDate(k).toLocaleDateString('es-MX', {day:'numeric', month:'short'}).replace('.', '');
+const evidLong = k => dkDate(k).toLocaleDateString('es-MX', {day:'numeric', month:'long'});
+function evidCell(x, val, sub){
+  if(x.state === 'pend') return '<div class="dim"><span class="note">Semana ' + x.w + '</span><b>Pendiente</b><span class="note">desde el ' + evidShort(x.from) + '</span></div>';
+  if(val === null) return '<div class="dim"><span class="note">Semana ' + x.w + '</span><b>Sin datos</b><span class="note">' + (x.state === 'cur' ? 'en curso' : '&nbsp;') + '</span></div>';
+  return '<div><span class="note">Semana ' + x.w + '</span><b>' + val + '</b><span class="note">' + sub + (x.state === 'cur' ? ' (en curso)' : '') + '</span></div>';
+}
+function evidMetric(title, goal, W, fn){
+  return '<div class="ev-m"><div class="ev-t"><span>' + title + '</span><span class="note">' + goal + '</span></div><div class="ev-c">' +
+    [W[0], W[1], W[3]].map(x => { const [v, s] = fn(x); return evidCell(x, v, s); }).join('') + '</div></div>';
+}
+function evidChart(W){
+  const H = 90, y = p => 8 + (100 - p) / 100 * H, bw = 18, gap = 7;
+  let s = '<svg class="ev-chart" viewBox="0 0 100 112" preserveAspectRatio="none" role="img" aria-label="Acierto semanal en Mis errores">';
+  W.forEach((x, i) => {
+    const v = x.state === 'pend' ? null : evidPct(x.mn, x.mk), X = 6 + i * (bw + gap);
+    s += v === null ? '<rect x="' + X + '" y="' + (y(0) - 2) + '" width="' + bw + '" height="2" fill="none" stroke="currentColor" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>'
+      : '<rect x="' + X + '" y="' + y(v) + '" width="' + bw + '" height="' + (y(0) - y(v)) + '" fill="currentColor" opacity="' + (x.state === 'cur' ? '.55' : '.9') + '"/>';
+  });
+  s += '<line x1="2" x2="98" y1="' + y(70) + '" y2="' + y(70) + '" stroke="var(--good)" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>';
+  s += '<line x1="2" x2="98" y1="' + y(0) + '" y2="' + y(0) + '" stroke="var(--line)" vector-effect="non-scaling-stroke"/></svg>';
+  s += '<div class="ev-lab note">' + W.map(x => { const v = evidPct(x.mn, x.mk);
+    return '<span>Sem ' + x.w + '<br>' + (x.state === 'pend' ? 'desde el ' + evidShort(x.from) : v === null ? (x.state === 'cur' ? 'en curso' : 'sin datos') : v + '%' + (x.state === 'cur' ? ' (en curso)' : '')) + '</span>'; }).join('') + '</div>';
+  const all = W.filter(x => x.state !== 'pend' && x.pn).map(x => 'semana ' + x.w + ' ' + evidPct(x.pn, x.pk) + '%');
+  if(all.length) s += '<p class="note">Todos los puzzles al primer intento: ' + all.join(', ') + '.</p>';
+  return s;
+}
+function evidHTML(){
+  const st = evidStats();
+  if(!st) return '<h3>Evidencia</h3><p class="note">Mide durante 4 semanas si repites menos tus errores: acierto en Mis errores, errores por partida seria y días con la sesión de la Ruta completa. Usa lo que Casilla ya guarda y nada sale de tu navegador hasta que exportes.</p>' +
+    '<div class="row"><button class="btn primary" id="evStart">Empezar prueba de 4 semanas</button></div>';
+  const W = st.W, warn = [];
+  [W[0], W[1], W[3]].filter(x => x.state === 'done').forEach(x => {
+    if(x.mn < EVID_MIN.pz) warn.push('Semana ' + x.w + ': ' + (x.mn ? 'solo ' + x.mn + (x.mn === 1 ? ' puzzle' : ' puzzles') : 'sin puzzles') + ' de Mis errores. Con menos de ' + EVID_MIN.pz + ', ese porcentaje aún no es confiable.');
+    if(x.sg < EVID_MIN.games) warn.push('Semana ' + x.w + ': ' + (x.sg ? 'solo ' + x.sg + (x.sg === 1 ? ' partida seria' : ' partidas serias') : 'sin partidas serias') + '. Con menos de ' + EVID_MIN.games + ', ese dato aún no es confiable.');
+  });
+  // Errores que se repiten: semana 1 contra la última semana completa después de ella
+  const last = W.slice(1).filter(x => x.state === 'done').pop(), base = W[0];
+  let rep;
+  if(base.state !== 'done' || !last) rep = '<p class="note">Se compara cuando termine la semana 2.</p>';
+  else if(!base.ag || !last.ag) rep = '<p class="note">Hacen falta partidas analizadas en la semana 1 y en la semana ' + last.w + '.</p>';
+  else {
+    rep = '<p class="note">Promedio por partida analizada (Casilla y Chess.com). Semana 1 contra la semana ' + last.w + '.</p><div class="ev-top"></div>' +
+      [['hung', 'Pieza colgada'], ['tac', 'Táctica no vista'], ['mate', 'Mate (no visto o permitido)']].map(([f, n]) => {
+        const a = base[f] / base.ag, b = last[f] / last.ag, d = b - a;
+        const tr = d < -0.1 ? '<span class="down">baja</span>' : d > 0.1 ? '<span class="up">sube</span>' : '<span class="note">igual</span>';
+        return '<div class="ev-r"><span>' + n + '</span><span class="d note">' + a.toFixed(1) + ' → ' + b.toFixed(1) + '</span>' + tr + '</div>';
+      }).join('') +
+      '<p class="note">' + base.ag + (base.ag === 1 ? ' partida' : ' partidas') + ' en la semana 1 y ' + last.ag + ' en la semana ' + last.w + '.</p>';
+  }
+  return '<div id="evid"><h3>Evidencia</h3>' +
+    '<p class="note">' + (st.over ? 'Prueba de 4 semanas terminada el ' + evidLong(st.end) + '. Empezó el ' + evidLong(st.start) + '.' : 'Prueba de 4 semanas: día ' + st.day + ' de 28, desde el ' + evidLong(st.start) + '.') + ' La semana 1 es tu punto de partida; se compara con la semana 2 y la semana 4.</p><div class="ev-top"></div>' +
+    evidMetric('Mis errores al primer intento', 'meta 70%', W, x => [x.mn ? evidPct(x.mn, x.mk) + '%' : null, x.mn + (x.mn === 1 ? ' puzzle' : ' puzzles')]) +
+    evidMetric('Errores por partida seria', st.errMax === null ? 'sin objetivo en tu etapa' : 'tu etapa: ' + st.errMax + ' o menos', W, x => [x.sg ? (x.se / x.sg).toFixed(1) : null, x.sg + (x.sg === 1 ? ' partida' : ' partidas')]) +
+    evidMetric('Días con la sesión de la Ruta completa', 'meta 60%', W, x => [x.op ? x.ok + ' de ' + x.op : null, evidPct(x.op, x.ok) + '%']) +
+    warn.map(t => '<p class="note warnnote">' + esc(t) + '</p>').join('') +
+    '<div class="ev-t ev-h"><h3>Acierto semanal en Mis errores</h3><span class="note ev-goal">línea: meta 70%</span></div>' + evidChart(W) +
+    '<h3 class="ev-sub">Errores que se repiten</h3>' + rep +
+    '<div class="row"><button class="btn" id="evExp">Exportar mis datos</button><button class="btn" id="evReset">Reiniciar prueba</button></div>' +
+    '<p class="note">El archivo solo trae números y fechas: sin partidas, posiciones, nombres de usuario ni claves.</p></div>';
+}
+// Solo números y fechas: nada de PGN, FEN, usuarios, rivales ni claves
+function evidExport(){
+  const st = evidStats(); if(!st) return null;
+  const E = evidState(), pd = (S.plan || {}).days || {}, dias = [];
+  for(let i = 0; i < EVID_WEEKS * 7; i++){
+    const k = dkAdd(st.start, i); if(k > dayKey()) break;
+    const d = E.days[k] || {};
+    dias.push({dia:k, abrio:!!(d.o || (pd[k] && pd[k].ok)), sesionCompleta:!!(pd[k] && pd[k].ok), puzzles:d.pn || 0, puzzlesPrimerIntento:d.pk || 0, misErrores:d.mn || 0, misErroresPrimerIntento:d.mk || 0});
+  }
+  return {app:'casilla', tipo:'evidencia', formato:1, exportado:dayKey(), inicio:st.start, dia:Math.min(st.day, EVID_WEEKS * 7), etapa:st.stage + 1,
+    semanas:st.W.map(x => ({semana:x.w, desde:x.from, hasta:x.to, estado:{pend:'pendiente', cur:'en curso', done:'terminada'}[x.state],
+      puzzles:{total:x.pn, primerIntento:x.pk}, misErrores:{total:x.mn, primerIntento:x.mk},
+      partidasSerias:{partidas:x.sg, errores:x.se}, ruta:{diasAbiertos:x.op, sesionCompleta:x.ok},
+      erroresPorTipo:{partidasAnalizadas:x.ag, piezaColgada:x.hung, tacticaNoVista:x.tac, mate:x.mate}})), dias};
+}
+function bindEvid(){
+  const s = $('#evStart'); if(s) s.onclick = () => { const E = evidState(); E.start = dayKey(); E.startAt = Date.now(); evidTouch(); evidPrune(E); save(); renderProgressHome(); $('#evid') && $('#evid').scrollIntoView({block:'start'}); };
+  const x = $('#evExp'); if(x) x.onclick = () => { const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(evidExport(), null, 1)], {type:'application/json'})); a.download = 'casilla-evidencia-' + dayKey() + '.json'; a.click(); };
+  const r = $('#evReset'); if(r) r.onclick = () => { if(!confirm('¿Reiniciar la prueba de 4 semanas? Tu progreso en Casilla no se borra.')) return;
+    const E = evidState(); E.start = null; E.startAt = Date.now(); save(); renderProgressHome(); };
+}
 function renderProgressHome(){
   const P = S.puzzles, p = errorProfile();
   const an = Object.values(S.analyses); const accs = an.filter(a => a.acc).map(a => a.acc);
@@ -5174,6 +5333,7 @@ function renderProgressHome(){
       : '<p class="note">Aún no hay partidas analizadas.</p>') +
     '<h3>Finales y aperturas</h3><p class="note">' + Object.keys(S.endgames).length + ' de ' + ENDGAMES.length + ' finales completados. ' + Object.keys(S.openings).length + ' líneas de apertura repasadas.</p>' +
     (() => { const si = planStage(), st = PLAN[si], ck = stageChecks(si), ts = threatStats(), rs = srsStats(), k = planStreak(); return '<h3>Ruta a 1500</h3><p class="note">Etapa ' + (si + 1) + ': ' + esc(st.n) + ' (' + esc(st.range) + '). ' + ck.filter(c => c.ok).length + ' de ' + ck.length + ' metas listas. ' + (k ? 'Racha de sesiones: ' + k + (k === 1 ? ' día. ' : ' días. ') : '') + (ts.n ? 'Amenazas vistas: ' + ts.pct + '%. ' : '') + (rs.total ? 'Repaso espaciado: ' + rs.mastered + ' de ' + rs.total + ' errores dominados.' : '') + '</p>'; })() +
+    evidHTML() +
     '<h3>Sincronizar entre dispositivos</h3><div id="syncBox"></div>' +
     '<h3>Tus datos</h3><p class="note">Todo se guarda en este navegador' + (Sync.on() ? ' y se sincroniza con tu gist' : '') + '. También puedes exportar un respaldo en archivo.</p>' +
     '<div class="row"><button class="btn" id="exp">Exportar respaldo</button><button class="btn" id="imp">Importar respaldo</button><button class="btn" id="rst">Borrar todo</button><input type="file" id="impf" accept="application/json" hidden></div>';
@@ -5181,6 +5341,7 @@ function renderProgressHome(){
   const tt = $('#trTheme'); if(tt) tt.onclick = () => { App.puzzleTheme = CAT_THEME[top[0]] || 'mix'; App.puzzleSource = 'lichess'; switchTab('puzzles'); };
   $('#exp').onclick = () => { const a = document.createElement('a'); const copy = JSON.parse(JSON.stringify(S)); if(copy.settings && copy.settings.claude) copy.settings.claude.key = ''; if(copy.settings) delete copy.settings.sync;
     a.href = URL.createObjectURL(new Blob([JSON.stringify(copy)], {type:'application/json'})); a.download = 'casilla-respaldo-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); };
+  bindEvid();
   $('#imp').onclick = () => $('#impf').click();
   $('#impf').onchange = async e => { const f = e.target.files[0]; if(!f) return; try{ const keep = S.settings.claude, keepSync = S.settings.sync; S = Object.assign(defaults(), JSON.parse(await f.text())); if(keep && !(S.settings.claude && S.settings.claude.key)) S.settings.claude = keep; if(keepSync) S.settings.sync = keepSync; else delete S.settings.sync; migrateStoredLook(); save(); applyLook(); toast('Respaldo importado.'); renderProgressHome(); }catch(err){ toast('Ese archivo no es un respaldo válido.'); } };
   $('#rst').onclick = () => { if(confirm(Sync.on() ? '¿Borrar todo tu progreso en este navegador? La sincronización se desconectará y el gist no se borra.' : '¿Borrar todo tu progreso, partidas y análisis guardados?')){ S = defaults(); saveLocal(); Sync.setState('off'); renderProgressHome(); } };
@@ -5413,6 +5574,15 @@ function mergeState(L, Rin){
     const a = (L.srs || {})[k], b = (R.srs || {})[k];
     out.srs[k] = JSON.parse(JSON.stringify(a && b ? ((b.last || 0) > (a.last || 0) ? b : a) : (a || b)));
   }
+  // Evidencia: manda la prueba empezada o reiniciada más recientemente; por día se queda el conteo mayor
+  const ea = L.evid || {}, eb = R.evid || {}, ed = {};
+  for(const k of new Set([...Object.keys(ea.days || {}), ...Object.keys(eb.days || {})])){
+    const a = (ea.days || {})[k] || {}, b = (eb.days || {})[k] || {}, d = {};
+    EVID_FIELDS.forEach(f => d[f] = Math.max(a[f] || 0, b[f] || 0));
+    ed[k] = d;
+  }
+  const en = (eb.startAt || 0) > (ea.startAt || 0) ? eb : ea;
+  out.evid = {start:en.start || null, startAt:en.startAt || 0, days:ed}; evidPrune(out.evid);
   // Revisión de amenazas: historial unido
   const th = {}; [...((L.threats || {}).hist || []), ...((R.threats || {}).hist || [])].forEach(h => th[h.t + ':' + h.k] = h);
   out.threats = {hist:Object.values(th).sort((a,b) => a.t - b.t).slice(-300)};
@@ -5608,6 +5778,7 @@ function boot(){
   window.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('#look').hidden) toggleLook(false); });
   switchTab('ladder');
   Engine.init();
+  evidTouch(); document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') evidTouch(); });
   Sync.start();
   Net.start();
   PuzzleStore.start();

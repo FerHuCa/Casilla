@@ -192,6 +192,18 @@ Si cambias el tablero o las piezas, el estilo queda marcado como «Personalizado
 ### Progreso
 Tus niveles superados, la evolución de tu rating de puzzles, tus errores más comunes con una recomendación de qué entrenar, tus finales y aperturas repasados, tu avance en la ruta a 1500, la sincronización entre dispositivos y la opción de exportar o importar un respaldo.
 
+#### Evidencia
+
+Una prueba de 4 semanas para ver si repites menos tus errores. Pulsa **Empezar prueba de 4 semanas**; la semana 1 es tu punto de partida y se compara con la semana 2 y la semana 4. Se calcula en tu navegador con lo que Casilla ya guarda, sin red y sin costo:
+
+- **Mis errores al primer intento:** porcentaje de puzzles de Mis errores resueltos al primer intento y sin pista. Meta: 70%.
+- **Errores por partida seria:** promedio de errores en tus partidas serias contra el maestro, con el objetivo de tu etapa (etapas 3 y 4). Solo cuentan las partidas jugadas desde esta versión, que ya guardan si fueron serias.
+- **Días con la sesión de la Ruta completa:** de los días en que abriste Casilla. Meta: 60%.
+- **Acierto semanal en Mis errores** en una gráfica, y el de todos los puzzles.
+- **Errores que se repiten:** pieza colgada, táctica no vista y mate (no visto o permitido), por partida analizada de Casilla y Chess.com, semana 1 contra la última semana terminada.
+
+Con menos de 10 puzzles de Mis errores o menos de 3 partidas serias en una semana terminada, un aviso dice que ese dato aún no es confiable. **Exportar mis datos** baja un archivo JSON con números y fechas por semana y por día, sin partidas, posiciones, nombres de usuario ni claves; sirve para mandárselo a quien organiza la prueba. **Reiniciar prueba** la quita sin borrar tu progreso. Para probadores hay una guía en [docs/guia-probadores.md](docs/guia-probadores.md).
+
 ## Sincronizar entre computadora y celular
 
 Casilla puede guardar tu progreso en un **gist secreto de tu cuenta de GitHub** para usar el mismo progreso en todos tus dispositivos. No hay servidor de por medio: la app habla directo con GitHub.
@@ -208,6 +220,7 @@ Casilla puede guardar tu progreso en un **gist secreto de tu cuenta de GitHub** 
   - Partidas y análisis: se suman.
   - Puzzles: el historial se une y el rating toma el más reciente.
   - Maestro, finales, aperturas, sesiones de la ruta, repaso espaciado y revisión de amenazas: se unen.
+  - Evidencia: manda la prueba empezada o reiniciada más recientemente; por día se queda el conteo mayor.
 - **Ajustes:** en un dispositivo nuevo se copian tu apariencia y preferencias. Después, cada dispositivo conserva las suyas.
 - **Tamaño:** el progreso se comprime antes de subirse, así que ocupa poco aunque tengas cientos de partidas.
 

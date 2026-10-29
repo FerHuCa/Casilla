@@ -15,6 +15,7 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 |---|---|
 | `coach.py`, `coach2.py` | Maestro: comentarios, adaptación, jugar contra él |
 | `ruta.py` | Ruta a 1500: sesión del día, táctica de la etapa con tema oculto, repaso espaciado, modo Amenazas, finales nuevos, sync y datos viejos |
+| `evidencia.py` | Evidencia en Progreso: datos viejos sin `S.evid`, empezar, cálculo exacto por semana con datos sembrados (puzzles, partidas serias, Ruta, errores por tipo), avisos de muestra chica, exportar sin datos sensibles, marca `ser`, conteo de puzzles, sync, recorte de días, reiniciar, sin red, 390 y 1280 |
 | `evalt.py` | Evaluación al final de la partida |
 | `evalnav.py` | Recorrer la evaluación jugada por jugada: orden, comentarios y que nada regrese el tablero solo |
 | `claude.py` | Conexión con Claude: encabezados, pensamiento por modelo (con Opus), los dos modelos en «Probar conexión», reintento y errores (API simulada). Revisa que «Claude», «Anthropic» y «Stockfish» no se vean en ninguna pestaña, incluida la sección de la clave (opciones, title, aria-label, placeholder); solo el crédito del pie |
