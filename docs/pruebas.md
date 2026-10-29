@@ -19,6 +19,7 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `evalnav.py` | Recorrer la evaluación jugada por jugada: orden, comentarios y que nada regrese el tablero solo |
 | `claude.py` | Conexión con Claude: encabezados, pensamiento por modelo (con Opus), los dos modelos en «Probar conexión», reintento y errores (API simulada). Revisa que «Claude», «Anthropic» y «Stockfish» no se vean en ninguna pestaña, incluida la sección de la clave (opciones, title, aria-label, placeholder); solo el crédito del pie |
 | `claude_partidas.py` | Comentario de partida con IA y ejercicios de Mis errores (API simulada, 1280 y 390): estados 1a a 1f, 2a, 2b y 3, 401/403/CORS/sin red/sin JSON, `cache_control`, `cx` guardado y sincronizado, re-análisis, gasto aproximado y sin nombres de proveedor visibles; capturas en `docs/capturas/claude-partidas/` |
+| `claude_casilla.py` | Comentario con IA en partidas jugadas en Casilla (`EvalSession`, API simulada, 1280 y 390): estados 4a y 4b, línea de origen, ninguna llamada al abrir, una al pulsar, recarga sin llamada, marca de borrado con sincronización, «Repasar» dentro del bloque y enlaces de la consola; capturas 4a y 4b |
 | `historial.py` | Partidas de Casilla en Partidas, evaluación en segundo plano, puzzles con sus errores, sync |
 | `bar.py` | Barra de evaluación |
 | `mobile.py` | Auditoría de móvil (desbordes, tamaños táctiles) |
