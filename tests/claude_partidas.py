@@ -37,6 +37,8 @@ fails=[]
 def check(name, cond):
     print(('OK   ' if cond else 'FALLA ') + name)
     if not cond: fails.append(name)
+# exp real del motor (explicación local que ya existía en main): la IA no debe tocarlo
+EXP={"refPv":["g5f7","e8f7","d1f3"],"bestPv":["c4b5","c7c6","d5c6"],"evP":300,"evB":20}
 SANS="e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5 Nxd5 Nxf7 Kxf7 Qf3+ Ke6 Nc3 Kd6 d4 Be7".split()
 GID='https://www.chess.com/game/live/777'
 SETUP="""(sans => {
@@ -49,7 +51,8 @@ SETUP="""(sans => {
   S.games = [{id:'%GID%', pgn, white:'rodrigo_m', black:'fertest', wr:1312, br:1250, wres:'win', bres:'resigned', tc:'600+5', end:1792000000, eco:''}];
   S.analyses = {'%GID%':{v:1, acc:71, w, tags:{9:'??', 15:'?', 17:'?'}, cnt:{inacc:3, mistake:2, blunder:1},
     mistakes:[M(10, 'c6a5', 'Na5', 'Pieza colgada', 35), M(16, 'c6e7', 'Ne7', 'Error posicional', 24), M(18, 'e5d4', 'exd4', 'Error posicional', 22)], mt:400}};
-  save(); return true; })""".replace('%GID%', GID)
+  S.analyses['%GID%'].mistakes[0].exp = %EXP%;
+  save(); return true; })""".replace('%GID%', GID).replace('%EXP%', json.dumps(EXP))
 def visible(pg):
     return pg.evaluate("""(()=>{ const c = document.body.cloneNode(true); c.querySelectorAll('footer,script,style').forEach(e=>e.remove());
       return c.innerText + ' ' + [...document.querySelectorAll('input,option,button,[title],[aria-label],[placeholder]')].filter(e => !e.closest('footer')).map(e => (e.tagName==='INPUT' && e.type!=='hidden' && e.type!=='password' ? e.value : '') + ' ' + (e.tagName==='OPTION' ? e.textContent : '') + ' ' + (e.title||'') + ' ' + (e.getAttribute('aria-label')||'') + ' ' + (e.placeholder||'')).join(' '); })()""")
@@ -120,8 +123,12 @@ for W in [1280, 390]:
         check(f'{tag} 1c: Volver a comentar y Borrar comentario', 'Volver a comentar' in c and 'Borrar comentario' in c)
         cx = pg.evaluate(f"S.analyses[{json.dumps(GID)}]")
         check(f'{tag} se guarda cx de la partida con usage', cx.get('cx',{}).get('usage',{}).get('cache_creation_input_tokens') == 1500 and cx['cx']['model'] == 'claude-haiku-5-5' and len(cx['cx']['summary']) == 2)
-        check(f'{tag} se guarda m.cx con pista y texto; exp intacto', all(m.get('cx',{}).get('hint') and m['cx'].get('text') for m in cx['mistakes']) and all('exp' not in m for m in cx['mistakes']))
+        check(f'{tag} se guarda m.cx con pista y texto; exp intacto', all(m.get('cx',{}).get('hint') and m['cx'].get('text') for m in cx['mistakes']) and cx['mistakes'][0].get('exp') == EXP and all('exp' not in m for m in cx['mistakes'][1:]))
         shot('1c-comentario'); no_brand(pg, f'{tag} 1c')
+        # Recargar: el comentario sigue (casilla.v1) y no hay otra llamada
+        n_r=len(SENT); pg.reload(); pg.wait_for_function("Engine.ready",timeout=60000); open_game()
+        check(f'{tag} recargar: el comentario sigue, sin otra llamada', 'La partida se decidió en la apertura' in box() and 'Volver a comentar' in box() and len(SENT) == n_r)
+        check(f'{tag} recargar: exp intacto', pg.evaluate(f"JSON.stringify(S.analyses[{json.dumps(GID)}].mistakes[0].exp)") == json.dumps(EXP, separators=(',',':')))
         pg.click('[data-clgo="16"]'); time.sleep(.3)
         check(f'{tag} «Ver en el tablero» lleva a la jugada', pg.evaluate("App.session.ply") == 16)
         # Volver a comentar: mismo bloque fijo (la caché lo reutiliza)
@@ -133,16 +140,20 @@ for W in [1280, 390]:
         mg = pg.evaluate("(()=>{ const L = JSON.parse(JSON.stringify(S)), R = JSON.parse(JSON.stringify(S)); const k = %s; delete L.analyses[k].cx; L.analyses[k].mistakes.forEach(m => delete m.cx); const o = mergeState(L, R); return !!o.analyses[k].cx && o.analyses[k].mistakes.every(m => m.cx && m.cx.hint); })()" % json.dumps(GID))
         check(f'{tag} mergeState conserva cx del otro lado', mg)
         # 2a / 2b: Mis errores con la pista guardada
+        pg.evaluate("App.puzzleSource='mine'")
         pg.click('[data-pz="0"]'); pg.wait_for_function("App.session.p && App.session.p.src==='mine'",timeout=8000); time.sleep(.3)
         check(f'{tag} 2a: «Ver pista» antes de mostrarla', pg.locator('#aiHint').count() == 1 and 'Pista de la IA' not in pg.inner_text('#pzinfo'))
         check(f'{tag} sin la pista del motor repetida', pg.locator('#controls button', has_text=_re.compile('^Pista$')).count() == 0)
         pg.click('#aiHint'); time.sleep(.3)
         check(f'{tag} 2a: pista guardada, sin llamada nueva', 'Antes de recuperar el peón' in pg.inner_text('#pzinfo') and len(SENT) == n0 + 2)
+        check(f'{tag} 2a: sin «-20» antes de resolver', 'de rating' not in pg.inner_text('#pzinfo') and pg.evaluate("!App.session.p.counted"))
+        check(f'{tag} 2a: «Siguiente error» visible', pg.locator('#controls button', has_text='Siguiente error').count() == 1)
         shot('2a-mis-errores-pista'); no_brand(pg, f'{tag} 2a')
         pg.evaluate("(()=>{ const s = App.session; s.onUserMove({from:'c6', to:'a5'}); })()")
         pg.wait_for_function("App.session.p && App.session.p.done",timeout=8000); time.sleep(.6)
         info = pg.inner_text('#pzinfo')
         check(f'{tag} 2b: se resuelve contra la jugada del motor y muestra la explicación', 'Explicación de la IA' in info and 'El caballo en d5 queda atacado' in info and 'la solución la valida el motor' in info)
+        check(f'{tag} 2b: la pista cuenta como ayuda al terminar', pg.evaluate("App.session.p.counted && App.session.p.failed") and 'Fallaste o pediste ayuda' in info)
         check(f'{tag} 2b: sigue en el repaso espaciado', pg.evaluate(f"!!S.srs[{json.dumps(GID+'#10')}]") and 'Entra al repaso espaciado' in info)
         shot('2b-mis-errores-explicacion'); no_brand(pg, f'{tag} 2b')
         # Ejercicio sin comentario previo: «Ver pista» consulta a la IA una vez y guarda m.cx
@@ -161,9 +172,27 @@ for W in [1280, 390]:
         pg.evaluate("document.querySelector('#spend').scrollIntoView()"); shot('3-ajustes-gasto'); no_brand(pg, f'{tag} 3 Maestro')
         pg.click('#spendReset'); time.sleep(.3)
         check(f'{tag} reiniciar contador', pg.evaluate("AISpend.get().usd") == 0)
+        # Explicación al terminar: no se pide sola; botón «Ver explicación de la IA» (una llamada)
+        pg.evaluate(f"(()=>{{ const m = S.analyses[{json.dumps(GID)}].mistakes[1]; delete m.cx; App.setSession(new PuzzleSession(mistakePuzzle(m))); }})()"); time.sleep(.5)
+        n3=len(SENT); pg.evaluate("App.session.onUserMove({from:'c6', to:'e7'})")
+        pg.wait_for_function("App.session.p && App.session.p.done",timeout=8000); time.sleep(1.2)
+        check(f'{tag} explicación: al resolver no consulta sola', len(SENT) == n3 and pg.locator('#aiExp').count() == 1 and 'Explicación de la IA' not in pg.inner_text('#pzinfo'))
+        pg.click('#aiExp'); pg.wait_for_function("document.querySelector('#pzinfo').innerText.includes('Explicación de la IA')",timeout=8000)
+        check(f'{tag} explicación: el botón hace una llamada y la guarda', len(SENT) == n3 + 1 and 'Tarea: ejercicio' in SENT[-1][1]['messages'][0]['content'] and pg.locator('#aiExp').count() == 0)
+        check(f'{tag} explicación: exp intacto', pg.evaluate(f"JSON.stringify(S.analyses[{json.dumps(GID)}].mistakes[0].exp)") == json.dumps(EXP, separators=(',',':')))
         # Borrar comentario
-        open_game(); pg.click('#clDel'); wait_box('Comentar partida con IA')
-        check(f'{tag} Borrar comentario quita cx y deja exp', pg.evaluate(f"(()=>{{ const a = S.analyses[{json.dumps(GID)}]; return !a.cx && a.mistakes.every(m => !m.cx); }})()"))
+        open_game(); pg.evaluate("window.__R0 = JSON.parse(JSON.stringify(stripForSync(JSON.parse(JSON.stringify(S)))))")
+        pg.click('#clDel'); wait_box('Comentar partida con IA')
+        check(f'{tag} Borrar comentario quita cx y deja exp', pg.evaluate(f"(()=>{{ const a = S.analyses[{json.dumps(GID)}]; return !a.cx && a.mistakes.every(m => !m.cx) && JSON.stringify(a.mistakes[0].exp) === JSON.stringify({json.dumps(EXP)}); }})()"))
+        # Marca de borrado: la sincronización con una copia vieja (con comentario y pistas) no lo trae de vuelta, en ambos sentidos
+        tb = pg.evaluate("(()=>{ const k = %s, L = JSON.parse(JSON.stringify(S)), R = window.__R0; const a = mergeState(JSON.parse(JSON.stringify(L)), JSON.parse(JSON.stringify(R))), b = mergeState(JSON.parse(JSON.stringify(R)), JSON.parse(JSON.stringify(L)));"
+            " const ok = o => !o.analyses[k].cx && o.analyses[k].cxDel > 0 && o.analyses[k].mistakes.every(m => !m.cx && m.cxDel > 0); return [ok(a), ok(b), !!R.analyses[k].cx]; })()" % json.dumps(GID))
+        check(f'{tag} Borrar comentario sobrevive a la sincronización (partida y pistas, ambos sentidos)', tb == [True, True, True])
+        nw = pg.evaluate("(()=>{ const k = %s, R = JSON.parse(JSON.stringify(S)), L = JSON.parse(JSON.stringify(window.__R0)); const t = Date.now() + 1000; L.analyses[k].cx.at = t; L.analyses[k].mistakes.forEach(m => m.cx.at = t);"
+            " const o = mergeState(R, L); return !!o.analyses[k].cx && !o.analyses[k].cxDel && o.analyses[k].mistakes.every(m => m.cx && !m.cxDel); })()" % json.dumps(GID))
+        check(f'{tag} un comentario posterior al borrado sí se sincroniza', nw)
+        rl = pg.evaluate("(()=>{ const k = %s; const st = JSON.parse(localStorage.getItem('casilla.v1')); return !st.analyses[k].cx && st.analyses[k].cxDel > 0; })()" % json.dumps(GID))
+        check(f'{tag} marca de borrado guardada', rl)
         # 1e: clave inválida (401 authentication_error)
         MODE['v']='badkey'; pg.click('#clGo'); wait_box('rechazó la clave')
         check(f'{tag} 1e: clave inválida', 'El servicio de IA rechazó la clave' in box() and 'error 401' in box() and 'Revisar la clave' in box() and 'Reintentar' in box())
