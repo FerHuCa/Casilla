@@ -847,6 +847,38 @@ footer a{color:inherit}
 @media (prefers-reduced-motion:reduce){ .cl-load .prog i{animation:none} }
 .cl-spend{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:14px;margin:8px 0}
 .cl-spend span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
+/* ===== Rediseño impeccable (feat/rediseno-impeccable) =====
+   Todo acotado al estilo Plano con html:not([data-style=relieve]):not([data-style=bits]): Relieve y 8 bits no cambian. */
+/* 1. Contraste AA del gris secundario en Carbón: --muted #A09A90 → #ACA69C
+      (6.49:1 sobre --bg, 5.85:1 sobre --raise, 4.76:1 sobre --line; antes 4.12:1 sobre --line). Papel ya pasa (5.99:1 / 5.38:1). */
+html:not([data-style=relieve]):not([data-style=bits])[data-theme=carbon]{--muted:#ACA69C}
+html:not([data-style=relieve]):not([data-style=bits]){--sp-sec:28px}
+/* 2. Sin palabras sueltas (Firefox lo ignora y queda como antes) */
+html:not([data-style=relieve]):not([data-style=bits]) :is(p,li,.note,.lede){text-wrap:pretty}
+html:not([data-style=relieve]):not([data-style=bits]) :is(h1,h2,h3,h4,summary){text-wrap:balance}
+/* 5. Más aire arriba de los encabezados del panel */
+html:not([data-style=relieve]):not([data-style=bits]) #side h3{margin-top:var(--sp-sec);margin-bottom:8px}
+html:not([data-style=relieve]):not([data-style=bits]) #side .cl-box h3{margin-top:0}
+html:not([data-style=relieve]):not([data-style=bits]) #side p{max-width:68ch}
+/* 3. Sin franjas laterales: borde de 1px redondeado */
+html:not([data-style=relieve]):not([data-style=bits]) .cl-err,html:not([data-style=relieve]):not([data-style=bits]) .mpick{border:1px solid var(--line2);border-radius:var(--r-sm)}
+html:not([data-style=relieve]):not([data-style=bits]) .tip{border:1px solid var(--line2)!important;border-radius:var(--r-sm)!important}
+/* 4. Bloques de IA más limpios: sin borde, fondo --raise, sin tarjeta dentro de tarjeta */
+html:not([data-style=relieve]):not([data-style=bits]) .cl-box{border-color:transparent;border-radius:var(--r-md,8px);padding:18px 20px;background:var(--raise)}
+html:not([data-style=relieve]):not([data-style=bits]) .cl-moment{padding:12px 0}
+html:not([data-style=relieve]):not([data-style=bits]) .cl-moment .mv{font-family:var(--fHead);font-size:16px}
+html:not([data-style=relieve]):not([data-style=bits]) .cl-moment .note{margin-left:6px}
+html:not([data-style=relieve]):not([data-style=bits]) .cl-meta{border-top:1px solid var(--line);padding-top:10px;max-width:68ch}
+/* Extras del mockup: cifras tabulares, selección y subrayado */
+html:not([data-style=relieve]):not([data-style=bits]) :is(.stat .big,.cl-spend,.moves,.games .res){font-variant-numeric:tabular-nums}
+html:not([data-style=relieve]):not([data-style=bits]) ::selection{background:#2A6A44;color:#fff}
+html:not([data-style=relieve]):not([data-style=bits]){accent-color:#2A6A44}
+html:not([data-style=relieve]):not([data-style=bits]) a{text-underline-offset:3px}
+/* 6. Móvil: botones de al menos 44px */
+@media (max-width:600px){
+  html:not([data-style=relieve]):not([data-style=bits]) .btn.small{min-height:44px}
+  html:not([data-style=relieve]):not([data-style=bits]) .cl-box{padding:16px}
+}
 </style>
 </head>
 <body>
