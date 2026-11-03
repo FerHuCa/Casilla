@@ -874,6 +874,8 @@ html:not([data-style=relieve]):not([data-style=bits]) :is(.stat .big,.cl-spend,.
 html:not([data-style=relieve]):not([data-style=bits]) ::selection{background:#2A6A44;color:#fff}
 html:not([data-style=relieve]):not([data-style=bits]){accent-color:#2A6A44}
 html:not([data-style=relieve]):not([data-style=bits]) a{text-underline-offset:3px}
+/* Móvil: la pista de la IA de Mis errores se muestra debajo del tablero (#tip); la copia del panel se oculta */
+@media (max-width:1000px){ body:has(#tip.pz-tip:not([hidden])) #pzinfo .pz-aihint{display:none} }
 /* 6. Móvil: botones de al menos 44px */
 @media (max-width:600px){
   html:not([data-style=relieve]):not([data-style=bits]) .btn.small{min-height:44px}
@@ -3939,7 +3941,7 @@ class PuzzleSession{
     const p = this.p, m = p.mistake, cx = m.cx || {};
     let h = '';
     const box = (t, body) => '<div class="cl-box"><h3>' + t + '</h3>' + body + '</div>';
-    if(cx.hint && (p.aiHint || p.done)) h += box('Pista de la IA', '<p>' + esc(cx.hint) + '</p>');
+    if(cx.hint && (p.aiHint || p.done)) h += '<div class="pz-aihint">' + box('Pista de la IA', '<p>' + esc(cx.hint) + '</p>') + '</div>';
     else if(!p.done && this.aiHintOK() && !p.aiLoading) h += '<div class="row"><button class="btn small" id="aiHint">Ver pista</button></div>';
     if(this.aiExplainOK()) h += '<div class="row"><button class="btn small" id="aiExp">Ver explicación de la IA</button></div>';
     if(p.done && cx.text) h += box('Explicación de la IA', '<p>' + esc(cx.text) + '</p><p class="cl-meta">' + (cx.hint ? 'Pista y explicación escritas por IA' : 'Explicación escrita por IA') + '; la solución la valida el motor. El texto puede tener errores.</p>');
@@ -4072,6 +4074,10 @@ class PuzzleSession{
       else h += '<p class="note">No se pudo preparar la explicación. <button class="btn small" id="expRetry">Reintentar</button></p>';
     }
     box.innerHTML = h;
+    // En el celular la pista de la IA va justo debajo del tablero (en #tip), no al final del panel
+    const tip = $('#tip'), hint = p.src === 'mine' && p.mistake && p.mistake.cx && p.mistake.cx.hint;
+    if(tip){ if(hint && p.aiHint && !p.done){ tip.className = 'tip pz-tip'; tip.hidden = false; tip.innerHTML = '<b>Pista de la IA:</b> ' + esc(hint); }
+      else if(tip.classList.contains('pz-tip')){ tip.hidden = true; tip.textContent = ''; tip.className = 'tip'; } }
     const pzg = $('#pzGame'); if(pzg) pzg.onclick = () => { const m = this.p.mistake, g = S.played.find(x => x.id === m.gid); if(g) openPlayed(g, m.ply - 1); };
     const sm = $('#seeMine'); if(sm) sm.onclick = () => this.showLine('mine');
     const sb = $('#seeBest'); if(sb) sb.onclick = () => this.showLine('best');

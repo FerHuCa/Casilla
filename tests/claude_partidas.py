@@ -145,7 +145,13 @@ for W in [1280, 390]:
         check(f'{tag} 2a: «Ver pista» antes de mostrarla', pg.locator('#aiHint').count() == 1 and 'Pista de la IA' not in pg.inner_text('#pzinfo'))
         check(f'{tag} sin la pista del motor repetida', pg.locator('#controls button', has_text=_re.compile('^Pista$')).count() == 0)
         pg.click('#aiHint'); time.sleep(.3)
-        check(f'{tag} 2a: pista guardada, sin llamada nueva', 'Antes de recuperar el peón' in pg.inner_text('#pzinfo') and len(SENT) == n0 + 2)
+        hint_txt = pg.inner_text('#tip') if mob else pg.inner_text('#pzinfo')
+        check(f'{tag} 2a: pista guardada, sin llamada nueva', 'Antes de recuperar el peón' in hint_txt and len(SENT) == n0 + 2)
+        if mob:
+            # La pista queda justo debajo del tablero (no al final del panel) y no se repite en el panel
+            gap = pg.evaluate("document.querySelector('#tip').getBoundingClientRect().top - document.querySelector('.board').getBoundingClientRect().bottom")
+            check(f'{tag} 2a: pista cerca del tablero (a {round(gap)} px)', 0 <= gap <= 120)
+            check(f'{tag} 2a: la pista no se repite en el panel', 'Pista de la IA' not in pg.inner_text('#pzinfo'))
         check(f'{tag} 2a: sin «-20» antes de resolver', 'de rating' not in pg.inner_text('#pzinfo') and pg.evaluate("!App.session.p.counted"))
         check(f'{tag} 2a: «Siguiente error» visible', pg.locator('#controls button', has_text='Siguiente error').count() == 1)
         shot('2a-mis-errores-pista'); no_brand(pg, f'{tag} 2a')
@@ -158,7 +164,7 @@ for W in [1280, 390]:
         shot('2b-mis-errores-explicacion'); no_brand(pg, f'{tag} 2b')
         # Ejercicio sin comentario previo: «Ver pista» consulta a la IA una vez y guarda m.cx
         pg.evaluate(f"(()=>{{ const m = S.analyses[{json.dumps(GID)}].mistakes[2]; delete m.cx; App.setSession(new PuzzleSession(mistakePuzzle(m))); }})()"); time.sleep(.5)
-        n1=len(SENT); pg.click('#aiHint'); pg.wait_for_function("document.querySelector('#pzinfo').innerText.includes('Pista de la IA')",timeout=8000)
+        n1=len(SENT); pg.click('#aiHint'); pg.wait_for_function("(document.querySelector('#pzinfo').innerText + document.querySelector('#tip').innerText).includes('Pista de la IA')",timeout=8000)
         eb = SENT[-1][1]
         check(f'{tag} ejercicio suelto: una llamada con el mismo bloque fijo', len(SENT) == n1 + 1 and 'Tarea: ejercicio' in eb['messages'][0]['content'] and eb['system'] == sysb)
         check(f'{tag} ejercicio suelto: guarda pista y explicación en m.cx', pg.evaluate(f"(()=>{{ const c = S.analyses[{json.dumps(GID)}].mistakes[2].cx; return !!(c && c.hint && c.text && c.model); }})()"))
