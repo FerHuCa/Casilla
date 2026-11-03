@@ -280,7 +280,7 @@ textarea{min-height:64px;font-size:13px;resize:vertical;font-family:ui-monospace
 .daysteps .item.off .t{color:var(--muted);font-weight:500}
 .checks .item{padding:9px 0}
 .games{list-style:none;padding:0;margin:10px 0;border-top:1px solid var(--line)}
-.game{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer}
+.game{display:grid;grid-template-columns:10px 1fr auto;gap:12px;align-items:center;padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer}
 .game:hover{background:var(--raise)}
 .game .c{width:9px;height:9px;border-radius:var(--r-round);border:1px solid var(--faint)}
 .game .c.w{background:#E7E3DC} .game .c.b{background:#1C1B1A}
@@ -772,11 +772,6 @@ footer{font-size:var(--fs-xs)}
 @media (max-width:1000px){
   .tabs{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent);padding-right:40px}
 }
-/* pestañas en el celular: las 6 a la vista en 2 filas de 3, sin desplazamiento ni corte */
-@media (max-width:600px){
-  .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:0 12px;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-right:0}
-  .tab{padding:10px 0 9px;min-height:44px;text-align:center}
-}
 /* Fuentes de los presets (OFL 1.1, autoalojadas). El navegador solo las descarga cuando el preset activo las usa. */
 @font-face{font-family:'Manrope';src:url('fonts/Manrope-latin.woff2') format('woff2');font-weight:400 700;font-style:normal;font-display:swap}
 @font-face{font-family:'Literata';src:url('fonts/Literata-latin.woff2') format('woff2');font-weight:400 600;font-style:normal;font-display:swap}
@@ -852,40 +847,47 @@ footer a{color:inherit}
 @media (prefers-reduced-motion:reduce){ .cl-load .prog i{animation:none} }
 .cl-spend{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:14px;margin:8px 0}
 .cl-spend span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
-/* ===== Rediseño impeccable (feat/rediseno-impeccable) =====
-   Todo acotado al estilo Plano con html:not([data-style=relieve]):not([data-style=bits]): Relieve y 8 bits no cambian. */
-/* 1. Contraste AA del gris secundario en Carbón: --muted #A09A90 → #ACA69C
-      (6.49:1 sobre --bg, 5.85:1 sobre --raise, 4.76:1 sobre --line; antes 4.12:1 sobre --line). Papel ya pasa (5.99:1 / 5.38:1). */
-html:not([data-style=relieve]):not([data-style=bits])[data-theme=carbon]{--muted:#ACA69C}
-html:not([data-style=relieve]):not([data-style=bits]){--sp-sec:28px}
-/* 2. Sin palabras sueltas (Firefox lo ignora y queda como antes) */
+</style>
+
+<style id="impeccable-polish">
+/* Prueba de rediseño con impeccable (polish + craft-floor). Todas las reglas van limitadas al estilo Plano con html:not([data-style=relieve]):not([data-style=bits]); Relieve y 8 bits quedan como en main. */
+/* Contraste: --muted (no --faint) en Carbón pasa de #A09A90 (4.4:1 sobre --raise, hallazgo del detector) a #ACA69C (AA). */
+html:not([data-style=relieve]):not([data-style=bits]):not([data-theme]),html:not([data-style=relieve]):not([data-style=bits])[data-theme=carbon]{--muted:#ACA69C}
+html:not([data-style=relieve]):not([data-style=bits]){--sp-sec:28px;accent-color:#2A6A44;caret-color:currentColor}
+/* Tipografía: cortes de línea y jerarquía (typeset / straggler) */
 html:not([data-style=relieve]):not([data-style=bits]) :is(p,li,.note,.lede){text-wrap:pretty}
 html:not([data-style=relieve]):not([data-style=bits]) :is(h1,h2,h3,h4,summary){text-wrap:balance}
-/* 5. Más aire arriba de los encabezados del panel */
 html:not([data-style=relieve]):not([data-style=bits]) #side h3{margin-top:var(--sp-sec);margin-bottom:8px}
 html:not([data-style=relieve]):not([data-style=bits]) #side .cl-box h3{margin-top:0}
 html:not([data-style=relieve]):not([data-style=bits]) #side p{max-width:68ch}
-/* 3. Sin franjas laterales: borde de 1px redondeado */
-html:not([data-style=relieve]):not([data-style=bits]) .cl-err,html:not([data-style=relieve]):not([data-style=bits]) .mpick{border:1px solid var(--line2);border-radius:var(--r-sm)}
-html:not([data-style=relieve]):not([data-style=bits]) .tip{border:1px solid var(--line2)!important;border-radius:var(--r-sm)!important}
-/* 4. Bloques de IA más limpios: sin borde, fondo --raise, sin tarjeta dentro de tarjeta */
-html:not([data-style=relieve]):not([data-style=bits]) .cl-box{border-color:transparent;border-radius:var(--r-md,8px);padding:18px 20px;background:var(--raise)}
+/* Bloques de IA: sin franja lateral de color (ban side-stripe) y sin tarjeta dentro de tarjeta */
+html:not([data-style=relieve]):not([data-style=bits]) .cl-err{border-left:0;border:1px solid var(--line2);border-radius:var(--r-sm)}
 html:not([data-style=relieve]):not([data-style=bits]) .cl-moment{padding:12px 0}
 html:not([data-style=relieve]):not([data-style=bits]) .cl-moment .mv{font-family:var(--fHead);font-size:16px}
 html:not([data-style=relieve]):not([data-style=bits]) .cl-moment .note{margin-left:6px}
 html:not([data-style=relieve]):not([data-style=bits]) .cl-meta{border-top:1px solid var(--line);padding-top:10px;max-width:68ch}
-/* Extras del mockup: cifras tabulares, selección y subrayado */
+html:not([data-style=relieve]):not([data-style=bits]) .cl-box{border-radius:var(--r-md,8px);padding:18px 20px;background:var(--raise);border-color:transparent}
+/* Avisos y notas: misma regla */
+html:not([data-style=relieve]):not([data-style=bits]) :is(.mpick,.tip){border-left:0;border:1px solid var(--line2);border-radius:var(--r-sm)}
+/* Cifras y superficies del navegador (craft-floor: browser surfaces) */
 html:not([data-style=relieve]):not([data-style=bits]) :is(.stat .big,.cl-spend,.moves,.games .res){font-variant-numeric:tabular-nums}
 html:not([data-style=relieve]):not([data-style=bits]) ::selection{background:#2A6A44;color:#fff}
-html:not([data-style=relieve]):not([data-style=bits]){accent-color:#2A6A44}
 html:not([data-style=relieve]):not([data-style=bits]) a{text-underline-offset:3px}
-/* Móvil: la pista de la IA de Mis errores se muestra debajo del tablero (#tip); la copia del panel se oculta */
-@media (max-width:1000px){ body:has(#tip.pz-tip:not([hidden])) #pzinfo .pz-aihint{display:none} }
-/* 6. Móvil: botones de al menos 44px */
+/* Móvil: objetivos táctiles de al menos 44px (adapt) */
 @media (max-width:600px){
   html:not([data-style=relieve]):not([data-style=bits]) .btn.small{min-height:44px}
-  html:not([data-style=relieve]):not([data-style=bits]) .cl-box{padding:16px}
+  /* .cl-box{padding:16px} retirada: en la versión anterior perdía ante la regla de Plano de la línea 869 (18px 20px) y no tenía efecto; al limitarla a Plano habría empezado a aplicar y cambiado las capturas. */
 }
+/* Corrección 1 (estructural, todos los estilos): en móvil las 6 pestañas van en una rejilla de 3 x 2 y se ven completas, sin desplazamiento oculto ni desvanecido. */
+@media (max-width:600px){
+  .tabs{display:grid;grid-template-columns:repeat(3,auto);justify-content:space-between;gap:0 12px;overflow:visible;padding-right:0;-webkit-mask-image:none;mask-image:none}
+  .tab{padding:8px 0 9px;text-align:left}
+}
+/* Corrección 2 (solo Plano): en Mis errores el bloque del ejercicio (con la pista de la IA) sube al principio del panel, junto al tablero en escritorio y justo debajo de los controles en móvil. */
+html:not([data-style=relieve]):not([data-style=bits]) #side:has(> #pzinfo :is(#aiHint,.cl-box)){display:flex;flex-direction:column}
+html:not([data-style=relieve]):not([data-style=bits]) #side:has(> #pzinfo :is(#aiHint,.cl-box)) > #pzinfo{order:-1;margin-bottom:var(--sp-sec,28px);padding-bottom:var(--sp-sec,28px);border-bottom:1px solid var(--line)}
+/* Corrección 3 (estructural, todos los estilos): la columna del rival era 1fr, cuyo mínimo es el ancho del texto sin cortar (nowrap), y estiraba la fila a 413-419px; con minmax(0,1fr) el texto se recorta con puntos suspensivos dentro del panel. */
+.game{grid-template-columns:10px minmax(0,1fr) auto}
 </style>
 </head>
 <body>
@@ -3946,7 +3948,7 @@ class PuzzleSession{
     const p = this.p, m = p.mistake, cx = m.cx || {};
     let h = '';
     const box = (t, body) => '<div class="cl-box"><h3>' + t + '</h3>' + body + '</div>';
-    if(cx.hint && (p.aiHint || p.done)) h += '<div class="pz-aihint">' + box('Pista de la IA', '<p>' + esc(cx.hint) + '</p>') + '</div>';
+    if(cx.hint && (p.aiHint || p.done)) h += box('Pista de la IA', '<p>' + esc(cx.hint) + '</p>');
     else if(!p.done && this.aiHintOK() && !p.aiLoading) h += '<div class="row"><button class="btn small" id="aiHint">Ver pista</button></div>';
     if(this.aiExplainOK()) h += '<div class="row"><button class="btn small" id="aiExp">Ver explicación de la IA</button></div>';
     if(p.done && cx.text) h += box('Explicación de la IA', '<p>' + esc(cx.text) + '</p><p class="cl-meta">' + (cx.hint ? 'Pista y explicación escritas por IA' : 'Explicación escrita por IA') + '; la solución la valida el motor. El texto puede tener errores.</p>');
@@ -4079,10 +4081,6 @@ class PuzzleSession{
       else h += '<p class="note">No se pudo preparar la explicación. <button class="btn small" id="expRetry">Reintentar</button></p>';
     }
     box.innerHTML = h;
-    // En el celular la pista de la IA va justo debajo del tablero (en #tip), no al final del panel
-    const tip = $('#tip'), hint = p.src === 'mine' && p.mistake && p.mistake.cx && p.mistake.cx.hint;
-    if(tip){ if(hint && p.aiHint && !p.done){ tip.className = 'tip pz-tip'; tip.hidden = false; tip.innerHTML = '<b>Pista de la IA:</b> ' + esc(hint); }
-      else if(tip.classList.contains('pz-tip')){ tip.hidden = true; tip.textContent = ''; tip.className = 'tip'; } }
     const pzg = $('#pzGame'); if(pzg) pzg.onclick = () => { const m = this.p.mistake, g = S.played.find(x => x.id === m.gid); if(g) openPlayed(g, m.ply - 1); };
     const sm = $('#seeMine'); if(sm) sm.onclick = () => this.showLine('mine');
     const sb = $('#seeBest'); if(sb) sb.onclick = () => this.showLine('best');
