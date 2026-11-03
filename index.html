@@ -772,6 +772,11 @@ footer{font-size:var(--fs-xs)}
 @media (max-width:1000px){
   .tabs{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent);padding-right:40px}
 }
+/* pestañas en el celular: las 6 a la vista en 2 filas de 3, sin desplazamiento ni corte */
+@media (max-width:600px){
+  .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:0 12px;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-right:0}
+  .tab{padding:10px 0 9px;min-height:44px;text-align:center}
+}
 /* Fuentes de los presets (OFL 1.1, autoalojadas). El navegador solo las descarga cuando el preset activo las usa. */
 @font-face{font-family:'Manrope';src:url('fonts/Manrope-latin.woff2') format('woff2');font-weight:400 700;font-style:normal;font-display:swap}
 @font-face{font-family:'Literata';src:url('fonts/Literata-latin.woff2') format('woff2');font-weight:400 600;font-style:normal;font-display:swap}
