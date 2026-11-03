@@ -54,8 +54,12 @@ SETUP="""(sans => {
   S.analyses['%GID%'].mistakes[0].exp = %EXP%;
   save(); return true; })""".replace('%GID%', GID).replace('%EXP%', json.dumps(EXP))
 def visible(pg):
+    # Solo lo que la persona ve o le lee el lector de pantalla: innerText (sin pie, script ni style) y title, aria-label,
+    # placeholder y texto de opciones de elementos visibles. No cuenta href (el link «Obtener una clave» del Maestro apunta a
+    # platform.claude.com), ni valores de campos (la clave, el id del modelo), ni nada oculto.
     return pg.evaluate("""(()=>{ const c = document.body.cloneNode(true); c.querySelectorAll('footer,script,style').forEach(e=>e.remove());
-      return c.innerText + ' ' + [...document.querySelectorAll('input,option,button,[title],[aria-label],[placeholder]')].filter(e => !e.closest('footer')).map(e => (e.tagName==='INPUT' && e.type!=='hidden' && e.type!=='password' ? e.value : '') + ' ' + (e.tagName==='OPTION' ? e.textContent : '') + ' ' + (e.title||'') + ' ' + (e.getAttribute('aria-label')||'') + ' ' + (e.placeholder||'')).join(' '); })()""")
+      const vis = e => !e.closest('footer') && (e.tagName==='OPTION' ? e.parentElement.checkVisibility() : e.checkVisibility());
+      return c.innerText + ' ' + [...document.querySelectorAll('option,[title],[aria-label],[placeholder]')].filter(vis).map(e => (e.tagName==='OPTION' ? e.textContent : '') + ' ' + (e.title||'') + ' ' + (e.getAttribute('aria-label')||'') + ' ' + (e.placeholder||'')).join(' '); })()""")
 def no_brand(pg, where):
     hits=_re.findall(r'(?i)claude|anthropic|stockfish', visible(pg))
     check(f'sin Claude/Anthropic/Stockfish visibles ({where})', not hits)
@@ -91,6 +95,7 @@ for W in [1280, 390]:
         check(f'{tag} «Ir a la clave» lleva a Maestro, a la clave', pg.evaluate("App.tab==='coach' && document.activeElement && document.activeElement.id==='aikey'"))
         check(f'{tag} sección «Comentarios con IA (opcional)»', 'Comentarios con IA (opcional)' in pg.inner_text('#side'))
         no_brand(pg, f'{tag} Maestro sin clave')
+        check(f'{tag} el link a la consola (platform.claude.com) no cuenta como mención visible', pg.locator('#side a[href*="platform.claude.com"]').count() >= 1)
         # Clave simulada; Haiku para comentar partidas en pruebas
         pg.evaluate("S.settings.claude = {on:false, key:'sk-ant-prueba', model:'claude-haiku-5-5', gameModel:'claude-haiku-5-5'}; save()")
         open_game()

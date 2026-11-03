@@ -58,13 +58,14 @@ with sync_playwright() as p:
     check('clave inválida se reporta', 'No se pudo conectar: invalid x-api-key' in out)
     check('la clave no queda en el respaldo', pg.evaluate("(()=>{ const c = JSON.parse(JSON.stringify(S)); return !!(stripForSync(c).settings.claude); })()") is False)
     # Claude, Anthropic y Stockfish no aparecen en ningún texto visible, tampoco en la sección de la clave, las opciones de modelo,
-    # los resultados de «Probar conexión» ni los atributos title, aria-label y placeholder. Única excepción: el crédito del pie.
+    # los resultados de «Probar conexión» ni los atributos title, aria-label y placeholder de lo visible. Única excepción: el crédito
+    # del pie. Los href (links a platform.claude.com en Maestro) y los valores de campos no son texto visible y no se revisan.
     import re as _re
     for tab in ['ladder','puzzles','positions','games','progress','coach']:
         pg.click(f'.tab[data-tab={tab}]'); time.sleep(.4)
         if tab == 'coach': MODE['v']='ok'; test()
         txt=pg.evaluate("""(()=>{ const c = document.body.cloneNode(true); c.querySelectorAll('footer,script,style,#look').forEach(e=>e.remove());
-          return c.innerText + ' ' + [...document.querySelectorAll('option,button,[title],[aria-label],[placeholder]')].filter(e => !e.closest('footer,#look'))
+          return c.innerText + ' ' + [...document.querySelectorAll('option,button,[title],[aria-label],[placeholder]')].filter(e => !e.closest('footer,#look') && (e.tagName==='OPTION' ? e.parentElement.checkVisibility() : e.checkVisibility()))
             .map(e => (e.tagName==='OPTION' ? e.textContent : '') + ' ' + (e.title||'') + ' ' + (e.getAttribute('aria-label')||'') + ' ' + (e.placeholder||'')).join(' '); })()""")
         hits=_re.findall(r'(?i)claude|anthropic|stockfish', txt)
         check(f'sin menciones de Claude/Anthropic/Stockfish visibles ({tab})', not hits)
