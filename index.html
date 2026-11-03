@@ -848,6 +848,47 @@ footer a{color:inherit}
 .cl-spend{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:14px;margin:8px 0}
 .cl-spend span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
 </style>
+
+<style id="impeccable-polish">
+/* Prueba de rediseño con impeccable (polish + craft-floor). Todas las reglas van limitadas al estilo Plano con html:not([data-style=relieve]):not([data-style=bits]); Relieve y 8 bits quedan como en main. */
+/* Contraste: --muted (no --faint) en Carbón pasa de #A09A90 (4.4:1 sobre --raise, hallazgo del detector) a #ACA69C (AA). */
+html:not([data-style=relieve]):not([data-style=bits]):not([data-theme]),html:not([data-style=relieve]):not([data-style=bits])[data-theme=carbon]{--muted:#ACA69C}
+html:not([data-style=relieve]):not([data-style=bits]){--sp-sec:28px;accent-color:#2A6A44;caret-color:currentColor}
+/* Tipografía: cortes de línea y jerarquía (typeset / straggler) */
+html:not([data-style=relieve]):not([data-style=bits]) :is(p,li,.note,.lede){text-wrap:pretty}
+html:not([data-style=relieve]):not([data-style=bits]) :is(h1,h2,h3,h4,summary){text-wrap:balance}
+html:not([data-style=relieve]):not([data-style=bits]) #side h3{margin-top:var(--sp-sec);margin-bottom:8px}
+html:not([data-style=relieve]):not([data-style=bits]) #side .cl-box h3{margin-top:0}
+html:not([data-style=relieve]):not([data-style=bits]) #side p{max-width:68ch}
+/* Bloques de IA: sin franja lateral de color (ban side-stripe) y sin tarjeta dentro de tarjeta */
+html:not([data-style=relieve]):not([data-style=bits]) .cl-err{border-left:0;border:1px solid var(--line2);border-radius:var(--r-sm)}
+html:not([data-style=relieve]):not([data-style=bits]) .cl-moment{padding:12px 0}
+html:not([data-style=relieve]):not([data-style=bits]) .cl-moment .mv{font-family:var(--fHead);font-size:16px}
+html:not([data-style=relieve]):not([data-style=bits]) .cl-moment .note{margin-left:6px}
+html:not([data-style=relieve]):not([data-style=bits]) .cl-meta{border-top:1px solid var(--line);padding-top:10px;max-width:68ch}
+html:not([data-style=relieve]):not([data-style=bits]) .cl-box{border-radius:var(--r-md,8px);padding:18px 20px;background:var(--raise);border-color:transparent}
+/* Avisos y notas: misma regla */
+html:not([data-style=relieve]):not([data-style=bits]) :is(.mpick,.tip){border-left:0;border:1px solid var(--line2);border-radius:var(--r-sm)}
+/* Cifras y superficies del navegador (craft-floor: browser surfaces) */
+html:not([data-style=relieve]):not([data-style=bits]) :is(.stat .big,.cl-spend,.moves,.games .res){font-variant-numeric:tabular-nums}
+html:not([data-style=relieve]):not([data-style=bits]) ::selection{background:#2A6A44;color:#fff}
+html:not([data-style=relieve]):not([data-style=bits]) a{text-underline-offset:3px}
+/* Móvil: objetivos táctiles de al menos 44px (adapt) */
+@media (max-width:600px){
+  html:not([data-style=relieve]):not([data-style=bits]) .btn.small{min-height:44px}
+  /* .cl-box{padding:16px} retirada: en la versión anterior perdía ante la regla de Plano de la línea 869 (18px 20px) y no tenía efecto; al limitarla a Plano habría empezado a aplicar y cambiado las capturas. */
+}
+/* Corrección 1 (estructural, todos los estilos): en móvil las 6 pestañas van en una rejilla de 3 x 2 y se ven completas, sin desplazamiento oculto ni desvanecido. */
+@media (max-width:600px){
+  .tabs{display:grid;grid-template-columns:repeat(3,auto);justify-content:space-between;gap:0 12px;overflow:visible;padding-right:0;-webkit-mask-image:none;mask-image:none}
+  .tab{padding:8px 0 9px;text-align:left}
+}
+/* Corrección 2 (solo Plano): en Mis errores el bloque del ejercicio (con la pista de la IA) sube al principio del panel, junto al tablero en escritorio y justo debajo de los controles en móvil. */
+html:not([data-style=relieve]):not([data-style=bits]) #side:has(> #pzinfo :is(#aiHint,.cl-box)){display:flex;flex-direction:column}
+html:not([data-style=relieve]):not([data-style=bits]) #side:has(> #pzinfo :is(#aiHint,.cl-box)) > #pzinfo{order:-1;margin-bottom:var(--sp-sec,28px);padding-bottom:var(--sp-sec,28px);border-bottom:1px solid var(--line)}
+/* Corrección 3 (estructural, todos los estilos): la columna del rival era 1fr, cuyo mínimo es el ancho del texto sin cortar (nowrap), y estiraba la fila a 413-419px; con minmax(0,1fr) el texto se recorta con puntos suspensivos dentro del panel. */
+.game{grid-template-columns:10px minmax(0,1fr) auto}
+</style>
 </head>
 <body>
 <header class="top">
