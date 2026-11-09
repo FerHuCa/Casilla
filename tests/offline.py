@@ -11,7 +11,10 @@ for n in os.listdir(ROOT):
     s=ROOT/n; (shutil.copytree if s.is_dir() else shutil.copy)(s, os.path.join(SITE,n))
 class H(http.server.SimpleHTTPRequestHandler):
     def log_message(self,*a): pass
-    def end_headers(self): self.send_header('Cache-Control','no-cache'); super().end_headers()
+    def end_headers(self):
+        if self.path.split('?')[0]=='/': SHELL.append(time.time())  # pedidos de la shell que llegan al servidor (carga o revalidación)
+        self.send_header('Cache-Control','no-cache'); super().end_headers()
+SHELL=[]
 srv=http.server.ThreadingHTTPServer(('127.0.0.1',0), functools.partial(H, directory=SITE))
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 URL='http://127.0.0.1:%d/'%srv.server_address[1]
@@ -43,11 +46,19 @@ with sync_playwright() as p:
     pg.goto(URL)
     pg.wait_for_function("navigator.serviceWorker.controller && Engine.ready",timeout=90000)
     wait_caches(pg, "k.length>0")
-    need=['engine/stockfish-19-lite-single.wasm','fonts/PressStart2P-latin.woff2','logo-claro.svg','favicon.ico','apple-touch-icon-180.png','chess.min.js','stockfish-19-lite-single.wasm','stockfish-19-lite-single.js','10.0.2/stockfish.wasm','10.0.2/stockfish.js','10.0.2/stockfish.wasm.js']
+    need=['engine/stockfish-19-lite-single.wasm','fonts/PressStart2P-latin.woff2','logo-claro.svg','favicon.ico','apple-touch-icon-180.png','lib/chess.js','stockfish-19-lite-single.wasm','stockfish-19-lite-single.js']
     urls=pg.evaluate("async()=>{const c=await caches.open((await caches.keys())[0]);return (await c.keys()).map(r=>r.url)}")
     miss=[n for n in need if not any(u.endswith(n) for u in urls)]+([] if URL in urls else ['./ (shell)'])
     check('precache completo', not miss, '%d archivos%s'%(len(urls), (' faltan '+str(miss)) if miss else ''))
+    ajenos=[u for u in urls if not u.startswith(URL)]
+    check('el precache no depende de ningún CDN', not ajenos, str(ajenos[:3]))
     sz=pg.evaluate(SIZE_JS); print('   caché:',sz)
+    # El respaldo (Stockfish 10) no se precachea: se guarda al usarlo con red
+    pg.goto(URL+'?sf=10'); pg.wait_for_function("Engine.ready",timeout=60000)
+    check('Stockfish 10 con red', pg.evaluate("Engine.flavor")=='WASM', pg.evaluate("Engine.flavor"))
+    ok10=wait_caches(pg, "true", 5) and pg.evaluate("async()=>{const c=await caches.open((await caches.keys())[0]);return (await c.keys()).filter(r=>r.url.includes('/stockfish.js/10.0.2/')).length}")
+    check('Stockfish 10 guardado al usarlo', ok10>=2, str(ok10))
+    pg.goto(URL); pg.wait_for_function("navigator.serviceWorker.controller && Engine.ready",timeout=60000)
     # Datos de Partidas con red (luego se usan sin red)
     pg.click('.tab[data-tab=games]'); pg.fill('#user',U); pg.click('#load')
     pg.wait_for_function("S.games.length===3",timeout=15000)
@@ -77,7 +88,7 @@ with sync_playwright() as p:
     pg.screenshot(path=OUT+'offline_partidas_390.png')
     # Stockfish 10 de respaldo sin red
     pg.goto(URL+'?sf=10'); pg.wait_for_function("Engine.ready",timeout=60000)
-    check('respaldo Stockfish 10 sin red', pg.evaluate("Engine.flavor")=='WASM', pg.evaluate("Engine.flavor"))
+    check('respaldo Stockfish 10 sin red (ya usado antes)', pg.evaluate("Engine.flavor")=='WASM', pg.evaluate("Engine.flavor"))
     # 3) Vuelve la red: la IA regresa sola
     pg.goto(URL); pg.wait_for_function("Engine.ready",timeout=60000)
     offline(ctx, False); pg.wait_for_function("navigator.onLine===true",timeout=5000)
@@ -99,9 +110,23 @@ with sync_playwright() as p:
     try: pg.reload()
     except Exception: pg.wait_for_load_state('load')
     pg.wait_for_function("Engine.ready",timeout=60000)
-    check('index.html nuevo con red (red primero)', pg.evaluate("!!document.querySelector('meta[name=casilla-prueba]')"))
+    check('index.html nuevo tras Actualizar', pg.evaluate("!!document.querySelector('meta[name=casilla-prueba]')"))
+    n10=pg.evaluate("async()=>{const c=await caches.open('casilla-prueba-nueva');return (await c.keys()).filter(r=>r.url.includes('/stockfish.js/10.0.2/')).length}")
+    check('Stockfish 10 guardado se conserva al actualizar', n10>=2, str(n10))
+    # 5) La shell sale de la caché al instante y se revalida en segundo plano (sin cambiar VERSION).
+    # Se prueba con fetch desde la página: en este arnés cada navegación reinstala el service worker y eso volvería a precachear la shell.
+    pg.wait_for_timeout(3000)  # deja terminar la carga y su revalidación
+    ih=open(os.path.join(SITE,'index.html')).read().replace('</body>','<meta name="casilla-prueba3" content="v3"></body>',1); open(os.path.join(SITE,'index.html'),'w').write(ih)
+    n0=len(SHELL)
+    t1=pg.evaluate("fetch(location.href).then(r=>r.text()).then(t=>t.includes('casilla-prueba3'))")
+    check('la shell sale de la copia guardada, sin esperar a la red', t1==False)
+    for _ in range(80):
+        if len(SHELL)>n0 and pg.evaluate("async()=>{const c=await caches.open('casilla-prueba-nueva');const r=await c.match(location.origin+'/');return r?(await r.text()).includes('casilla-prueba3'):false}"): break
+        pg.wait_for_timeout(250)
+    check('la revalidación pidió la shell y guardó la nueva', len(SHELL)>n0)
+    check('siguiente apertura: shell nueva', pg.evaluate("fetch(location.href).then(r=>r.text()).then(t=>t.includes('casilla-prueba3'))"))
     offline(ctx, True); pg.reload(); pg.wait_for_function("Engine.ready",timeout=60000)
-    check('sin red se sirve la versión nueva', pg.evaluate("!!document.querySelector('meta[name=casilla-prueba]')"))
+    check('sin red se sirve la versión nueva', pg.evaluate("!!document.querySelector('meta[name=casilla-prueba3]')"))
     sz2=pg.evaluate(SIZE_JS); print('   caché tras actualizar:',sz2)
     b.close()
 srv.shutdown()

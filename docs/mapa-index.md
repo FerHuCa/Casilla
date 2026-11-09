@@ -6,7 +6,7 @@ Todo vive en `index.html`: CSS arriba, HTML del layout y un solo `<script>`. Bus
 |---|---|
 | Constantes | `SF_BASE`, `TIERS` (8 niveles de la escalera), `ENDGAMES`, `OPENINGS`, `THEMES`, `CATS`, `PLAN` (4 etapas de la ruta a 1500), `COACH_MODES` |
 | Utilidades | `winPct`, `fmtEval`, `parsePGN`, `buildGame`, `openingName` |
-| Estado | `KEY` (`casilla.v1` en localStorage), `defaults()`, `S`, `save()` = `saveLocal()` + `Sync.dirty()` |
+| Estado | `KEY` (`casilla.v1` en localStorage), `defaults()`, `S`, `leanPGN`/`isFatPGN` (PGN de Chess.com sin relojes ni cabeceras que no se usan), `pruneState` (aligera al abrir y al combinar), `save()` = `saveLocal()` + `Sync.dirty()` |
 | Motor | `workerFromCode`, `handshake`, `Engine` (cola con prioridades: ui 3, coach y Maestro del análisis 2, barra/eval/análisis 1, batch 0; trabajos con tag cancelables: `ui`, `coach`, `bar`, `ana`, `maestro`, `batch`) |
 | Tablero | `Board`, `EvalBar` |
 | App y sesiones | `App` (`App.setSession`), `HomeSession`, `PlaySession`, `PuzzleSession`, `OpeningSession`, `AnalysisSession`, `ReviewSession`, `EvalSession` |
@@ -19,12 +19,12 @@ Todo vive en `index.html`: CSS arriba, HTML del layout y un solo `<script>`. Bus
 | Ruta a 1500 | `planState`, `planDay`, `planStage`, `planSteps`, `planEndgame`, `planCheck`, `planStreak`, `stageChecks`, `planGo`, `planHTML`; datos en `S.plan` |
 | Evidencia (Progreso) | `EVID_WEEKS`, `EVID_FIELDS`, `evidState`, `dkDate`/`dkAdd`/`dkDiff` (aritmética de `dayKey`), `evidPrune` (60 días más los 28 de la prueba), `evidTouch` (marca el día al abrir y al volver), `evidPuzzle` (desde `PuzzleSession.score`), `evidStats` (4 semanas desde `S.evid.start`), `evidHTML`, `evidExport` (solo números y fechas), `bindEvid`; datos en `S.evid` y `ser` en `S.coach.games` (partida seria) |
 | Explicaciones | `rootCause`, `bestIdea` (acepta `ctx.quiet` y `ctx.noOpening` para el análisis de posiciones sueltas), `categorize`, `explanationHTML` |
-| Evaluación post partida | `Evaluator` (varios trabajos, el más reciente primero, en pausa mientras se juega), `evalJobFor` (reabre sin recalcular), `buildEvaluation`, `saveEvaluation`, `evalNarrative`, `deepMoment`, `moveComment` (comentario de cada jugada), `evalGraph`, `EvalSession` |
+| Evaluación post partida | `evalPositions` (evalúa las posiciones de una partida; lo usan `Evaluator` y `Analyzer`), `analysisOf` (marcas y errores; el tipo sale de `categorize` en la evaluación a fondo y de `quickCat` en el análisis por lotes), `Evaluator` (varios trabajos, el más reciente primero, en pausa mientras se juega), `evalJobFor` (reabre sin recalcular), `buildEvaluation`, `saveEvaluation`, `evalNarrative`, `deepMoment`, `moveComment` (comentario de cada jugada), `evalGraph`, `EvalSession` |
 | Historial de Casilla | `S.played` (partidas jugadas aquí, se guardan al terminar su evaluación), `openPlayed`, `playedHTML`; el análisis con `best` y `pv` vive en `S.analyses[gid]` |
 | Chess.com y Lichess | `jsonp`, `chessComJSON` (reintenta 429 hasta 3 veces), `Analyzer`, `lichessDifficulty`, `mistakePuzzle` |
 | Pantallas de inicio | `renderLadderHome`, `renderCoachHome`, `renderGamesHome`, `renderPositionsHome`, `renderProgressHome`, `HOMES` |
 | Apariencia | `LOOK`, `LOOK_GROUPS`, `PRESETS`, `withCustom`, `migrateLook`, `lookPref`, `lookFiles`, `applyLook`, `renderLook` |
-| Sincronización | `SYNC_FILE` (`casilla-progreso.json` en un gist), `canon`, `syncKey`, `mergeState`, `Sync` |
+| Sincronización | `SYNC_FILE` (`casilla-progreso.json` en un gist), `canon`, `syncKey` (huella sin clonar el estado), `mergeState` (termina con `pruneState`), `Sync` |
 | Arranque | `boot()`, `Offline` (registra `sw.js`) |
 
 Los campos nuevos entran con valor por defecto en `defaults()` y se fusionan al cargar. Los datos de versiones viejas deben seguir abriendo.

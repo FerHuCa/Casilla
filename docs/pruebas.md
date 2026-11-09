@@ -4,7 +4,7 @@ Las pruebas están en `tests/` y usan Playwright (Python) con toda la red simula
 
 ```
 cd tests
-npm install                 # baja chess.js y stockfish.js para servirlos en lugar del CDN
+npm install                 # baja stockfish.js para servirlo en lugar del CDN (chess.js ya viene en lib/)
 pip install playwright      # si no está; en el sandbox de Claude ya viene Chromium
 python3 run.py              # flujo general: escalera, puzzles, partidas, posiciones, progreso
 ```
@@ -25,7 +25,7 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `bar.py` | Barra de evaluación |
 | `mobile.py` | Auditoría de móvil (desbordes, tamaños táctiles) |
 | `sync.py` | Sincronización por gist |
-| `offline.py` | Service worker por http: precache, modo avión a 390 px (`context.set_offline`), Escalera, Partidas y análisis sin red, respaldo Stockfish 10, IA apagada sin red y de vuelta, versión nueva que reemplaza a la vieja |
+| `offline.py` | Service worker por http: precache sin CDN, Stockfish 10 guardado al usarlo y conservado al actualizar, modo avión a 390 px (`context.set_offline`), Escalera, Partidas y análisis sin red, IA apagada sin red y de vuelta, versión nueva que reemplaza a la vieja, shell desde la copia guardada con revalidación en segundo plano |
 | `look.py`, `relieve.py`, `bits.py`, `migracion.py` | Apariencia por presets (incluye Medianoche, Cacao y Ciruela), estilo relieve y 8 bits, migración de preferencias |
 | `motor.py` | Stockfish 19 por defecto y `?sf=10` (por http local) |
 | `cfredirect.py` | Servidor que imita a Cloudflare (307 en `.html`) y jsDelivr con 403: instalación del SW y navegación sin red a `/`, `/index.html` y `/?x` |
@@ -37,6 +37,7 @@ Otras pruebas (todas se basan en el arnés de `run.py` y `coach.py`):
 | `apariencia_contraste.py` | ΔE00 y contraste de última jugada y selección sobre cada tablero (umbral documentado en el archivo) |
 | `capturas_apariencia.py` | Genera `docs/capturas/apariencia/` a 1280 y 390 |
 | `exp.py` | Explicaciones de errores |
+| `datos_ligeros.py` | Datos guardados ligeros: PGN de Chess.com sin relojes al abrir y al cargar, análisis de partidas que ya no están (conservan errores, explicación y comentario con IA), combinar con un dispositivo con datos pesados y huella de sincronización (`syncKey`) |
 | `maestro_analisis.py` | Análisis con el Maestro: importar (captura con lectura simulada, FEN, PGN pegado o en archivo, links de Chess.com y Lichess, partidas recientes, posiciones imposibles al editor), editor, explicaciones sin IA (también en posiciones decididas), tarjeta de modelos, ciclo con herramientas de la IA (Opus sin `thinking`, Sonnet `between_tools`), cancelación al salir, errores de la IA sin nombres de proveedor y auditoría móvil a 390 |
 
 Variables opcionales: `CASILLA_APP` (ruta del HTML, por defecto `../index.html`), `CASILLA_DEPS`, `CASILLA_OUT` (capturas, por defecto `tests/out/`). Revisa las capturas en escritorio y en móvil después de cambios visuales. 
