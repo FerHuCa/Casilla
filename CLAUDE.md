@@ -1,6 +1,6 @@
 # Casilla
 
-App de entrenamiento de ajedrez en **un solo `index.html`** (~600 KB, sin build), más `sw.js` (modo sin conexión) y `engine/` (Stockfish 19 lite). Interfaz, README y commits en español. Licencia GPL-3.0.
+App de entrenamiento de ajedrez en **un solo `index.html`** (~470 KB, sin build), más `sw.js` (modo sin conexión), `lib/chess.js`, `engine/` (Stockfish 19 lite) y `piece/` (sets de piezas que se piden al usarse). Interfaz, README y commits en español. Licencia GPL-3.0.
 
 - Producción: https://casilla.io (Cloudflare) y https://ferhuca.github.io/Casilla/. **Un push a `main` publica al instante.**
 - Stack: HTML/CSS/JS sin frameworks; chess.js y Stockfish en Web Worker; APIs de Chess.com, Lichess, GitHub Gists (sync) y Anthropic (opcional, con la key del usuario).
@@ -34,7 +34,7 @@ Un cambio que no mueva ningún criterio de éxito se discute con el dueño antes
 
 ## Reglas que no se rompen
 
-1. **Datos guardados:** no cambies `casilla.v1` ni la forma de `S` de modo incompatible; campos nuevos con default en `defaults()`.
+1. **Datos guardados:** no cambies `casilla.v1` ni la forma de `S` de modo incompatible; campos nuevos con default en `defaults()`. `pruneState` aligera datos al abrir y al combinar (PGN sin relojes, análisis de partidas que ya no están): no le agregues nada que borre errores, comentarios o progreso.
 2. **Secretos:** la API key de Claude y el token del gist solo viven en el navegador (`stripForSync`).
 3. **Commits** con identidad noreply, en español e imperativo:
    `git -c user.name=FerHuCa -c user.email=250413865+FerHuCa@users.noreply.github.com commit ...`
@@ -48,7 +48,7 @@ Un cambio que no mueva ningún criterio de éxito se discute con el dueño antes
 
 1. Edita `index.html` en una rama.
 2. Prueba: `cd tests && npm install && python3 run.py`, más la prueba del área tocada (`mobile.py` si cambió el layout).
-3. Si cambió `index.html` o algo precacheado, sube `VERSION` en `sw.js`.
+3. Si cambió `index.html` o algo precacheado, sube `VERSION` en `sw.js`. Es obligatorio: la app abre desde la copia guardada y sin `VERSION` nueva no aparece el aviso de actualización (el cambio llegaría hasta la segunda apertura).
 4. Actualiza README (si cambia algo visible) y los docs de abajo (si cambian símbolos o reglas).
 5. Pregunta antes de cualquier push.
 

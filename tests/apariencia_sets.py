@@ -10,7 +10,7 @@ import time, shutil, tempfile, threading, functools, http.server, re
 F=0
 def ck(ok,msg,extra=''):
     global F; F+=not ok; print('OK   ' if ok else 'FALLA ', msg, extra)
-SETS=['spatial','fantasy','shapes','firi','pirouetti','letter']
+SETS=['spatial','fantasy','shapes','firi','pirouetti','letter','merida','celtic','mpchess','chessnut','pixel','rhosgfx']  # todos menos Clásicas (cburnett), que va embebido
 NAMES=['wK','wQ','wR','wB','wN','wP','bK','bQ','bR','bB','bN','bP']
 LOADED="""s=>Promise.all(['wk','wq','wr','wb','wn','wp','bk','bq','br','bb','bn','bp'].map(c=>{
   const el=document.createElement('span'); el.className='pc p'+c; document.querySelector('#board').appendChild(el);
@@ -109,8 +109,17 @@ with sync_playwright() as p:
     r=pg.evaluate(LOADED,'spatial')
     ck(all(x and x[1] and '/piece/spatial/' in x[0] for x in r) and pg.evaluate("[document.documentElement.dataset.board,document.documentElement.dataset.pieces]")==['arce','spatial'], 'sin red: Spatial y Arce siguen desde la caché')
     pg.evaluate("S.settings.look={preset:'cuero',mode:'oscuro',board:'veteado',pieces:'pirouetti'}; save(); applyLook()")
-    pg.wait_for_function("document.documentElement.dataset.pieces==='celtic' && document.documentElement.dataset.board==='nogal'",timeout=10000)
-    ck(pg.evaluate("JSON.stringify(S.settings.look)")=='{"preset":"cuero","mode":"oscuro","board":"veteado","pieces":"pirouetti"}', 'sin red y sin caché: se ve el tablero y las piezas del estilo, sin perder la elección')
+    # Celtic (el set del estilo Cuero) tampoco está guardado: quedan las Clásicas embebidas y el tablero del estilo
+    pg.wait_for_function("document.documentElement.dataset.pieces==='cburnett' && document.documentElement.dataset.board==='nogal'",timeout=10000)
+    ck(pg.evaluate("JSON.stringify(S.settings.look)")=='{"preset":"cuero","mode":"oscuro","board":"veteado","pieces":"pirouetti"}', 'sin red y sin caché: tablero del estilo y piezas embebidas, sin perder la elección')
+    offline(ctx,False)
+    # Con el set del estilo ya guardado, ese es el respaldo
+    pg.evaluate("S.settings.look={preset:'cuero',mode:'oscuro'}; save(); applyLook()")
+    pg.evaluate(LOADED, 'celtic'); time.sleep(1)
+    offline(ctx,True)
+    pg.evaluate("S.settings.look={preset:'cuero',mode:'oscuro',pieces:'pirouetti'}; save(); applyLook()")
+    pg.wait_for_function("document.documentElement.dataset.pieces==='celtic'",timeout=10000)
+    ck(True, 'sin red: si el set elegido no está guardado pero el del estilo sí, se usa el del estilo')
     offline(ctx,False)
     pg.evaluate("S.settings.look={preset:'clasico',mode:'oscuro',board:'arce',pieces:'spatial'}; save(); applyLook()")
     # versión nueva: lo usado pasa a la caché nueva
@@ -124,7 +133,7 @@ with sync_playwright() as p:
         time.sleep(.25)
     time.sleep(1.5)
     got=pg.evaluate(CK)
-    ck(sorted(got)==sorted(['casilla-prueba-sets piece/spatial/'+n+'.svg' for n in NAMES]+['casilla-prueba-sets board/maple.jpg']), 'al actualizar, piece/ y board/ pasan a la caché nueva y se borra la vieja', '%d archivos'%len(got))
+    ck(sorted(got)==sorted(['casilla-prueba-sets piece/'+st+'/'+n+'.svg' for st in ('spatial','celtic') for n in NAMES]+['casilla-prueba-sets board/maple.jpg']), 'al actualizar, piece/ y board/ pasan a la caché nueva y se borra la vieja', '%d archivos'%len(got))
     offline(ctx,True); pg.reload(); pg.wait_for_function("Engine.ready",timeout=60000); time.sleep(.8)
     r=pg.evaluate(LOADED,'spatial')
     ck(all(x and x[1] for x in r) and pg.evaluate("document.documentElement.dataset.pieces")=='spatial', 'sin red tras actualizar: el set activo sigue')

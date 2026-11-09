@@ -7,5 +7,4 @@
 - **Links de Lichess:** no se confirmó que `lichess.org/game/export/{id}` responda a pedidos del navegador (el proxy bloquea Lichess). Si no responde, la app pide pegar el PGN.
 - **Links de Chess.com con `?move=N`:** se ignora el número; falta confirmar cómo cuenta Chess.com las jugadas para abrir en esa posición.
 - Las ramas `feat/maestro-analisis` y `feat/maestro-mejoras` ya están fusionadas en `main` y siguen en GitHub.
-
-
+- **Una sola regla para el tipo de error:** la evaluación a fondo clasifica con `rootCause` y el análisis por lotes con `quickCat`, y no siempre coinciden. Ejemplo de `tests/run.py`: 5. Nxf7 (la mejor era Bxf7+) sale «Táctica no vista» por lotes y puede salir «Error posicional» a fondo. Ya comparten el cálculo de posiciones, precisión y marcas (`evalPositions`, `analysisOf`); falta decidir qué regla queda, porque cambia los errores por tipo de Progreso.

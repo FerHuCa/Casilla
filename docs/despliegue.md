@@ -3,6 +3,7 @@
 - En local se abre con doble clic o como página estática (sin build).
 - Producción: https://casilla.io (Cloudflare Workers Builds; también casilla.murcielagolambo.workers.dev).
 - Alterna: https://ferhuca.github.io/Casilla/ (GitHub Pages, rama `main`, raíz).
+- `.assetsignore` deja fuera de Cloudflare `docs/capturas/` (19 MB) y `tests/`. GitHub Pages sí publica todo el repo.
 - Ambos se despliegan solos con cada push a `main`. Estado: `gh api repos/FerHuCa/Casilla/commits/<sha>/check-runs`.
 - Las ramas no se despliegan: en un PR el check «Workers Builds» de Cloudflare sale en falla y es normal (pasó en los PR #3 a #7). Solo cuenta el de `main`.
 - Desde el sandbox no se puede abrir casilla.io (el proxy bloquea github.io, cdnjs y el dominio): confirmar en un navegador después de publicar.

@@ -1,0 +1,4 @@
+# Archivos que Cloudflare no publica en casilla.io (misma sintaxis que .gitignore).
+# Las capturas son evidencia de mockups y pruebas: se ven en GitHub, la app no las usa.
+docs/capturas/
+tests/
