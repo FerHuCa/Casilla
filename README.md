@@ -307,3 +307,4 @@ Algunos archivos de terceros tienen otra licencia y la conservan:
 - Piezas Pixel, Pirouetti y Letras, y las texturas Arce y Veteado, están bajo **AGPL-3.0 o posterior** ([texto](docs/licencias/AGPL-3.0.txt)). La GPL-3.0 (sección 13) permite combinarlas con Casilla; esos archivos mantienen la obligación de ofrecer el código fuente a quien use la app por red. El código fuente completo está en https://github.com/FerHuCa/Casilla, enlazado desde el pie de la app.
 - Shapes (CC BY-SA 4.0) y Firi (CC BY 4.0) piden atribución, que va en el pie de la app y en esta página.
 - Copia de `COPYING.md` de lila (commit 02284e0), de donde salen autores y licencias: [docs/licencias/COPYING-lila.md](docs/licencias/COPYING-lila.md).
+- Reglas de ponytail v5.3.3 (MIT, Dietrich Gebert), copiadas en `AGENTS.md`. Aviso de copyright en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
