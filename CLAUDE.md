@@ -67,6 +67,7 @@ Un cambio está hecho solo si cumple todo esto:
 
 ## Más detalle (léelo solo si lo necesitas)
 
+- `AGENTS.md`: reglas para agentes, incluidos los pull requests.
 - `docs/mapa-index.md`: dónde está cada cosa dentro de `index.html`.
 - `docs/despliegue.md`: Cloudflare, Pages, check runs y cómo abrir PRs por API.
 - `docs/offline-y-dependencias.md`: service worker, precache, CDNs, memoria de puzzles y Claude en el análisis.
